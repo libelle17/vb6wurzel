@@ -61,7 +61,7 @@ Private Declare Function CreateProcess Lib "kernel32" Alias "CreateProcessA" (By
 Private Declare Function WaitForSingleObject Lib "kernel32" (ByVal hHandle As Long, ByVal dwMilliseconds As Long) As Long
 ' Ende Supershell
 
-Declare Function FindWindow& Lib "user32" Alias "FindWindowA" (ByVal lpClassName$, ByVal lpWindowName$)
+Declare Function FindWindow& Lib "User32" Alias "FindWindowA" (ByVal lpClassName$, ByVal lpWindowName$)
 Dim ErrNumber&, ErrDescr$, FNr&
 
 ' -----------------------------------------------------------------
@@ -188,18 +188,18 @@ Private Const SWP_NOSIZE = &H1 ' Do not re-size window
 Private Const SWP_SHOWWINDOW = &H40 ' Make window visible/active
 Public Const WM_CLOSE = &H10
 
-Private Declare Function GetWindowLong& Lib "user32" Alias "GetWindowLongA" (ByVal hwnd&, ByVal wIndx&)
-Private Declare Function GetWindowTextLength& Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd&)
-Private Declare Function GetWindowText& Lib "user32" Alias "GetWindowTextA" (ByVal hwnd&, ByVal lpString$, ByVal cch&)
-Private Declare Function GetParent& Lib "user32" (ByVal hwnd&)
-Private Declare Function GetWindowThreadProcessId& Lib "user32" (ByVal hwnd&, lpdwProcessId&)
-Private Declare Function GetDesktopWindow& Lib "user32" ()
-Private Declare Function GetWindow& Lib "user32" (ByVal hwnd&, ByVal wCmd&)
-Private Declare Function GetForegroundWindow& Lib "user32" ()
+Private Declare Function GetWindowLong& Lib "User32" Alias "GetWindowLongA" (ByVal hwnd&, ByVal wIndx&)
+Private Declare Function GetWindowTextLength& Lib "User32" Alias "GetWindowTextLengthA" (ByVal hwnd&)
+Private Declare Function GetWindowText& Lib "User32" Alias "GetWindowTextA" (ByVal hwnd&, ByVal lpString$, ByVal cch&)
+Private Declare Function GetParent& Lib "User32" (ByVal hwnd&)
+Private Declare Function GetWindowThreadProcessId& Lib "User32" (ByVal hwnd&, lpdwProcessId&)
+Private Declare Function GetDesktopWindow& Lib "User32" ()
+Private Declare Function GetWindow& Lib "User32" (ByVal hwnd&, ByVal wCmd&)
+Private Declare Function GetForegroundWindow& Lib "User32" ()
 Private Declare Function ShowWindow& Lib "user32.dll" (ByVal hwnd&, ByVal nCmdShow&)
 Private Declare Function SetWindowPos& Lib "user32.dll" (ByVal hwnd As Long, ByVal hWndInsertAfter As Long, ByVal x As Long, ByVal Y As Long, ByVal cx As Long, ByVal cy As Long, ByVal wFlags As Long)
-Private Declare Sub SetForegroundWindow Lib "user32" (ByVal hwnd&)
-Public Declare Function PostMessage& Lib "user32" Alias "PostMessageA" (ByVal hwnd&, ByVal wMsg&, ByVal wParam&, lParam As Any)
+Private Declare Sub SetForegroundWindow Lib "User32" (ByVal hwnd&)
+Public Declare Function PostMessage& Lib "User32" Alias "PostMessageA" (ByVal hwnd&, ByVal wMsg&, ByVal wParam&, lParam As Any)
 
 Private Type SECURITY_ATTRIBUTES
         nLength As Long
@@ -265,7 +265,7 @@ Private Sub GetWindowInfo(ByVal hwnd&)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetWindowInfo/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetWindowInfo/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -281,7 +281,7 @@ Private Sub Ini()
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Ini/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Ini/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -311,7 +311,7 @@ Public Sub EnumWindows()
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in EnumWindows/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in EnumWindows/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -374,7 +374,7 @@ On Error GoTo fehler
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WartAufProzeß/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WartAufProzeß/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -418,27 +418,27 @@ Function WarteAufAlt(Titel$, Tmax#)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WarteAufAlt/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WarteAufAlt/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
  End Select
 End Function ' WarteAufAlt
 
-Function SchauObDa(Titel$, Optional obdebug%)
+Function SchauObDa(Titel$, Optional obDebug%)
   Const fDatei0$ = "c:\schauobdadebug.txt"
   Dim i&
   On Error GoTo fehler
   Call EnumWindows
-  If obdebug Then Open fDatei0 For Output As #337
+  If obDebug Then Open fDatei0 For Output As #337
   For i = 1 To hWndList.COUNT
-   If obdebug Then Print #337, TitelList(i)
+   If obDebug Then Print #337, TitelList(i)
    If InStrB(TitelList(i), Titel) <> 0 Then
     SchauObDa = True
     Exit For
    End If
   Next i
-  If obdebug Then
+  If obDebug Then
    Close #337
    If SchauObDa = 0 Then
 '    Shell ("notepad " & fDatei0)
@@ -451,7 +451,7 @@ Function SchauObDa(Titel$, Optional obdebug%)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SchauObDa/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SchauObDa/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -503,7 +503,7 @@ Function WarteAuf(Titel$, Tmax#)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WarteAuf/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WarteAuf/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -540,7 +540,7 @@ Function WarteAufNicht(Titel$, Tmax#)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WarteAufNicht/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in WarteAufNicht/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -563,8 +563,8 @@ On Error GoTo ShellAndWaitForTerminationError
     ' This is v2 which is somewhat more reliable:
     hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, False, Shell(sShell, eWindowStyle))
     If (hProcess = 0) Then
-        sError = "This program could not determine whether the process started." & _
-             "Please watch the program AND check it completes."
+        sError = "Dieses Programm konnte nicht feststellen, ob der Prozess gestartet wurde." & _
+             "Bitte beobachten Sie das Programm und prüfen Sie, ob es fertig wird."
         ' Only fail IF there is an error - this can happen
         ' when the program completes too quickly.
     Else
@@ -619,6 +619,7 @@ Public Function SuSh&(ByVal App$, Optional alsAdm&, Optional ByVal WorkDir$, Opt
 '     IF CreateProcess(vbNullString, IIf(alsAdm = 1 OR (alsAdm = 2 AND runde = 2), vverz & doAlsAd & acceu & AdminGes & " ", "") & App, _
                      sec1, sec2, False, pclass, 0&, WorkDir, sinfo, pinfo) THEN
      If (alsAdm = 1 And runde = 1) Or ((alsAdm = 2 Or alsAdm = 3) And runde = 2) Then
+      If AdminPwd = "" Then AdminPwd = holap("Administrator")
       App = vVerz & doalsAd & acceu & AdminGes & " " & App ' wird nur einmal aufgerufen
      End If
      If CreateProcess(vbNullString, App, ByVal sec1, ByVal sec2, 0&, pclass, ByVal 0&, WorkDir, sInfo, pInfo) Then
@@ -648,7 +649,8 @@ Public Function m1tuAufruf&(ByRef App$, Optional alsAdm&, Optional ByVal WorkDir
          sInfo.cb = Len(sInfo)
          Dim runde&
          For runde = 1 To 2
-         lSuccess = CreateProcess(sNull, _
+          If AdminPwd = "" Then AdminPwd = holap("Administrator")
+          lSuccess = CreateProcess(sNull, _
                                  IIf(alsAdm = 1 Or (alsAdm = 2 And runde = 2), vVerz & doalsAd & acceu & AdminGes & " ", "") & App, _
                                  ByVal 0&, _
                                  ByVal 0&, _
@@ -659,17 +661,17 @@ Public Function m1tuAufruf&(ByRef App$, Optional alsAdm&, Optional ByVal WorkDir
                                  sInfo, _
                                  pInfo)
 
-         If lSuccess Then
+          If lSuccess Then
              WaitForSingleObject pInfo.hProcess, dwmillis
-         m1tuAufruf = True
-        Else
-         m1tuAufruf = False
-        End If
-        lRetValue = TerminateProcess(pInfo.hProcess, 0&)
-        lRetValue = CloseHandle(pInfo.hThread)
-        lRetValue = CloseHandle(pInfo.hProcess)
-        If m1tuAufruf Or (alsAdm < 2) Then Exit For
-       Next runde
+            m1tuAufruf = True
+          Else
+            m1tuAufruf = False
+          End If
+          lRetValue = TerminateProcess(pInfo.hProcess, 0&)
+          lRetValue = CloseHandle(pInfo.hThread)
+          lRetValue = CloseHandle(pInfo.hProcess)
+          If m1tuAufruf Or (alsAdm < 2) Then Exit For
+         Next runde
       End Function
 #End If
 
@@ -696,7 +698,7 @@ Function GFGW&()
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GFGW/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GFGW/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -719,7 +721,7 @@ Public Sub SwitchTo(hwnd&)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SwitchTo/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SwitchTo/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -878,7 +880,7 @@ Public Function GetProcessCollection(Optional obkill%, Optional Exe$) As Collect
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetProcessCollection /" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetProcessCollection /" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -899,7 +901,7 @@ Public Function ProcessName(ByVal CollectionString As String) As String
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ProcessName/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ProcessName/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -921,7 +923,7 @@ Public Function ProcessHandle(ByVal CollectionString As String) As Long
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ProcessHandle/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ProcessHandle/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -967,7 +969,7 @@ Public Function KillProcessByPID(ByVal pid As Long) As Boolean
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in KillProcessByPID/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in KillProcessByPID/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -992,7 +994,7 @@ Private Function TrimNullChar(ByVal s As String) As String
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in TrimNullChar/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in TrimNullChar/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1013,7 +1015,7 @@ Dim OSInfo As OSVERSIONINFO
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in IsWindowsNT/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in IsWindowsNT/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1032,7 +1034,7 @@ Function ProcIDFromWnd(ByVal hwnd As Long) As Long
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ProcIDFromWnd/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ProcIDFromWnd/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1065,7 +1067,7 @@ Function GetWinHandle(hInstance As Long) As Long
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetWinHandle/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetWinHandle/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1088,14 +1090,14 @@ Sub schließ_direkt(lWindowTitle$)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in schließ_direkt/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in schließ_direkt/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
  End Select
 End Sub ' schließ_direkt
 
-Function FensterHandle(Titel As String, Optional nr As Integer, Optional keinGroßKlein As Boolean) As Long
+Function FensterHandle(Titel As String, Optional nr As Integer, Optional keinGroßKlein As Boolean, Optional ByRef erg$) As Long
 Dim hwnd&, hW2&, gefunden%
 Dim ergstr As String * 255
 Dim lenge As Integer, e1 As Long
@@ -1109,27 +1111,30 @@ Do While zaehler < 2000
  ergstr = vNS
  e1 = GetWindowText(hwnd, ergstr, lenge)
  If e1 > 0 Then
+   Debug.Print "nr: " & nr & ", ergstr: " & ergstr
   If (Not keinGroßKlein And InStrB(ergstr, Titel) <> 0) Or (keinGroßKlein And InStrB(LCase$(ergstr), LCase$(Titel)) <> 0) Then
    nr = zaehler
+   Debug.Print "nr: " & nr & ", ergstr: " & ergstr
+   erg = ergstr
    FensterHandle = hwnd
-   Exit Function
+'   Exit Function
   End If
  End If
- 'Debug.Print LEFT(ergstr, 50), lenge, hwnd, e1
+' Debug.Print Left(ergstr, 50), lenge, hwnd, e1
  hW2 = GetWindow(hwnd, consta)
  If hW2 = hwnd Then
-    gefunden = True
-    Exit Do
+  gefunden = True
+  Exit Function
  End If
  hwnd = hW2
  zaehler = zaehler + 1
 Loop
-FensterHandle = 0
-  Exit Function
+'FensterHandle = 0
+Exit Function
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in FensterHandle/" + App.Path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in FensterHandle/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next

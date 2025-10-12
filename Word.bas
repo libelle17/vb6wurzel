@@ -60,6 +60,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' WappBuild
+
 Public Function WarteSekunden(sek#)
  Dim T1#, T2#
  T1 = Now
@@ -86,6 +87,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function
+
+' aufgerufen in: do_anzeigen_click, do_PhotoImpact_Click, cmdPreview_Click, tuBriefStandalone, testWied
 Public Sub GetWord()
  On Error GoTo fehler
   Set Wapp = getAppl("OpusApp", "Word.Application")
@@ -102,8 +105,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
-End Sub
+End Sub ' GetWord()
 
+' in GetWord
 Public Function getAppl(className, ObjName) As Object 'Word.Application
 
 ' Test to see IF there is a copy of Micr
@@ -119,7 +123,8 @@ On Error Resume Next
 vonvorne:
 Set getAppl = GetObject(, ObjName)
 If Err.Number <> 0 Then
- syscmd 4, "getApp1, Fehler: " & Err.Number & ":" & Err.Description
+' syscmd 4, "getApp1, Fehler: " & Err.Number & ":" & Err.Description
+ syscmd 4, "Muss 'word' noch aufrufen"
  WordWasNotRunning = True
 Else
  WordWasNotRunning = False
@@ -131,13 +136,13 @@ Err.Clear ' Clear Err object in Case Error occurred.
 ' .
 On Error GoTo fehler
 
-If WordWasNotRunning = True Then
+If WordWasNotRunning Then
 'Set the object variable to start a new
 ' instance of Word.
 neu:
 Select Case ObjName
  Case "Word.Application"
-  Set getAppl = CreateObject("Word.Application") 'wobj ' New Word.Application
+  Set getAppl = CreateObject(ObjName) 'wobj ' New Word.Application
  Case Else
 End Select
 End If

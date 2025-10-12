@@ -75,9 +75,9 @@ End Select
 End Function ' DBCnOSchema
 
 #If False Then
-Public Function syscmd(Art%, Optional Inhalt$)
+Public Function syscmd(art%, Optional Inhalt$)
  On Error Resume Next
- Select Case Art
+ Select Case art
   Case acSysCmdSetStatus ' 4
    Forms(0).Fuﬂ = Inhalt
   Case acSysCmdClearStatus ' 5
@@ -410,7 +410,9 @@ nochmal:
  LVobMySQL = Forms(0).obMySQL
  LVobMySQL = True ' 11.10.15
  Forms(0).obMySQL = LVobMySQL
+#If mitacc Then
  Forms(0).obAcc = Not Forms(0).obMySQL ' Kommentar 27.12.08
+#End If
  If obZinit Then Call Zinit(LVobMySQL)
  Set acon = Forms(0).dbv.wCn
 ' FUNCTION cnVorb$(DBName$, TBName$, Optional ‹$)
@@ -632,9 +634,10 @@ End Function ' acon
 Function DatFor_k$(DaT) ' for vb-Datumsformat oder vb-double (#)
  On Error GoTo fehler
  If IsNull(DaT) Then
-  DatFor_k = "null"
+  DatFor_k = "NULL"
  ElseIf (LVobMySQL) Then
-  DatFor_k = "'" + Format$(DaT, "yyyy-mm-dd hh:mm:ss") + "'"
+'  DatFor_k = "'" + Format$(DaT, "yyyy-mm-dd hh:mm:ss") + "'"
+  DatFor_k = Format$(DaT, "yyyymmddhhmmss")
  Else
   DatFor_k = "#" + Format$(DaT, "mm\/dd\/yy hh:mm:ss") + "#"
  End If

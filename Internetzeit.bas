@@ -189,6 +189,7 @@ Public Function GetData$(ByVal Sock&)
   TimeDelay = (T1 - T0) / 1000 / 2
 End Function ' GetData$(ByVal Sock&)
 
+' in holZeit
 Public Function SyncClock(tStr$) As Date
     Dim NTPTime#
     Dim LngTimeFrom1990&
@@ -199,9 +200,9 @@ Public Function SyncClock(tStr$) As Date
       SyncClock = CDate(0)
       Exit Function
     End If
-    NTPTime = Asc(Left$(tStr, 1)) * 256 ^ 3 + _
-              Asc(Mid$(tStr, 2, 1)) * 256 ^ 2 + _
-              Asc(Mid$(tStr, 3, 1)) * 256 ^ 1 + _
+    NTPTime = Asc(Left$(tStr, 1)) * 256& ^ 3 + _
+              Asc(Mid$(tStr, 2, 1)) * 256& ^ 2 + _
+              Asc(Mid$(tStr, 3, 1)) * 256& ^ 1 + _
               Asc(Right$(tStr, 1))
     LngTimeFrom1990 = NTPTime - 2840140800#
     UTCDATE = DateAdd("s", CDbl(LngTimeFrom1990 + CLng(TimeDelay)) + CurrentBias() * 60, #1/1/1990#)

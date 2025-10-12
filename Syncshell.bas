@@ -34,6 +34,7 @@ hThread     As Long
 dwProcessID As Long
 dwThreadID  As Long
 End Type
+
 Public Function Syncshell(CommandLine As String, Optional Timeout As Long, Optional WaitForInputIdle As Boolean, Optional Hide As Boolean = False) As Boolean
     Dim hProcess As Long
     Dim ret As Long
@@ -51,7 +52,8 @@ Public Function Syncshell(CommandLine As String, Optional Timeout As Long, Optio
     End If
     CloseHandle hProcess       ' "True" zurückgeben, wenn die Anwendung fertig ist.    ' Andernfalls Zeitüberschreitung oder Fehler.
     Syncshell = (ret = WAIT_OBJECT_0)
-End Function
+End Function ' Syncshell
+
 Public Function StartProcess(CommandLine As String, Optional Hide As Boolean = False) As Long
 Const STARTF_USESHOWWINDOW As Long = &H1
 Const SW_HIDE As Long = 0
@@ -64,4 +66,4 @@ Start.wShowWindow = SW_HIDE
 End If    ' Eingeschlossene Anwendung starten:
 CreateProcessA 0&, CommandLine, 0&, 0&, 1&, NORMAL_PRIORITY_CLASS, 0&, 0&, Start, proc
 StartProcess = proc.hProcess
-End Function
+End Function ' StartProcess

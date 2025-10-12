@@ -228,7 +228,7 @@ End Property ' Set Right
 
 ' the Mid function
 ' one- AND two-params syntaxes are supported
-Property Get Mid(ByVal StartPos&, Optional NumChars As Variant) As CString
+Property Get cMid(ByVal StartPos&, Optional NumChars As Variant) As CString
     Dim Bytes As Long
     ' raise error IF the first parameter is invalid
     If StartPos < 0 Then Err.Raise 5, TypeName(Me), "Invalid starting position"
@@ -248,15 +248,15 @@ Property Get Mid(ByVal StartPos&, Optional NumChars As Variant) As CString
     End If
 
     ' create a new CString object
-    Set Mid = New CString
+    Set cMid = New CString
     If StartPos <= m_Len And StartPos > 0 Then
-        Mid.CopyData VarPtr(chars(StartPos - 1)), Bytes
+        cMid.CopyData VarPtr(chars(StartPos - 1)), Bytes
     End If
 End Property ' Get Mid(
 
 ' replace a portion of the string with another string
 ' IF the second parameter is omitted, the string is replaced up to its end
-Property Let Mid(ByVal StartPos&, Optional NumChars As Variant, NewValue As Variant)
+Property Let cMid(ByVal StartPos&, Optional NumChars As Variant, NewValue As Variant)
     Dim Bytes As Long
     ' raise error IF the first parameter is invalid
     If StartPos < 0 Then Err.Raise 5, TypeName(Me), "Invalid starting position"
@@ -283,7 +283,7 @@ End Property ' Let Mid
 
 ' replace a portion of the string with another CString object
 ' IF the second parameter is omitted, the string is replaced up to its end
-Property Set Mid(ByVal StartPos&, Optional NumChars As Variant, NewValue As CString)
+Property Set cMid(ByVal StartPos&, Optional NumChars As Variant, NewValue As CString)
     Dim Bytes As Long
     ' raise error IF the first parameter is invalid
     If StartPos < 0 Then Err.Raise 5, TypeName(Me), "Invalid starting position"
@@ -437,7 +437,29 @@ fehler:
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.Path
+ AnwPfad = App.path
+#End If
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in AppVar/" + AnwPfad)
+ Case vbAbort: Call MsgBox("H�re auf"): ProgEnde
+ Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
+ Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
+End Select
+End Function ' AppVar(arg
+' append one OR more strings OR CString objects (returns Me)
+
+Function AppVrH(ByRef arg As Variant) As CString
+ Dim i%
+ On Error GoTo fehler
+ For i = 0 To UBound(arg)
+  Call appH((arg(i))) ' ByRef unvertr�glich
+ Next i
+ Exit Function
+fehler:
+ Dim AnwPfad$
+#If VBA6 Then
+ AnwPfad = CurrentDb.name
+#Else
+ AnwPfad = App.path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in AppVar/" + AnwPfad)
  Case vbAbort: Call MsgBox("H�re auf"): ProgEnde
@@ -497,7 +519,7 @@ fehler:
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.Path
+ AnwPfad = App.path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in Append/" + AnwPfad)
  Case vbAbort: Call MsgBox("H�re auf"): ProgEnde
@@ -505,6 +527,87 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' Append
+
+Function appH$(ByRef Quelle$)
+ Dim i&, ZS$, bz$, bqb$, bq%
+ On Error GoTo fehler
+ For i = 1 To Len(Quelle)
+  bqb = Mid$(Quelle, i, 1)
+'  If bqb = "�" Then Stop
+  bq = AscW(bqb)
+  Select Case bq
+   Case 13
+    If i < Len(Quelle) Then bz = "<w:br/>" ' das letzte Zeilenumbruchszeichen wird durch Absatzformatierung erf�llt
+#If mitkleinergroesser Then
+   Case 60, 62 ' , Is >= 128
+    bz = "&#" & bq & ";"
+#End If
+'   Case Else
+'    bz = bqb
+   Case Is < 128
+      bz = bqb
+   Case 128: bz = "€" ' Chr(&HE2) & Chr(&H82) & Chr(&HAC) ' �
+   Case 129: bz = Chr$(&HC2) & Chr$(&H81)
+   Case 130: bz = "‚" ' �
+   Case 131: bz = "ƒ"  ' �
+   Case 132: bz = "„" ' �
+   Case 133: bz = " " ' �
+   Case 134: bz = "†" '
+   Case 135: bz = "‡"
+   Case 136: bz = "ˆ"
+   Case 137: bz = "‰"
+   Case 138: bz = "Š"
+   Case 139: bz = "‹"
+   Case 140: bz = "Œ"
+   Case 141: bz = Chr$(&HC2) & Chr$(&H8D)
+   Case 142: bz = "Ž"
+   Case 143: bz = Chr$(&HC2) & Chr$(&H8F)
+   Case 144: bz = Chr$(&HC2) & Chr$(&H90)
+   Case 145: bz = Chr$(&HE2) & Chr$(&H80) & Chr$(&H98)
+   Case 146: bz = "’"
+   Case 147: bz = "“"
+   Case 148: bz = Chr$(&HE2) & Chr$(&H80) & Chr$(&H9D)
+   Case 149: bz = "•"
+   Case 150: bz = "–"
+   Case 151: bz = "—"
+   Case 152: bz = "˜"
+   Case 153: bz = "™"
+   Case 154: bz = "š"
+   Case 155: bz = "›"
+   Case 156: bz = "œ"
+   Case 157: bz = Chr$(&HC2) & Chr$(&H9D)
+   Case 158: bz = "ž"
+   Case 159: bz = "Ÿ"
+   Case 8226:
+        bz = "•" ' �
+   Case Is < 192
+      bz = Chr$(&HC2) & bqb
+   Case Is < 256
+     bz = Chr$(&HC3) & Chr$(bq - 64)
+   Case Is < 320
+     bz = Chr$(&HC4) & Chr$(bq - 64)
+   Case Is < 384
+     bz = Chr$(&HC5) & Chr$(bq - 192)
+   Case Else
+     bz = "?"
+  End Select
+  Append bz
+ Next i
+ Exit Function
+fehler:
+ Dim AnwPfad$
+#If VBA6 Then
+ AnwPfad = CurrentDb.name
+#Else
+ AnwPfad = App.path
+#End If
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ZSUh/" + AnwPfad)
+ Case vbAbort: Call MsgBox("H�re auf"): ProgEnde
+ Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
+ Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
+End Select
+End Function ' zsuh
+
 
 ' search a substring USING Boyer & Moore algorithm
 Function Find&(search$, Optional StartPos& = 1)

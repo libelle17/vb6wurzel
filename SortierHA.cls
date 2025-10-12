@@ -12,6 +12,7 @@ Attribute VB_Creatable = True
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
+Option Compare Text ' 1.10.25
 'lokale Variable(n) zum Zuweisen der Eigenschaft(en)
 'Private mvarInhalt AS Variant 'lokale Kopie
 Private mv‹WNr$
@@ -49,7 +50,7 @@ Public Function istKleinerAls(ByRef E2) As Boolean
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.Name
+ AnwPfad = CurrentDb.name
 #Else
  AnwPfad = App.path
 #End If
@@ -70,7 +71,7 @@ Public Function unGleich(ByRef E2) As Boolean
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.Name
+ AnwPfad = CurrentDb.name
 #Else
  AnwPfad = App.path
 #End If

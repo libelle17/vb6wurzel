@@ -249,13 +249,13 @@ End Enum
 ' Dim ZielVerbindung$ ' wird nicht mehr verwendet 5.10.24
 
 Function GetServr$(DBCn As ADODB.Connection)
- Dim spos&, sp2&, cs$
- cs = DBCn.Properties("Extended Properties")
- spos = InStr(1, cs, "server=", vbTextCompare)
+ Dim spos&, sp2&, CS$
+ CS = DBCn.Properties("Extended Properties")
+ spos = InStr(1, CS, "server=", vbTextCompare)
  If spos <> 0 Then
-  sp2 = InStr(spos, cs, ";")
-  If sp2 = 0 Then sp2 = Len(cs)
-  GetServr = Mid$(cs, spos + 7, sp2 - spos - 7)
+  sp2 = InStr(spos, CS, ";")
+  If sp2 = 0 Then sp2 = Len(CS)
+  GetServr = Mid$(CS, spos + 7, sp2 - spos - 7)
  End If ' spos <> 0 Then
 End Function ' GetServr
 
@@ -481,9 +481,9 @@ Private Sub MachAlle_Click()
        Exit For
       End If
      Next i
-    Else
+    Else ' Not FSO.FolderExists(Me.SchreibenAuf) Then
      Exit Do
-    End If
+    End If ' Not FSO.FolderExists(Me.SchreibenAuf) Then else
    Loop
    Dim altDBCn$
    altDBCn = DBCn
@@ -2273,14 +2273,14 @@ Function sAusf(sql$, Optional obRückg%, Optional rAf&, Optional obtolerant%, Opt
     Print #299, Space$(Einzug) & " call doex(""" & nskurz & IIf(obtolerant, "-1", "0") & ")"
    Else
     Print #299, Space$(Einzug) & " call doex(""" & nsql.Left(900) & """ & _ "
-    Set nsql = nsql.Mid(901)
+    Set nsql = nsql.cMid(901)
     Do
      If nsql.length <= 900 Then
       Print #299, Space$(Einzug) & """" & nsql & """," & IIf(obtolerant, "-1", "0") & ")"
       Exit Do
      Else
       Print #299, Space$(Einzug) & """" & nsql.Left(900) & """ & _ "
-      Set nsql = nsql.Mid(901)
+      Set nsql = nsql.cMid(901)
      End If
     Loop
    End If
@@ -2293,19 +2293,19 @@ Function sAusf(sql$, Optional obRückg%, Optional rAf&, Optional obtolerant%, Opt
    Do
     If Len(sql) <= 900 Then
      Print #299, Space$(Einzug) & " nsql = nsql & """ & nsql.Left(900) & """"
-     Set nsql = nsql.Mid(901)
+     Set nsql = nsql.cMid(901)
      Exit Do
     Else
      Print #299, Space$(Einzug) & " nsql = nsql & """ & nsql.Left(900) & """ & _ "
-     Set nsql = nsql.Mid(901)
+     Set nsql = nsql.cMid(901)
      For i = 0 To 5
       If Len(nsql) <= 900 Or i = 5 Then
        Print #299, Space$(Einzug) & """" & nsql.Left(900) & """"
-       Set nsql = nsql.Mid(901)
+       Set nsql = nsql.cMid(901)
        Exit For
       Else
        Print #299, Space$(Einzug) & """" & nsql.Left(900) & """ & _ "
-       Set nsql = nsql.Mid(901)
+       Set nsql = nsql.cMid(901)
       End If
      Next i
      If nsql.length = 0 Then Exit Do
@@ -2368,14 +2368,14 @@ Function Ausf(ByRef Befehl$)
     Print #299, nbefehl
    Else
     Print #299, nbefehl.Left(900) & """ & _ "
-    Set nbefehl = nbefehl.Mid(901)
+    Set nbefehl = nbefehl.cMid(901)
     Do
      If nbefehl.length <= 900 Then
       Print #299, Space$(Einzug) & """" & nbefehl
       Exit Do
      Else
       Print #299, Space$(Einzug) & """" & nbefehl.Left(900) & """ & _ "
-      Set nbefehl = nbefehl.Mid(901)
+      Set nbefehl = nbefehl.cMid(901)
      End If
     Loop
    End If
@@ -2388,19 +2388,19 @@ Function Ausf(ByRef Befehl$)
 '   Do
 '    IF Len(sql) <= 900 THEN
 '     Print #299, Space$(Einzug) & " nbefehl = nbefehl & """ & nbefehl.Left(900) & """"
-'     SET nbefehl = nbefehl.Mid(901)
+'     SET nbefehl = nbefehl.cMid(901)
 '     Exit Do
 '    Else
 '     Print #299, Space$(Einzug) & " nbefehl = nbefehl & """ & nbefehl.Left(900) & """ & _ "
-'     SET nbefehl = nbefehl.Mid(901)
+'     SET nbefehl = nbefehl.cMid(901)
 '     For i = 0 To 5
 '      IF Len(nbefehl) <= 900 OR i = 5 THEN
 '       Print #299, Space$(Einzug) & """" & nbefehl.Left(900) & """"
-'       SET nbefehl = nbefehl.Mid(901)
+'       SET nbefehl = nbefehl.cMid(901)
 '       Exit For
 '      Else
 '       Print #299, Space$(Einzug) & """" & nbefehl.Left(900) & """ & _ "
-'       SET nbefehl = nbefehl.Mid(901)
+'       SET nbefehl = nbefehl.cMid(901)
 '      END IF
 '     Next i
 '     IF nbefehl.Length = 0 THEN Exit Do

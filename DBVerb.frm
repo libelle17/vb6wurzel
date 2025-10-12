@@ -1648,7 +1648,7 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' Auswahl
 
-Public Function Ausgeb(Text$, obDauer%)
+Function Ausgeb(Text$, obDauer%)
  Dim aktText As New CString
  If Not Me.Visible Then
 '  Debug.Print Text

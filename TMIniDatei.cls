@@ -16,7 +16,7 @@ Attribute VB_Ext_KEY = "SavedWithClassBuilder6" ,"Yes"
 Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
 Attribute VB_Ext_KEY = "Member0" ,"TMIniDatei"
 'lokale Variable(n) zum Zuweisen der Eigenschaft(en)
-#Const obdebug = 0
+#Const obDebug = 0
 Private mvLoc As TMIniSectionColl, mvLocAlt As TMIniSectionColl 'lokale Kopie
 Private mvGlob As TMIniSectionColl, mvGlobAlt As TMIniSectionColl 'lokale Kopie
 Public TMVerz$ ' TurbomedVerzeichnis mit Programm
@@ -116,7 +116,7 @@ Public Function GetProp$(Sec$, Nam$)
   Err.Clear
   GetProp = mvGlob.Item(Sec).UnterEig(Nam).Inhalt
   If Err.Number = 91 Then
-#If obdebug Then
+#If obDebug Then
    GetProp = "Fehler: Eigenschaft '" + Sec + "'/'" + Nam + "' nicht gefunden!"
 #End If
   End If

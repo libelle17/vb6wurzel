@@ -20,6 +20,7 @@ Private mv‹wNm$
 Private mvName$
 Private mvPat_ID&
 Private mvobDMPInfo%
+Public sCa& ' Index des zugehordneten Arztes (HASL)
 Public gew‰hlt%
 Private mvarIndex As Long 'lokale Kopie
 Public Property Let Index(ByVal vData As Long)
