@@ -10,6 +10,31 @@ Dim RegPos$
 Public SturmPwd$, AdminPwd$, AdminGes$ ' "-u administrator -p <AdminPwd>"
 Public Declare Function GetFileAttributes& Lib "kernel32.dll" Alias "GetFileAttributesA" (ByVal lpFileName$)
 
+' in DMP_in_MO_importieren_1_Click() und in DMP_in_MO_importieren_2_Click()
+Public Function ausfsyn&(Befehl$, Focus As VbAppWinStyle)
+ Dim RetVal&
+ Dim wsh As IWshShell
+ Dim WaitForTermination%
+ On Error GoTo fehler
+ Set wsh = New IWshShell_Class
+ WaitForTermination = True
+ ausfsyn = wsh.rUn(Befehl, Focus, WaitForTermination)
+ Set wsh = Nothing
+ Exit Function
+ Dim AnwPfad$
+#If VBA6 Then
+ AnwPfad = CurrentDb.name
+#Else
+ AnwPfad = App.path
+#End If
+fehler:
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ausfsyn()/" + AnwPfad)
+  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
+  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
+  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
+ End Select
+End Function ' ausfsyn
+
 ' aufgerufen in holap
 Private Function RegInh$(schl$, Optional nuranfangs%)
  Static angefangen%, altSchl$

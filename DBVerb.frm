@@ -517,7 +517,7 @@ Dim opt&
 Public RegPos$
 Public ‹2$ ' soll DBVerb innerhalb eines Programms mit verschiedenen Inhalten gef¸llt werden, dann kann hier Unterscheidung getroffen werden (f¸r ‹berschrift und Registry)
 Private BedTbl$() ' Tabellen, die in der Datenbank vorhanden sein m¸ssen
-Public wCn As New ADODB.Connection
+Public wCn As New Adodb.Connection
 Attribute wCn.VB_VarHelpID = -1
 Public Event wCnAendern(CnStr$)
 Dim zuRaisen%
@@ -870,7 +870,7 @@ fehler:
 End Sub ' Form_KeyDown(
 
 Private Sub NurLauf_Click()
- Dim rTs As New ADODB.Connection
+ Dim rTs As New Adodb.Connection
 ' dim rs As New ADODB.Recordset ' geht auch nicht schneller
  Dim i&, otrei$, odb$
  On Error GoTo fehler
@@ -982,7 +982,7 @@ End Sub ' Form_Activate()
 
 ' aufgerufen in Form_Load
 Private Sub RegLaden(‹$, Optional nuranfangs%)
- Dim neuS$, neuB&
+ Dim neus$, neuB&
  Static angefangen%, alt‹$
  Dim cR As New Registry
  If Not nuranfangs Or Not angefangen Or alt‹ <> ‹ Then
@@ -990,31 +990,31 @@ Private Sub RegLaden(‹$, Optional nuranfangs%)
   changeStill = True
   RegPos = RegWurzel & App.EXEName & "\DBVerb"
   If LenB(‹2) <> 0 Then RegPos = RegPos & "\" & ‹
-  neuS = cR.ReadKey("ODBC", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.ODBC = neuS
-  neuS = cR.ReadKey("Paﬂwort", RegPos, HKEY_CURRENT_USER)
+  neus = cR.ReadKey("ODBC", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.ODBC = neus
+  neus = cR.ReadKey("Paﬂwort", RegPos, HKEY_CURRENT_USER)
 '  IF neuS <> vns THEN ' Kommentar 15.8.09 wg. Faxdopp, f¸r Access Paﬂwort leer
-   Me.Paﬂwort = neuS
+   Me.Paﬂwort = neus
 '  END IF
-  neuS = cR.ReadKey("Datenbank", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.DaBa = neuS Else Me.DaBa = vNS
-  neuS = cR.ReadKey("uid", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.uid = neuS
+  neus = cR.ReadKey("Datenbank", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.DaBa = neus Else Me.DaBa = vNS
+  neus = cR.ReadKey("uid", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.uid = neus
   If LenB(Me.uid) = 0 Then Me.uid = "mysql"
-  neuS = cR.ReadKey("pwd", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.pwd = neuS Else If LenB(Me.DaBa) = 0 Then Me.pwd = vNS
-  neuS = cR.ReadKey("server", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.Cpt = neuS
-  neuS = cR.ReadKey("options", RegPos, HKEY_CURRENT_USER)
+  neus = cR.ReadKey("pwd", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.pwd = neus Else If LenB(Me.DaBa) = 0 Then Me.pwd = vNS
+  neus = cR.ReadKey("server", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.Cpt = neus
+  neus = cR.ReadKey("options", RegPos, HKEY_CURRENT_USER)
   If neuB <> 0 Then opt = neuB
-  neuS = cR.ReadKey("Datei", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.Datei = neuS Else Me.Datei = vNS
-  neuS = cR.ReadKey("Benutzer", RegPos, HKEY_CURRENT_USER)
-  If LenB(neuS) <> 0 Then Me.Benutzer = neuS
+  neus = cR.ReadKey("Datei", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.Datei = neus Else Me.Datei = vNS
+  neus = cR.ReadKey("Benutzer", RegPos, HKEY_CURRENT_USER)
+  If LenB(neus) <> 0 Then Me.Benutzer = neus
   If LenB(Me.Benutzer) = 0 Or LenB(Me.Datei) = 0 Then Me.Benutzer = "admin"
-  neuS = cR.ReadKey("DBKennw", RegPos, HKEY_CURRENT_USER)
+  neus = cR.ReadKey("DBKennw", RegPos, HKEY_CURRENT_USER)
 '  neuS = fWertLesen(HCU, RegPos, "DBKennw")
-  If LenB(neuS) <> 0 Then Me.DBKennw = neuS Else If LenB(Me.Datei) = 0 Then Me.DBKennw = vNS
+  If LenB(neus) <> 0 Then Me.DBKennw = neus Else If LenB(Me.Datei) = 0 Then Me.DBKennw = vNS
   Call setzeOpt
   changeStill = False
   angefangen = True
@@ -1029,6 +1029,7 @@ fehler:
  End Select
 End Sub ' regladen
 
+' in Form_Unload
 Public Sub RegSpeichern()
  Dim cR As New Registry
  On Error GoTo fehler
@@ -1202,7 +1203,7 @@ again:
 End Function ' doVerbind
 
 Sub zeigdatenbanken()
- Dim rSch As New ADODB.Recordset, rs1 As New ADODB.Recordset, obMySQL%, i&, j&
+ Dim rSch As New Adodb.Recordset, rs1 As New Adodb.Recordset, obMySQL%, i&, j&
  Dim tTbl%() ' teste Tabellen: wenn true, ist die jeweilige BedTbl enthalten
  Static altwcn$, altobfilter%
  On Error GoTo fehler
@@ -1312,7 +1313,7 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Sub ' zeigdatenbanken
 
 Sub zeigtabellen()
- Dim rSch As New ADODB.Recordset, rs1 As New ADODB.Recordset, obMySQL%
+ Dim rSch As New Adodb.Recordset, rs1 As New Adodb.Recordset, obMySQL%
  Me.Tabellen = vNS
 ' IF wCn.ConnectionString = "Provider=MSDASQL.1;" THEN
 '  obMySQL = (wCn.Properties("DBMS Name") = "MySQL")
@@ -1347,7 +1348,7 @@ End Sub ' zeigTabellen
 Sub Verbind()
  Static DBChange%
  Dim i&, erg%, altUser$
- Dim rs As New ADODB.Recordset, rs1 As New ADODB.Recordset
+ Dim rs As New Adodb.Recordset, rs1 As New Adodb.Recordset
 ' IF Me.Cpt = vns THEN Call RegLaden
  If UCase$(Me.Cpt) <> UCase$(lCpt) Or UCase$(Me.Benutzer) <> UCase$(lBenutzer) Or Me.Paﬂwort <> lPaﬂwort Or UCase$(lODBC) <> UCase$(Me.ODBC) Or UCase$(Me.uid) <> UCase$(luid) Or UCase$(Me.pwd) <> UCase$(lpwd) Then
   Screen.MousePointer = vbHourglass
@@ -1688,16 +1689,16 @@ End Function ' Ausgeb
 
 ' 15.10.10: scheint nicht vorzukommen
 ' 28.6.24: nur in testgetAllDB
-Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Optional pwd$ = "...", Optional obLeere%, Optional acSt)
+Function getAllDB%(Tabl$, acn() As Adodb.Connection, Optional uid$ = "...", Optional pwd$ = "...", Optional obLeere%, Optional acSt)
  Dim Cpt, db$, eintragen%, Stri(1) As New CString, i%, runde%, ErrNr&
- Dim MyCn As ADODB.Connection, rdb As ADODB.Recordset, rHa As New ADODB.Recordset
+ Dim MyCn As Adodb.Connection, rdb As Adodb.Recordset, rHa As New Adodb.Recordset
  ReDim acn(0)
  ReDim acSt(0)
  Call Me.ShowAllDomains
  For runde = 1 To 2
   For Each Cpt In CptN
    If (runde = 1 And Cpt = LiName) Or (runde = 2 And Cpt <> LiName) Then
-   Set MyCn = New ADODB.Connection
+   Set MyCn = New Adodb.Connection
    On Error Resume Next
    Err.Clear
    Stri(0) = "Provider=MSDASQL.1;Extended Properties=""DRIVER={" & ODBCStr & "};OPTION=3;PWD="
@@ -1736,7 +1737,7 @@ Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Opti
      End If ' lenb(tabl)<>0
      On Error GoTo fehler
      If eintragen Then
-      Set acn(UBound(acn)) = New ADODB.Connection
+      Set acn(UBound(acn)) = New Adodb.Connection
       Dim VorL‰nge&
       VorL‰nge = Stri(0).length
       Stri(0).Cut (VorL‰nge - 1)

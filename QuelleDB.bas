@@ -23,12 +23,12 @@ Public CStrHAE$ ' Connection String für Hausärzte
 Public ifexists$, ifnotexists$, sqliif$, sqllen$, sqlALTER$, sqltodays$, sqlfloor$, sqlText$, sqlmemo$, sqlBool$, sqlDeletefrom$, sqlIGNORE$, sqlStern$, sqlPlus$, sqlAutoIncr$, sqlLong$ ' Klammer auf, Klammer zu für Tabellen- und Feldnamen in Access ``, in MySQL `` ' kla$, klz$,
 'Public MyDB$ ' quelle, quelle1, quelle2
 'Public ConStr$ ' Connection String
-Public HAECn As New ADODB.Connection
+Public HAECn As New Adodb.Connection
 'Public HACnS$ ' desgleichen für HACn
-Public FxCn As New ADODB.Connection ' Kommentar hinter FxCn wieder entfernt 3.12.22 für FaxAkt
+Public FxCn As New Adodb.Connection ' Kommentar hinter FxCn wieder entfernt 3.12.22 für FaxAkt
 Public FxCnS$ ' Für Windows 7
-Public FtCn As New ADODB.Connection
-Public OffCn As New ADODB.Connection
+Public FtCn As New Adodb.Connection
+Public OffCn As New Adodb.Connection
 Public KVÄDatei$
 Public AnamneseVerZeichnis$
 Public LVobMySQL As Boolean ' ob letzte Verbindung MySQL
@@ -49,7 +49,7 @@ Public Enum ConDtb
  q2Dtb
 End Enum ' ConDtb
 
-Public Function DBCnOSchema(adSc As SchemaEnum, Crit, Optional SchemaID) As ADODB.Recordset
+Public Function DBCnOSchema(adSc As SchemaEnum, Crit, Optional SchemaID) As Adodb.Recordset
  On Error GoTo fehler
 ' SET DBCnOSchema = DBCn.OpenSchema(adSc, Crit, SchemaID)
   Set DBCnOSchema = myEFrag("SELECT * FROM information_schema.columns WHERE table_catalog='def' AND table_schema='" & IIf(DBCn.DefaultDatabase = "", Forms(0).MyDB, DBCn.DefaultDatabase) & "' AND TABLE_NAME='" & Crit(2) & "' AND is_generated='NEVER'")
@@ -347,7 +347,7 @@ End Select
 End Function ' DBName
 
 ' in Vergleiche
-Public Function acon(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccName$, Optional DBName$, Optional CnStr$, Optional obZinit%, Optional obregneu%, Optional ohneFallzeig%) As ADODB.Connection
+Public Function acon(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccName$, Optional DBName$, Optional CnStr$, Optional obZinit%, Optional obregneu%, Optional ohneFallzeig%) As Adodb.Connection
  Static altcdTB As ConDtb
  Dim erg$
  On Error GoTo fehler
@@ -698,14 +698,14 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' SelDatum
 
-Public Function AccOpen(ByRef accrs As ADODB.Recordset, ByRef sql$, ByRef Pfad$)
+Public Function AccOpen(ByRef accrs As Adodb.Recordset, ByRef sql$, ByRef Pfad$)
  Set accrs = Nothing
  accrs.Open sql, CStrAcc & Pfad, adOpenStatic, adLockReadOnly
 End Function ' AccOpen
 
-Public Function xlsopen(ByRef accrs As ADODB.Recordset, ByRef Pfad$)
+Public Function xlsopen(ByRef accrs As Adodb.Recordset, ByRef Pfad$)
  Const XStrb = ";Extended Properties=""Excel 8.0;HDR=no;IMEX=1"""
- Static XlsCon As New ADODB.Connection
+ Static XlsCon As New Adodb.Connection
  Static rX As New ADOX.Catalog
  Set XlsCon = Nothing
 ' XCon.Open XStra & Me.Datei & XStrb
@@ -718,7 +718,7 @@ End Function ' xlsopen
 Public Function KVAccSuch$()
  Dim Fls As Files, Fl As File, lastDat#
  Dim FSO As New FileSystemObject
- Dim rKv As New ADODB.Recordset
+ Dim rKv As New Adodb.Recordset
  On Error GoTo fehler
    AnamneseVerZeichnis = AnamneseVerZeichnis1
    If LenB(KVÄDatei) = 0 Or Not FSO.FileExists(KVÄDatei) Then
@@ -798,14 +798,14 @@ End Function ' KVAccSuch
 
 #If False Then
 Public Function doSortierungÄndern()
- Dim rs As New ADODB.Recordset, rdb As ADODB.Recordset, rt As ADODB.Recordset, rc As ADODB.Recordset
- Dim rAf&, altDefDB$
+ Dim rs As New Adodb.Recordset, rdb As Adodb.Recordset, rt As Adodb.Recordset, rc As Adodb.Recordset
+ Dim rAF&, altDefDB$
     Dim sql$, sql0$
  If Not LVobMySQL Then Exit Function
  altDefDB = DefDB(DBCn)
  Set rdb = myEFrag("SHOW DATABASES WHERE `database` NOT IN ('mysql','information_schema') AND `database` = 'quelle2'")
  Do While Not rdb.EOF
-  myEFrag "USE `" & rdb!Database & "`", rAf
+  myEFrag "USE `" & rdb!Database & "`", rAF
   myEFrag ("SET foreign_key_checks=0")
 '  SET rs = myEFrag("SHOW VARIABLES WHERE variable_name = 'collation_database' AND value = '" & altColl & "'")
 '  IF Not rs.EOF THEN
@@ -829,7 +829,7 @@ Public Function doSortierungÄndern()
     Loop
     sql = Left$(sql, Len(sql) - 1)
     If sql <> sql0 Then
-     myEFrag sql, rAf
+     myEFrag sql, rAF
 '     Debug.Print rAF & ": " & sql
     End If
     rt.Move 1
@@ -861,19 +861,19 @@ End Function 'doSortierungÄndern
 
 Public Function doSortierungÄndern0()
  Const altColl$ = "latin1_german1_ci", neuColl$ = "utf8mb4_german2_ci" 'neuColl$ = "latin1_german2_ci"
- Dim rs As New ADODB.Recordset, rdb As ADODB.Recordset, rt As ADODB.Recordset, rc As ADODB.Recordset
- Dim rAf&, altDefDB$
+ Dim rs As New Adodb.Recordset, rdb As Adodb.Recordset, rt As Adodb.Recordset, rc As Adodb.Recordset
+ Dim rAF&, altDefDB$
     Dim sql$, sql0$
  
  If Not LVobMySQL Then Exit Function
 ' altDefDB = DefDB(DBCn)
  Set rdb = myEFrag("SHOW DATABASES WHERE `database` NOT IN ('mysql','information_schema')")
  Do While Not rdb.EOF
-  myEFrag "USE `" & rdb!Database & "`", rAf
+  myEFrag "USE `" & rdb!Database & "`", rAF
   myEFrag ("SET foreign_key_checks=0")
   Set rs = myEFrag("SHOW VARIABLES WHERE variable_name = 'collation_database' AND value = '" & altColl & "'")
   If Not rs.EOF Then
-   myEFrag "ALTER DATABASE COLLATE '" & neuColl & "'", rAf ' "`" & rdb!Database & "`"
+   myEFrag "ALTER DATABASE COLLATE '" & neuColl & "'", rAF ' "`" & rdb!Database & "`"
   End If
   Set rt = myEFrag("SHOW FULL TABLES WHERE table_type = 'BASE TABLE'") ' FROM `" & rdb!Database & "`
   If Not rt.BOF Then
@@ -893,7 +893,7 @@ Public Function doSortierungÄndern0()
     Loop
     sql = Left$(sql, Len(sql) - 1)
     If sql <> sql0 Then
-     myEFrag sql, rAf
+     myEFrag sql, rAF
 '     Debug.Print rAF & ": " & sql
     End If
     rt.Move 1
@@ -923,7 +923,7 @@ End Function ' doSortierungÄndern0
 
 
 ' in obAcc_Click, acon, wCnAendern, VergleichTab, fzsfuell
-Public Function SetDBCn(CS As ADODB.Connection, CSStr$, Optional ohneFallzeig%)
+Public Function SetDBCn(CS As Adodb.Connection, CSStr$, Optional ohneFallzeig%)
   Dim altCS$
   On Error GoTo fehler
   If Not DBCn Is Nothing Then
@@ -1047,4 +1047,3 @@ End Function ' AlterBei!
 Public Function ProgEnde()
  End
 End Function ' ProgEnde
-

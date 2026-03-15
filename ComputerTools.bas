@@ -214,9 +214,9 @@ Const SE_ERR_PNF = 3
 Const SE_ERR_SHARE = 26
 
 Private Declare Function WaitForSingleObject Lib "kernel32" (ByVal hHandle As Long, ByVal dwMilliseconds As Long) As Long
-Private Declare Function FindWindow& Lib "User32" Alias "FindWindowA" (ByVal lpClassName$, ByVal lpWindowName$)
-Private Declare Function GetWindowTextLength& Lib "User32" Alias "GetWindowTextLengthA" (ByVal hwnd&)
-Private Declare Function GetWindowText& Lib "User32" Alias "GetWindowTextA" (ByVal hwnd&, ByVal lpString$, ByVal cch&)
+Private Declare Function FindWindow& Lib "user32" Alias "FindWindowA" (ByVal lpClassName$, ByVal lpWindowName$)
+Private Declare Function GetWindowTextLength& Lib "user32" Alias "GetWindowTextLengthA" (ByVal hwnd&)
+Private Declare Function GetWindowText& Lib "user32" Alias "GetWindowTextA" (ByVal hwnd&, ByVal lpString$, ByVal cch&)
 Private Declare Function OpenProcess Lib "kernel32" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessID As Long) As Long
 Private Declare Function CloseHandle Lib "kernel32.dll" (ByVal hObject As Long) As Long
 
@@ -229,7 +229,7 @@ Public ProgVerz$ ' c:\program files / c:\program files (x86)
 Public ProgVerzO$ ' (progverz)
 Public AppVerz$ ' localappdata / appdata
 Public Const LiName = "linux1", LiServer$ = "\\" & LiName & "\" ' \\linux1\
-Public uVerz$, pVerz$, vVerz$, plzVz$, tVerz$, xVerz$, zVerz$
+Public uVerz$, pVerz$, vVerz$, plzVz$, tVerz$, xVerz$, zVerz$, QuellVerz$
 
 'für FindProcessID
 Private Const TH32CS_SNAPPROCESS        As Long = &H2&
@@ -248,6 +248,72 @@ End Type
 Private Declare Function CreateToolhelpSnapshot& Lib "kernel32" Alias "CreateToolhelp32Snapshot" (ByVal lFlags&, ByVal lProcessID&)
 Private Declare Function ProcessFirst Lib "kernel32" Alias "Process32First" (ByVal hSnapShot As Long, uProcess As PROCESSENTRY32) As Long
 Private Declare Function ProcessNext Lib "kernel32" Alias "Process32Next" (ByVal hSnapShot As Long, uProcess As PROCESSENTRY32) As Long
+    
+Enum LocaleIDs
+    en_US = &H409       ' English (United States)
+    fl_FI = &H40B       ' Finnish
+    de_DE = &H407         ' German
+    ' [[ Add other Locale ID's here as needed ]] '
+End Enum
+
+Private Declare Function VarDateFromStr Lib "oleaut32.dll" ( _
+    ByVal psDateIn As Long, _
+    ByVal lcid As Long, _
+    ByVal uwFlags As Long, _
+    ByRef dtOut As Date) As Long
+
+'Private Const S_OK = 0
+Private Const DISP_E_BADVARTYPE = &H80020008
+Private Const DISP_E_OVERFLOW = &H8002000A
+Private Const DISP_E_TYPEMISMATCH = &H80020005
+Private Const E_INVALIDARG = &H80070057
+Private Const E_OUTOFMEMORY = &H8007000E
+
+'
+' Converts a date string in the specified locale to a VB6 Date.
+'
+' Example:
+'
+'   Convert a Finnish date string as follows:
+'
+'   DateFromString("29.7.2011 9:27", fl_FI)
+'
+Public Function DateFromString(ByVal sDateIn As String, ByVal lcid As LocaleIDs) As Date
+
+    Dim hResult As Long
+    Dim dtOut As Date
+
+    ' Do not want user's own settings to override the standard formatting settings
+    ' if they are using the same locale that we are converting from.
+    '
+    Const LOCALE_NOUSEROVERRIDE = &H80000000
+
+    ' Do the conversion
+    hResult = VarDateFromStr(StrPtr(sDateIn), lcid, LOCALE_NOUSEROVERRIDE, dtOut)
+
+    ' Check return value to catch any errors.
+    '
+    ' Can change the code below to return standard VB6 error codes instead
+    ' (i.e. DISP_E_TYPEMISMATCH = "Type Mismatch" = error code 13)
+    '
+    Select Case hResult
+        Case S_OK:
+            DateFromString = dtOut
+        Case DISP_E_BADVARTYPE:
+            MsgBox "DateFromString: DISP_E_BADVARTYPE"
+        Case DISP_E_OVERFLOW:
+            MsgBox "DateFromString: DISP_E_OVERFLOW"
+        Case DISP_E_TYPEMISMATCH:
+            MsgBox "DateFromString: DISP_E_TYPEMISMATCH"
+        Case E_INVALIDARG:
+            MsgBox "DateFromString: E_INVALIDARG"
+        Case E_OUTOFMEMORY:
+            MsgBox "DateFromString: E_OUTOFMEMORY"
+        Case Else
+            MsgBox "DateFromString: Unknown error code returned from VarDateFromStr (0x" & Hex(hResult) & ")"
+    End Select
+End Function ' DateFromString
+    
     
 #If mitGetSpecialFolder = 1 Then
 Public Function GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As String
@@ -771,14 +837,6 @@ Public Sub SetProgV()
    AppVerz = Environ("localappdata")
   End If ' WV < win_vista Then else
   uVerz = IIf(FSO.FolderExists("u:"), "u:", LiServer & "Daten\eigene Dateien") & "\"
-  pVerz = IIf(FSO.FolderExists("p:"), "p:", LiServer & "Daten\Patientendokumente") & "\"
-  vVerz = IIf(FSO.FolderExists("v:"), "v:", LiServer & "Daten\down") & "\"
-  tVerz = IIf(FSO.FolderExists("t:"), "t:", LiServer & "Daten\shome\gerald") & "\"
-  xVerz = IIf(FSO.FolderExists("x:"), "x:", LiServer & "turbomed") & "\"
-  zVerz = IIf(FSO.FolderExists("z:"), "z:", LiServer & "Daten") & "\"
-  plzVz = pVerz & "plz\"
-  ProgVerz = Environ("programfiles") ' ab 8.1.24, zuvor "c:\programme"
-  If Right$(ProgVerz, 1) <> "\" Then ProgVerz = ProgVerz & "\"
  End If
 End Sub ' SetProgV()
 
@@ -1301,8 +1359,7 @@ Public Function rufauf&(Datei$, Optional Para$, Optional alsAdm%, Optional vz$, 
     Case ERROR_BAD_FORMAT
       MsgBox FMld & "Datei keine zulässige Win32-Anwendung", vbInformation, "Fehler"
       Exit Function
-    Case Is > 32 ' Handle
-    Case Else
+    Case Is > 32 ' Handle (1.2.26: stimmt offenbar nicht)
       rufauf = True
       If dwmillis <> 0 Then ' 0 = asynchron
        If alsAdm = 2 Then hDatei = FSO.GetFileName(vVerz & doalsAd) Else If InStrB(hDatei, "\") <> 0 Then hDatei = FSO.GetFileName(hDatei)
@@ -1323,6 +1380,9 @@ Public Function rufauf&(Datei$, Optional Para$, Optional alsAdm%, Optional vz$, 
         CloseHandle (lHwnd)
        End If
       End If
+    Case Else
+     MsgBox "RetVal " & RetVal & ", ist in rufauf nicht vorgesehen"
+     Stop
   End Select
   syscmd 5
   Exit Function

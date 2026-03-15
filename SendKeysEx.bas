@@ -1,16 +1,16 @@
-Attribute VB_Name = "Module1"
+Attribute VB_Name = "SendKeysMod"
 ' benötigte API-Deklarationen
-Private Declare Sub keybd_event Lib "User32" ( _
+Private Declare Sub keybd_event Lib "user32" ( _
   ByVal bVk As Byte, _
   ByVal bScan As Byte, _
   ByVal dwFlags As Long, _
   ByVal dwExtraInfo As Long)
  
-Private Declare Function VkKeyScan Lib "User32" _
+Private Declare Function VkKeyScan Lib "user32" _
   Alias "VkKeyScanA" ( _
   ByVal cChar As Byte) As Integer
  
-Private Declare Function MapVirtualKey Lib "User32" _
+Private Declare Function MapVirtualKey Lib "user32" _
   Alias "MapVirtualKeyA" ( _
   ByVal wCode As Long, _
   ByVal wMapType As Long) As Long

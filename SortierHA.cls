@@ -22,22 +22,22 @@ Private mvobDMPInfo%
 Public Zahl&
 Public gew‰hlt%
 Private mvarIndex As Long 'lokale Kopie
-Public Property Let Index(ByVal vData As Long)
+
+Public Property Let Index(ByVal vData&)
 'wird beim Zuweisen eines Werts zu der Eigenschaft auf der linken Seite einer Zuweisung verwendet.
 'Syntax: X.index = 5
     mvarIndex = vData
 End Property
-
 
 Public Property Get Index() As Long
 'wird beim Ermitteln eines Eigenschaftswertes auf der rechten Seite einer Zuweisung verwendet.
 'Syntax: Debug.Print X.index
     Index = mvarIndex
 End Property
+
 Public Property Get SortVar()
  SortVar = mv‹wNm
 End Property
-
 
 Public Function istKleinerAls(ByRef E2) As Boolean
  On Error GoTo fehler
@@ -60,6 +60,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function '  istKleinerAls
+
 Public Function unGleich(ByRef E2) As Boolean
  On Error GoTo fehler
  If IsObject(E2) Then
@@ -87,6 +88,7 @@ Public Property Let ‹WNr(ByVal vData)
   mv‹WNr = vData
  End If
 End Property
+
 Public Property Get ‹WNr() As Variant
  ‹WNr = mv‹WNr
 End Property
@@ -98,6 +100,7 @@ Public Property Let ‹wNm(ByVal vData)
   mv‹wNm = vData
  End If
 End Property
+
 Public Property Get ‹wNm() As Variant
  ‹wNm = mv‹wNm
 End Property
@@ -107,6 +110,7 @@ Public Property Let fax(ByVal vData)
   mvFax = vData
  End If
 End Property
+
 Public Property Get fax() As Variant
  fax = mvFax
 End Property

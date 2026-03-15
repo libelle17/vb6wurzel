@@ -4,11 +4,11 @@ Option Explicit
 Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds&)
 Private Declare Function GetTickCount Lib "kernel32" () As Long
 Public maxlz& ' maximale Laufzahl für DBCnOpen
-Public DBCn As New ADODB.Connection
+Public DBCn As New Adodb.Connection
 Public DBCnS$ ' Connection-String von DBCn, da auf Vista dieser unvollständig => immer mitführen
 Public ErrNumber&, ErrDescr$, ErrSource$, ErrLastDllError&
 Public obTrans% ' ob BeginTrans für DBCn aufgerufen wurde => in
-' Public DefaultDatabase$
+Public DefaultDatabase$
 
 Public Enum ShellSpecialFolderConstants
   ssfDESKTOP = &H0                   ' <Desktop>
@@ -61,7 +61,7 @@ Public Function GetSpecialFolder$(ByVal Folder As ShellSpecialFolderConstants)
 End Function ' GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As String
 
 Function CurDB$(DBCn)
- Dim Cn As New ADODB.Connection
+ Dim Cn As New Adodb.Connection
  On Error GoTo fehler
  If VarType(DBCn) = vbString And Not IsObject(DBCn) Then
   Cn.Open DBCn
@@ -310,12 +310,12 @@ Function Ausgeb(Text$, obDauer%)
 End Function ' Ausgeb
 
 
-Sub InsKorr(Cn As ADODB.Connection, sql$, Optional rAf&, Optional ErrDes$, Optional restarttrans%, Optional ErrNr&, Optional sfkco%)
+Sub InsKorr(Cn As Adodb.Connection, sql$, Optional ByRef rAF&, Optional ErrDes$, Optional restarttrans%, Optional ErrNr&, Optional sfkco%)
  Dim Feld$, UFELD$, Tbl$, p1$, p2$, spl1s$, spl2s$, s1$(), s2$(), csql As New CString, ix&, i&, j&
  Dim cDB$, svr$, CNs$
- Dim rs As New ADODB.Recordset
+ Dim rs As New Adodb.Recordset
 ' Dim rErr As New ADODB.Recordset
- Dim altmode$, obneuMode%, raM As New ADODB.Recordset
+ Dim altmode$, obneuMode%, raM As New Adodb.Recordset
  Dim Dtl$(5)
  Dim altDes$
  Dim altErrDes$, FMeld$
@@ -330,7 +330,7 @@ Sub InsKorr(Cn As ADODB.Connection, sql$, Optional rAf&, Optional ErrDes$, Optio
    altmode = raM.Fields(0)
    If InStrB(altmode, "strict_trans_tables") = 0 Then
     obneuMode = True
-    myEFrag "SET SESSION sql_mode='strict_trans_tables'", rAf, Cn
+    myEFrag "SET SESSION sql_mode='strict_trans_tables'", rAF, Cn
    End If ' InStrB(altMode, "strict_trans_tables") = 0 Then
   End If ' not raM.BOF
  End If ' InStrB(CNs, "MySQL") <> 0 Or InStrB(CNs, "MSDASQL") <> 0 Then
@@ -339,11 +339,11 @@ anfang:
  On Error Resume Next
  For j = 1 To 2
   FNr = 2 + j
-  rAf = 0
+  rAF = 0
 nochmal:
-  myEFrag sql, rAf, Cn, True, ErrNr, ErrDes, , , sfkco
+  myEFrag sql, rAF, Cn, True, ErrNr, ErrDes, , , sfkco
 '  ErrNr = Err.Number
-'  ErrDescr = Err.Description
+'  ErrDes = Err.Description
   
   If ErrNr <> 0 Then
 '   Set rErr = Nothing
@@ -353,19 +353,19 @@ nochmal:
 '   Else
 '    ErrDes = rErr!Message
 '   End If
-   If j = 1 And ErrNr = -2147467259 And InStrB(ErrDescr, "Daten zu lang") = 0 And InStrB(ErrDescr, "Data too long") = 0 Then ' -2147467259 ' [MySQL][ODBC 5.1 Driver][mysqld-5.1.32-log]Cannot add OR UPDATE a child row: a FOREIGN KEY constraint fails
-    If altDes = ErrDescr And ErrDes = altErrDes Then
+   If j = 1 And ErrNr = -2147467259 And InStrB(ErrDes, "Daten zu lang") = 0 And InStrB(ErrDes, "Data too long") = 0 Then ' -2147467259 ' [MySQL][ODBC 5.1 Driver][mysqld-5.1.32-log]Cannot add OR UPDATE a child row: a FOREIGN KEY constraint fails
+    If altDes = ErrDes And ErrDes = altErrDes Then
      FMeld = "Fehler:" & vbCrLf & altDes & vbCrLf & altErrDes & vbCrLf & "bei:" & vbCrLf & "nicht behebbar!"
 '     MsgBox FMeld
      Call Ausgeb(FMeld, 0)
      syscmd 4, FMeld
      Err.Raise 17
      GoTo exyt
-    End If ' altDes = ErrDescr And ErrDes = altErrDes Then
-    altDes = ErrDescr
+    End If ' altDes = ErrDes And ErrDes = altErrDes Then
+    altDes = ErrDes
     altErrDes = ErrDes
-    If InStrB(ErrDescr, "'READ-COMMITTED'") <> 0 Then
-     myEFrag "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ", rAf, Cn
+    If InStrB(ErrDes, "'READ-COMMITTED'") <> 0 Then
+     myEFrag "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ", rAF, Cn
     End If
    Else
 '   IF rAF <> 0 THEN Stop
@@ -378,9 +378,9 @@ nochmal:
  FNr = 5
  If ErrNr <> 0 Then
   If LenB(ErrDes) = 0 Then
-   Debug.Print "Fehler in Inskorr: " & ErrDescr
+   Debug.Print "Fehler in Inskorr: " & ErrDes
   Else
-   Debug.Print "Fehler in Inskorr: " & ErrDescr & vbCrLf & "       " & ErrDes
+   Debug.Print "Fehler in Inskorr: " & ErrDes & vbCrLf & "       " & ErrDes
   End If
   On Error GoTo fehler
   Dtl(0) = "Data too long for column"
@@ -535,7 +535,8 @@ nochmal:
        If rs!is_nullable = "YES" Then csql.Append "DEFAULT NULL "
       Else
        csql.Append "NOT NULL "
-       csql.AppVar Array("DEFAULT ", IIf(rs!column_default = "NULL", "", "'"), fUmwfSQL(rs!column_default), IIf(rs!column_default = "NULL", "", "'"))
+       'csql.AppVar Array("DEFAULT ", IIf(rs!column_default = "NULL", "", "'"), fUmwfSQL(rs!column_default), IIf(rs!column_default = "NULL", "", "'"))
+       csql.AppVar Array("DEFAULT ", rs!column_default)
       End If
       If Not IsNull(rs!column_comment) Then If LenB(rs!column_comment) <> 0 Then csql.AppVar Array("COMMENT '", fUmwfSQL(rs!column_comment), "'")
       Err.Clear
@@ -548,8 +549,8 @@ nochmal:
 '      On Error GoTo fehler
 ''      myEFrag "COMMIT", , Cn
       ComTrans Cn, , keinetrans
-      myEFrag csql.Value, rAf, Cn, keinfehler, ErrNr, ErrDes
-      If rAf = 0 Then
+      myEFrag csql.Value, rAF, Cn, keinfehler, ErrNr, ErrDes
+      If rAF = 0 Then
        Call Ausgeb(ErrDes, 0)
        syscmd 4, ErrDes
       Else
@@ -617,7 +618,7 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & "ErrDes: " &
 End Select
 End Sub      ' InsKorr
 
-Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional obMitausgeb% = False, Optional nz$ = vbCrLf, Optional ohneKopfZ% = False, Optional SpMinÜ, Optional spmaxü, Optional mitLeerZeilen% = False, Optional AusgabeDatei$, Optional obMitZähler = 1, Optional obohneForm%, Optional überschrift$, Optional padCaption$, Optional obappend%, Optional obOhneAufruf%, Optional mitExcel%) As CString
+Public Function TabAusgeb(rEinl As Adodb.Recordset, AusgebFrm As Form, Optional obMitausgeb% = False, Optional nz$ = vbCrLf, Optional ohneKopfZ% = False, Optional SpMinÜ, Optional spmaxü, Optional mitLeerZeilen% = False, Optional AusgabeDatei$, Optional obMitZähler = 1, Optional obohneForm%, Optional Überschrift$, Optional padCaption$, Optional obappend%, Optional obOhneAufruf%, Optional mitExcel%) As CString
  Dim i%, j&, maxL%(), Zrm%(), notNum%(), F1alt, Datei$, obcsv%
  Dim TAc As New CString ' Tabausgeb für csv-Dateien
  Dim pupos&
@@ -674,8 +675,10 @@ Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional 
   End If
   Do While Not rEinl.EOF
    For i = 0 To rEinl.Fields.COUNT - 1
+On Error Resume Next
     If Len(rEinl.Fields(i).Value) > maxL(i) Then maxL(i) = Len(rEinl.Fields(i).Value)
     If Not IsNull(rEinl.Fields(i).Value) Then If Not IsNumeric(rEinl.Fields(i).Value) Then notNum(i) = True
+On Error GoTo fehler
    Next i
    rEinl.Move 1
   Loop
@@ -710,7 +713,7 @@ Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional 
 '    If mitExcel Then oSheet.Range(Chr$(65 + i) & (j + 1)).Value = rEinl.Fields(i).name
      If mitExcel Then
       oSheet.Cells(j + 1, i + 1).Value = rEinl.Fields(i).name
-      oSheet.Cells(j + 1, i + 1).Font.bold = True
+      oSheet.Cells(j + 1, i + 1).Font.Bold = True
      End If
    Next i
    TabAusgeb.Append nz
@@ -748,7 +751,7 @@ Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional 
   If obMitausgeb Then AusgebFrm.Ausgeb TabAusgeb.Value, True
   If LenB(AusgabeDatei) <> 0 Then
    If obappend <> 0 Then Open Datei For Append As #317 Else Open Datei For Output As #317
-   If überschrift <> vNS Then Print #317, überschrift
+   If Überschrift <> vNS Then Print #317, Überschrift
    If obcsv Then
     Print #317, TAc.Value
    Else
@@ -776,6 +779,7 @@ Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional 
   pad.Typisierung = AusgabeDatei
   pad.Label1 = AusgabeDatei
   pad.Label1.Left = 2000
+  pad.Caption = Überschrift
   pad.Text1.Left = MINvb(pad.Label1.Left + MAXvb(pad.Label1.Width, Len(pad.Label1) * 80) + 50, pad.Width - 1500)
   pad.Label1.Width = pad.Width - pad.Left - 100
   Set pad.hlese = Lese
@@ -799,27 +803,27 @@ End Select
 End Function      ' TabAusgeb
 
 ' myFrag für Execute
-Public Function myEFrag(ByRef sql$, Optional ByRef rAf&, Optional Cn As ADODB.Connection = Nothing, Optional keinfehler%, Optional ErrNr&, Optional ErrDes$, Optional gcl& = 700, Optional keinExec%, Optional sfkco%) As ADODB.Recordset
- Dim rs As ADODB.Recordset
- Set myEFrag = myFrag(rs, sql, IIf(keinExec, adOpenDynamic, adOpenUnspecified), Cn, adLockReadOnly, gcl, rAf, keinfehler, ErrNr, ErrDes, sfkco)
+Public Function myEFrag(ByRef sql$, Optional ByRef rAF&, Optional Cn As Adodb.Connection = Nothing, Optional keinfehler%, Optional ErrNr&, Optional ErrDes$, Optional gcl& = 700, Optional keinExec%, Optional sfkco%) As Adodb.Recordset
+ Dim rs As Adodb.Recordset
+ Set myEFrag = myFrag(rs, sql, IIf(keinExec, adOpenDynamic, adOpenUnspecified), Cn, adLockReadOnly, gcl, rAF, keinfehler, ErrNr, ErrDes, sfkco)
 End Function ' myEFrag
 
 ' .Execute nimmt adOpenForwardOnly, was viel schneller ist, aber nach einer Abfrage isnull(rs!Feld) rs!Feld zu null setzt
 ' rückwärts aufrufen: adopendynamic
 ' .update geht nur mit adOpenDynamic und (z.B.?) adLockOptimistic
-Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
-                 Optional ByVal CursTp As ADODB.CursorTypeEnum = adOpenUnspecified, _
-                 Optional ByRef Cn As ADODB.Connection = Nothing, _
-                 Optional ByVal LockTp As ADODB.LockTypeEnum = adLockReadOnly, _
+Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
+                 Optional ByVal CursTp As Adodb.CursorTypeEnum = adOpenUnspecified, _
+                 Optional ByRef Cn As Adodb.Connection = Nothing, _
+                 Optional ByVal LockTp As Adodb.LockTypeEnum = adLockReadOnly, _
                  Optional ByVal gcl$ = "700", _
-                 Optional ByRef rAf&, _
+                 Optional ByRef rAF&, _
                  Optional ByVal keinfehler%, _
                  Optional ByRef ErrNr&, _
                  Optional ByRef ErrDes$, _
                  Optional ByRef sfkco% _
-                 ) As ADODB.Recordset
+                 ) As Adodb.Recordset
  Dim myru%, lauf&, CS$, ddb$
- Dim gcrs As New ADODB.Recordset
+ Dim gcrs As New Adodb.Recordset
  Static fangefangen%
  Const maxru% = 3
  Dim MaxLauf&
@@ -838,7 +842,7 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
  If InStr(1, sql, "GROUP_CONCAT", vbTextCompare) <> 0 Then
   For myru = 1 To maxru
   ' SELECT CHAR_LENGTH(GROUP_CONCAT(COLLATION_NAME SEPARATOR '"')) FROM INFORMATION_SCHEMA.COLLATIONS;
-   Cn.Execute ("SET SESSION group_concat_max_len = " & gcl)
+   Cn.Execute ("SET SESSION GROUP_CONCAT_max_len = " & gcl)
    ErrNr = Err.Number
    ErrDes = Err.Description
    If ErrNr = 0 Then Exit For
@@ -849,7 +853,7 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
    If myru = maxru - 2 Then
 '     Call DBCnOpen
 '     Set Cn = DBCn
-      Set Cn = New ADODB.Connection
+      Set Cn = New Adodb.Connection
       Cn.Open CS
       Cn.DefaultDatabase = ddb
 '     If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
@@ -865,10 +869,10 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
   Err.Clear
   If CursTp = adOpenUnspecified And LockTp = adLockReadOnly And Not sfkco Then
 '   If InStrB(sql, "fuell") <> 0 Then Stop
-   Set rs = Cn.Execute(sql, rAf)
+   Set rs = Cn.Execute(sql, rAF)
   Else
    If sfkco Then Cn.Execute ("SET foreign_key_checks=0")
-   Set rs = New ADODB.Recordset ' If rs.State <> 0 Then rs.Close
+   Set rs = New Adodb.Recordset ' If rs.State <> 0 Then rs.Close
    rs.Open sql, Cn, CursTp, LockTp
   End If ' CursTp = adOpenUnspecified And LockTp = adLockReadOnly Then
   lngTime = GetTickCount - lngTime
@@ -900,7 +904,7 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
      Cn.Close
      Cn.Open
     Else ' myru = 1
-     Set Cn = New ADODB.Connection
+     Set Cn = New Adodb.Connection
      Cn.Open CS
      Cn.DefaultDatabase = ddb
     End If ' myru = 1 else
@@ -931,7 +935,7 @@ End If ' ErrDes = "Der Vorgang ist für ein geschlossenes Objekt nicht zugelassen
 If InStr(1, ErrDes, "gone away", vbTextCompare) <> 0 Then ' Or InStr(LCase$(ErrDes), "lost connection") <> 0 Then
 ' DBCnOpen
 ' Set Cn = DBCn
- Set Cn = New ADODB.Connection
+ Set Cn = New Adodb.Connection
  Cn.Open CS
  Cn.DefaultDatabase = ddb
  lauf = lauf + 1
@@ -942,7 +946,7 @@ ElseIf InStr(1, ErrDes, "ANGEFORDERTEN EIGENSCHAFTEN", vbTextCompare) <> 0 Or In
   lauf = lauf + 1
 '  DBCnOpen
 '  Set Cn = DBCn
-  Set Cn = New ADODB.Connection
+  Set Cn = New Adodb.Connection
   Cn.Open CS
   Cn.DefaultDatabase = ddb
 '  If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
@@ -960,7 +964,7 @@ ElseIf InStr(1, ErrDes, "INCORRECT", vbTextCompare) = 0 And InStr(1, ErrDes, "UN
   If MaxLauf = 5 Then
 '   DBCnOpen
 '   Set Cn = DBCn
-   Set Cn = New ADODB.Connection
+   Set Cn = New Adodb.Connection
    Cn.Open CS
    Cn.DefaultDatabase = ddb
 '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
@@ -1052,12 +1056,12 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' DBCnOpen(CS$, uid$, pwd$, Opt&)
 
-Public Function BegTrans(Optional Cn As ADODB.Connection = Nothing, Optional obkeinetr% = 0)
+Public Function BegTrans(Optional Cn As Adodb.Connection = Nothing, Optional obkeinetr% = 0)
  On Error GoTo fehler
  If obkeinetr = 0 Then
   If Cn Is Nothing Then Set Cn = DBCn
   If Forms(0).obMySQL Then
-'   myEFrag "START TRANSACTION", , Cn
+   myEFrag "START TRANSACTION", , Cn
   Else ' Lese.obMySQL Then
 '   Cn.BeginTrans
   End If ' Lese.obMySQL Then
@@ -1078,12 +1082,12 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' BegTrans(Optional CN As ADODB.Connection = DBCn)
 
-Public Function ComTrans(Optional Cn As ADODB.Connection = Nothing, Optional obtr% = 1, Optional ByRef keinetrans%)
+Public Function ComTrans(Optional Cn As Adodb.Connection = Nothing, Optional obtr% = 1, Optional ByRef keinetrans%)
  On Error GoTo fehler
  If obtr = 1 Then
   If Cn Is Nothing Then Set Cn = DBCn
   If Forms(0).obMySQL Then ' Lese, MDI
-'   myEFrag "COMMIT", , Cn
+   myEFrag "COMMIT", , Cn
   Else ' Lese.obMySQL Then
 '   Cn.CommitTrans
   End If ' Lese.obMySQL Then
@@ -1105,7 +1109,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' ComTrans
 
-Public Function wechsTrans(Optional Cn As ADODB.Connection = Nothing, Optional obtr% = 1)
+Public Function wechsTrans(Optional Cn As Adodb.Connection = Nothing, Optional obtr% = 1)
  On Error GoTo fehler
  If obtr = 1 Then
   If Cn Is Nothing Then Set Cn = DBCn
@@ -1116,7 +1120,7 @@ Public Function wechsTrans(Optional Cn As ADODB.Connection = Nothing, Optional o
   End If ' Lese.obMySQL Then
  End If ' obtr = 1
  If Forms(0).obMySQL Then ' Lese, MDI
-'  myEFrag "START TRANSACTION", , Cn
+  myEFrag "START TRANSACTION", , Cn
  Else ' Lese.obMySQL Then
 '  Cn.BeginTrans
  End If ' Lese.obMySQL Then
