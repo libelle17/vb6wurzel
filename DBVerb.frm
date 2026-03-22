@@ -517,7 +517,7 @@ Dim opt&
 Public RegPos$
 Public Ü2$ ' soll DBVerb innerhalb eines Programms mit verschiedenen Inhalten gefüllt werden, dann kann hier Unterscheidung getroffen werden (für Überschrift und Registry)
 Private BedTbl$() ' Tabellen, die in der Datenbank vorhanden sein müssen
-Public wCn As New Adodb.Connection
+Public wCn As New ADODB.Connection
 Attribute wCn.VB_VarHelpID = -1
 Public Event wCnAendern(CnStr$)
 Dim zuRaisen%
@@ -559,7 +559,7 @@ IpAddress = vNS
 For Y = 1 To Host.hlength
  IpAddress = IpAddress & MemIp(Y) & "."
 Next Y
-HostByName = Left$(IpAddress, Len(IpAddress) - 1)
+HostByName = left$(IpAddress, Len(IpAddress) - 1)
 End Function ' HostByName
 
 Function ShowAllDomains(Optional obneu%) As Collection
@@ -596,7 +596,7 @@ Public Sub ShowAllComputers(ByVal strDomain$)
   On Error Resume Next
   
   For Each oComputer In PrimDomainContr
-    Cpts.Add Left$(oComputer.name & Space$(CptLänge), CptLänge) & "| " & HostByName$(oComputer.name)
+    Cpts.Add left$(oComputer.name & Space$(CptLänge), CptLänge) & "| " & HostByName$(oComputer.name)
     CptN.Add UCase$(oComputer.name)
 '    Debug.Print oComputer.Name
   Next
@@ -870,7 +870,7 @@ fehler:
 End Sub ' Form_KeyDown(
 
 Private Sub NurLauf_Click()
- Dim rTs As New Adodb.Connection
+ Dim rTs As New ADODB.Connection
 ' dim rs As New ADODB.Recordset ' geht auch nicht schneller
  Dim i&, otrei$, odb$
  On Error GoTo fehler
@@ -891,7 +891,7 @@ Private Sub NurLauf_Click()
 '   SET rs = Nothing
    Err.Clear
    On Error Resume Next
-   rTs.Open "DRIVER={" & Me.ODBC & "};server=" & Trim$(Left$(Me.Cpt.List(i), 15)) & ";option=3;uid=" & Me.uid & ";pwd=" & Me.pwd & ";"
+   rTs.Open "DRIVER={" & Me.ODBC & "};server=" & Trim$(left$(Me.Cpt.List(i), 15)) & ";option=3;uid=" & Me.uid & ";pwd=" & Me.pwd & ";"
 '   rs.Open "SELECT * FROM mysql.user LIMIT 1", "DRIVER={" & Me.ODBC & "};server=" & trim$(LEFT(Me.Cpt.List(i), 15)) & ";option=3;uid=" & Me.uid & ";pwd=" & Me.pwd & ";", adOpenStatic, adLockReadOnly
    If Err.Number = 0 Or InStrB(Err.Description, "denied") <> 0 Then ' Access denied
     On Error GoTo fehler
@@ -1113,7 +1113,7 @@ Function doVerbind%(Optional Tabelle$, Optional ErrDes$)
      End If
     End If
     If InStrB(Me.ODBC, "MySQL") <> 0 Or InStr(Me.ODBC, "MSDASQL") > 0 Then
-     CnStr = "DRIVER={" & Me.ODBC & "};server=" & Trim$(Left$(Me.Cpt, CptLänge)) & ";"
+     CnStr = "DRIVER={" & Me.ODBC & "};server=" & Trim$(left$(Me.Cpt, CptLänge)) & ";"
      Call rechneOpt
      CnStr = CnStr & "option=" & opt & ";"
      CoStr = CnStr
@@ -1203,7 +1203,7 @@ again:
 End Function ' doVerbind
 
 Sub zeigdatenbanken()
- Dim rSch As New Adodb.Recordset, rs1 As New Adodb.Recordset, obMySQL%, i&, j&
+ Dim rSch As New ADODB.Recordset, rs1 As New ADODB.Recordset, obMySQL%, i&, j&
  Dim tTbl%() ' teste Tabellen: wenn true, ist die jeweilige BedTbl enthalten
  Static altwcn$, altobfilter%
  On Error GoTo fehler
@@ -1313,7 +1313,7 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Sub ' zeigdatenbanken
 
 Sub zeigtabellen()
- Dim rSch As New Adodb.Recordset, rs1 As New Adodb.Recordset, obMySQL%
+ Dim rSch As New ADODB.Recordset, rs1 As New ADODB.Recordset, obMySQL%
  Me.Tabellen = vNS
 ' IF wCn.ConnectionString = "Provider=MSDASQL.1;" THEN
 '  obMySQL = (wCn.Properties("DBMS Name") = "MySQL")
@@ -1348,7 +1348,7 @@ End Sub ' zeigTabellen
 Sub Verbind()
  Static DBChange%
  Dim i&, erg%, altUser$
- Dim rs As New Adodb.Recordset, rs1 As New Adodb.Recordset
+ Dim rs As New ADODB.Recordset, rs1 As New ADODB.Recordset
 ' IF Me.Cpt = vns THEN Call RegLaden
  If UCase$(Me.Cpt) <> UCase$(lCpt) Or UCase$(Me.Benutzer) <> UCase$(lBenutzer) Or Me.Paßwort <> lPaßwort Or UCase$(lODBC) <> UCase$(Me.ODBC) Or UCase$(Me.uid) <> UCase$(luid) Or UCase$(Me.pwd) <> UCase$(lpwd) Then
   Screen.MousePointer = vbHourglass
@@ -1575,7 +1575,7 @@ Function cnVorb$(DBName$, TBName$, Optional Ü$, Optional obregneu%, Optional Reg
 '   Call Form_Load
 '  END IF
    cnVorb = Me.CnStr ' .wCn.ConnectionString ' 28.12.08
-   If LCase$(Left$(Ü, 5)) = "admin" Then
+   If LCase$(left$(Ü, 5)) = "admin" Then
     cR.WriteKey vNS, "Paßwort", RegPos, HKEY_CURRENT_USER, REG_SZ
 '    Call fStSpei(HCU, RegPos, "Paßwort", vns)
    End If
@@ -1689,16 +1689,16 @@ End Function ' Ausgeb
 
 ' 15.10.10: scheint nicht vorzukommen
 ' 28.6.24: nur in testgetAllDB
-Function getAllDB%(Tabl$, acn() As Adodb.Connection, Optional uid$ = "...", Optional pwd$ = "...", Optional obLeere%, Optional acSt)
+Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Optional pwd$ = "...", Optional obLeere%, Optional acSt)
  Dim Cpt, db$, eintragen%, Stri(1) As New CString, i%, runde%, ErrNr&
- Dim MyCn As Adodb.Connection, rdb As Adodb.Recordset, rHa As New Adodb.Recordset
+ Dim MyCn As ADODB.Connection, rdb As ADODB.Recordset, rHa As New ADODB.Recordset
  ReDim acn(0)
  ReDim acSt(0)
  Call Me.ShowAllDomains
  For runde = 1 To 2
   For Each Cpt In CptN
    If (runde = 1 And Cpt = LiName) Or (runde = 2 And Cpt <> LiName) Then
-   Set MyCn = New Adodb.Connection
+   Set MyCn = New ADODB.Connection
    On Error Resume Next
    Err.Clear
    Stri(0) = "Provider=MSDASQL.1;Extended Properties=""DRIVER={" & ODBCStr & "};OPTION=3;PWD="
@@ -1737,7 +1737,7 @@ Function getAllDB%(Tabl$, acn() As Adodb.Connection, Optional uid$ = "...", Opti
      End If ' lenb(tabl)<>0
      On Error GoTo fehler
      If eintragen Then
-      Set acn(UBound(acn)) = New Adodb.Connection
+      Set acn(UBound(acn)) = New ADODB.Connection
       Dim VorLänge&
       VorLänge = Stri(0).length
       Stri(0).Cut (VorLänge - 1)

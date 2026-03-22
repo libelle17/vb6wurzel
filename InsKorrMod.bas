@@ -8,7 +8,7 @@ Public DBCn As New Adodb.Connection
 Public DBCnS$ ' Connection-String von DBCn, da auf Vista dieser unvollständig => immer mitführen
 Public ErrNumber&, ErrDescr$, ErrSource$, ErrLastDllError&
 Public obTrans% ' ob BeginTrans für DBCn aufgerufen wurde => in
-Public DefaultDatabase$
+' Public DefaultDatabase$
 
 Public Enum ShellSpecialFolderConstants
   ssfDESKTOP = &H0                   ' <Desktop>
