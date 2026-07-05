@@ -860,6 +860,7 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
       Set Cn = New Adodb.Connection
       Cn.Open CS
       Cn.DefaultDatabase = ddb
+      Cn.CommandTimeout = 10
       If bUsingGlobalCn Then Set DBCn = Cn
 '     If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
     Else: On Error GoTo fehler
@@ -927,10 +928,12 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
     If myru = 1 Then
      Cn.Close
      Cn.Open
+     Cn.CommandTimeout = 10
     Else ' myru = 1
      Set Cn = New Adodb.Connection
      Cn.Open CS
      Cn.DefaultDatabase = ddb
+     Cn.CommandTimeout = 10
      If bUsingGlobalCn Then Set DBCn = Cn
     End If ' myru = 1 else
  '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
@@ -962,6 +965,7 @@ If InStr(1, ErrDes, "gone away", vbTextCompare) <> 0 Then ' Or InStr(LCase$(ErrD
  Set Cn = New Adodb.Connection
  Cn.Open CS
  Cn.DefaultDatabase = ddb
+ Cn.CommandTimeout = 10
  If bUsingGlobalCn Then Set DBCn = Cn
  lauf = lauf + 1
  If lauf < MaxLauf Then Resume Else Resume Next
@@ -974,6 +978,7 @@ ElseIf InStr(1, ErrDes, "ANGEFORDERTEN EIGENSCHAFTEN", vbTextCompare) <> 0 Or In
   Set Cn = New Adodb.Connection
   Cn.Open CS
   Cn.DefaultDatabase = ddb
+  Cn.CommandTimeout = 10
   If bUsingGlobalCn Then Set DBCn = Cn
 '  If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
   Resume
@@ -993,6 +998,7 @@ ElseIf InStr(1, ErrDes, "INCORRECT", vbTextCompare) = 0 And InStr(1, ErrDes, "UN
    Set Cn = New Adodb.Connection
    Cn.Open CS
    Cn.DefaultDatabase = ddb
+   Cn.CommandTimeout = 10
    If bUsingGlobalCn Then Set DBCn = Cn
 '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
   Else
@@ -1044,6 +1050,7 @@ neuverbind:
 '  Set DBCn = Nothing ' geändert 21.10.22
   syscmd 4, "DBCnOpen " & Left$(DBCnS, InStr(DBCnS, "pwd"))
   DBCn.Open DBCnS, uid, pwd, opt
+  DBCn.CommandTimeout = 10
 #If KeinePatListe = 0 Then
   If CS <> altCS Then
    Call fallzeig
@@ -1055,6 +1062,7 @@ neuverbind:
   If DBCn.State <> 0 Then DBCn.RollbackTrans: DBCn.Close: Set DBCn = Nothing
   On Error GoTo fehler
   DBCn.Open DBCnS
+  DBCn.CommandTimeout = 10
 End If ' DBCn.ConnectionString = "" Then
  Exit Function
 fehler:
