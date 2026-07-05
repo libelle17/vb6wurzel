@@ -828,6 +828,7 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
  Dim maxru%
  Dim MaxLauf&
  Dim bConnLost As Boolean, bLockWait As Boolean
+ Dim bUsingGlobalCn As Boolean
  maxru = 3
  On Error GoTo fehler
 ' syscmd 4, sql
@@ -835,6 +836,7 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
 ' If InStrB(UCase$(sql), "SELECT ZEITPUNKT") <> 0 And InStrB(UCase$(sql), "FORM") <> 0 Then Stop
  If Cn Is Nothing Then
   Set Cn = DBCn
+  bUsingGlobalCn = True
  End If
  CS = Cn.Properties("Extended Properties")
  ddb = Cn.DefaultDatabase
@@ -858,6 +860,7 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
       Set Cn = New Adodb.Connection
       Cn.Open CS
       Cn.DefaultDatabase = ddb
+      If bUsingGlobalCn Then Set DBCn = Cn
 '     If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
     Else: On Error GoTo fehler
    End If ' myru = maxru - 2 Then
@@ -897,6 +900,8 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
     Or (InStr(1, ErrDes, "Deadlock found", vbTextCompare) <> 0)
    If bLockWait And Not bConnLost Then
     If maxru < 10 Then maxru = 10
+   ElseIf bConnLost Then
+    If maxru < 6 Then maxru = 6
    End If
   End If
   If ErrNr = 0 Then Set myFrag = rs: Exit Function Else
@@ -926,6 +931,7 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
      Set Cn = New Adodb.Connection
      Cn.Open CS
      Cn.DefaultDatabase = ddb
+     If bUsingGlobalCn Then Set DBCn = Cn
     End If ' myru = 1 else
  '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
   End If ' ErrNr = 0 Then Set myFrag = rs: Exit Function Else
@@ -956,6 +962,7 @@ If InStr(1, ErrDes, "gone away", vbTextCompare) <> 0 Then ' Or InStr(LCase$(ErrD
  Set Cn = New Adodb.Connection
  Cn.Open CS
  Cn.DefaultDatabase = ddb
+ If bUsingGlobalCn Then Set DBCn = Cn
  lauf = lauf + 1
  If lauf < MaxLauf Then Resume Else Resume Next
 ElseIf InStr(1, ErrDes, "ANGEFORDERTEN EIGENSCHAFTEN", vbTextCompare) <> 0 Or InStr(1, ErrDes, "UNBEKANNTER FEHLER", vbTextCompare) <> 0 Then
@@ -967,6 +974,7 @@ ElseIf InStr(1, ErrDes, "ANGEFORDERTEN EIGENSCHAFTEN", vbTextCompare) <> 0 Or In
   Set Cn = New Adodb.Connection
   Cn.Open CS
   Cn.DefaultDatabase = ddb
+  If bUsingGlobalCn Then Set DBCn = Cn
 '  If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
   Resume
  End If ' lauf < MaxLauf Then
@@ -985,6 +993,7 @@ ElseIf InStr(1, ErrDes, "INCORRECT", vbTextCompare) = 0 And InStr(1, ErrDes, "UN
    Set Cn = New Adodb.Connection
    Cn.Open CS
    Cn.DefaultDatabase = ddb
+   If bUsingGlobalCn Then Set DBCn = Cn
 '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
   Else
    Sleep 1000
