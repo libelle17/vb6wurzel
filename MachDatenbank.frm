@@ -272,7 +272,7 @@ Function setzCStrs()
  If Me.obMySQL <> 0 Then
 '  cCoDB = "PROVIDER=MSDASQL;driver={MySQL ODBC 3.51 Driver};server=" & Trim$(LEFT(Me.ServerZ, 15)) & ";uid=mysql;pwd='" & mpwd & "';"
   Call setzmpwd
-  cCoDB = "PROVIDER=MSDASQL;driver={" & ODBCStr & "};server=" & Trim$(Left$(Me.ServerZ, 15)) & ";uid=mysql;"
+  cCoDB = "PROVIDER=MSDASQL;driver={" & ODBCStr & "};server=" & Trim$(left$(Me.ServerZ, 15)) & ";uid=mysql;"
   cnzCStr = cCoDB & "database=" & Me.DBn & ";"
   cCoDB = cCoDB & "pwd="
   cnzCStr = cnzCStr & "pwd="
@@ -457,7 +457,7 @@ Private Sub SchreibenAufCmd_Click()
  Me.SchreibenAuf = GetFileToOpen(3)
 End Sub ' SchreibenAufCmd_Click
 
-'SELECT COUNT(0) AS `ct` FROM `quelle`.`laborxwert` GROUP BY `quelle`.`laborxwert`.`RefNr`,`quelle`.`laborxwert`.`Abkü`,`quelle`.`laborxwert`.`Langname`,`quelle`.`laborxwert`.`Quelle`,`quelle`.`laborxwert`.`QSpez`,`quelle`.`laborxwert`.`AbnDat`,`quelle`.`laborxwert`.`Wert`,`quelle`.`laborxwert`.`Einheit`,`quelle`.`laborxwert`.`Grenzwerti`,`quelle`.`laborxwert`.`Kommentar`,`quelle`.`laborxwert`.`Teststatus`,`quelle`.`laborxwert`.`Erklärung`,`quelle`.`laborxwert`.`Normbereich`,`quelle`.`laborxwert`.`NormU`,`quelle`.`laborxwert`.`NormO`,`quelle`.`laborxwert`.`AuftrHinw`
+'SELECT COUNT(0) AS `ct` FROM `quelle`.`" & vorsil & "wert` GROUP BY `quelle`.`" & vorsil & "wert`.`RefNr`,`quelle`.`" & vorsil & "wert`.`Abkü`,`quelle`.`" & vorsil & "wert`.`Langname`,`quelle`.`" & vorsil & "wert`.`Quelle`,`quelle`.`" & vorsil & "wert`.`QSpez`,`quelle`.`" & vorsil & "wert`.`AbnDat`,`quelle`.`" & vorsil & "wert`.`Wert`,`quelle`.`" & vorsil & "wert`.`Einheit`,`quelle`.`" & vorsil & "wert`.`Grenzwerti`,`quelle`.`" & vorsil & "wert`.`Kommentar`,`quelle`.`" & vorsil & "wert`.`Teststatus`,`quelle`.`" & vorsil & "wert`.`Erklärung`,`quelle`.`" & vorsil & "wert`.`Normbereich`,`quelle`.`" & vorsil & "wert`.`NormU`,`quelle`.`" & vorsil & "wert`.`NormO`,`quelle`.`" & vorsil & "wert`.`AuftrHinw`
 Private Sub Start_Click()
  If aktualisiercon(obscharf:=True) Then
   If Not IsNull(cnz) Or Me.nurSchreiben <> 0 Then
@@ -477,7 +477,7 @@ Private Sub MachAlle_Click()
     If Not FSO.FolderExists(Me.SchreibenAuf) Then
      For i = Len(Me.SchreibenAuf) To 0 Step -1
       If Mid$(Me.SchreibenAuf, i, 1) = "\" Then
-       Me.SchreibenAuf = Left$(Me.SchreibenAuf, i)
+       Me.SchreibenAuf = left$(Me.SchreibenAuf, i)
        Exit For
       End If
      Next i
@@ -569,7 +569,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetFileToOpen/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -624,7 +624,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doMachZielDatenbank/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -660,7 +660,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doCreateView/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -699,7 +699,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
     End If
     If ctsz(i) > zmax Then zmax = ctsz(i)
     For j = 0 To ctsz(i) - 1
-     Select Case Left$(cts(j), 3)
+     Select Case left$(cts(j), 3)
       Case "  `"
        ArtZ(0, i) = ArtZ(0, i) + 1
        Str(1, i, j) = Mid$(cts(j), 2)
@@ -714,7 +714,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
       Case Else
        Str(1, i, j) = cts(j)
      End Select
-     If Str(1, i, j).Right(1) = "," Then Str(1, i, j).Cut (Str(1, i, j).length - 1)
+     If Str(1, i, j).Right(1) = "," Then Str(1, i, j).Cut (Str(1, i, j).Length - 1)
      p1 = InStr(Str(1, i, j), "`")
      If p1 <> 0 Then
       p2 = InStr(p1 + 1, Str(1, i, j), "`")
@@ -750,7 +750,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
     If ArtZ(2, i) <> 0 Then Ausf " ArtZ(2, " & i & ") = " & ArtZ(2, i)
    End If
    For j = 0 To ctsz(i) - 1
-    If Str(runde, i, j).length <> 0 Then
+    If Str(runde, i, j).Length <> 0 Then
 '     Str(runde, i, j).Replace """", """"""
      Str(runde, i, j) = REPLACE(Str(runde, i, j), """", """""")
      Ausf " Str(" & runde & ", " & i & ", " & j & ") = " & """" & Str(runde, i, j) & """"
@@ -965,7 +965,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doCopyAllMyMy/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1005,7 +1005,7 @@ Select Case Err.Number
   doEx_Direkt = 150
   Exit Function
 End Select
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(IsNull(Err.source), vNS, CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doex_direkt/" & AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & CStr(nz(Err.Source, "")) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doex_direkt/" & AnwPfad)
  Case vbAbort: Call MsgBox(" Höre auf "): ProgEnde
  Case vbRetry: Call MsgBox(" Versuche nochmal "): Resume
  Case vbIgnore: Call MsgBox(" Setze fort "): Resume Next
@@ -1053,7 +1053,7 @@ Function doGenMachDB_Direkt(TbZ&, Str() As CString, ArtZ&(), cnz As ADODB.Connec
      If Not genau Then
       CLen = -1 ' Column-Length nicht kürzen
       p1 = InStr(sct, "(")
-      p2 = InStr(p1, LCase$(sct), IIf(Left$(Str(0, i, j), 1) = "`", vNS, "`") & LCase$(Str(0, i, j)) & IIf(Right$(Str(0, i, j), 1) = "`", vNS, "`")) 'zCat.Tables(Tbl).Columns(k).Name & "`")
+      p2 = InStr(p1, LCase$(sct), IIf(left$(Str(0, i, j), 1) = "`", vNS, "`") & LCase$(Str(0, i, j)) & IIf(Right$(Str(0, i, j), 1) = "`", vNS, "`")) 'zCat.Tables(Tbl).Columns(k).Name & "`")
       p1 = InStr(p2, sct, "(")
       p3 = InStr(p2, sct, ",")
       If p3 = 0 Then p3 = InStr(p2, sct, vbLf & ")")
@@ -1105,8 +1105,8 @@ Function doGenMachDB_Direkt(TbZ&, Str() As CString, ArtZ&(), cnz As ADODB.Connec
      TMt.AppVar Array(" add ", Str(1, i, j), ",")
     End If
    Next j
-   If TMt.length <> 0 Then
-    TMt.Cut (TMt.length - 1)
+   If TMt.Length <> 0 Then
+    TMt.Cut (TMt.Length - 1)
     Call doEx_Direkt("ALTER TABLE `" & Tbl & "` " & TMt.Value, -1)
    End If
    For j = ArtZ(0, i) + ArtZ(1, i) + 1 To ZZ - 1 'Constraints
@@ -1150,7 +1150,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doGenMachDB_Direkt/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1206,7 +1206,7 @@ Function doCopyTable%(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQM
        If p1 <> 0 Then
         p2 = InStr(p1, TabEig, " ")
         If p2 = 0 Then p2 = Len(TabEig)
-        TabEig = Left$(TabEig, p1 - 1) & Right$(TabEig, Len(TabEig) - p2)
+        TabEig = left$(TabEig, p1 - 1) & Right$(TabEig, Len(TabEig) - p2)
        End If
       Else
        TabEig = " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_german2_ci"
@@ -1465,7 +1465,7 @@ Function doCopyTable%(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQM
            Next i
            Call Ausf(" redim Index(" & IndZahl - UBound(alterarr) - 2 & ")")
            For i = UBound(alterarr) + 2 To IndZahl
-            Call Ausf(" Index(" & i - UBound(alterarr) - 2 & ") = """ & IIf(Right$(qSpli(i), 1) = ",", Left$(qSpli(i), Len(qSpli(i)) - 1), qSpli(i)) & """")
+            Call Ausf(" Index(" & i - UBound(alterarr) - 2 & ") = """ & IIf(Right$(qSpli(i), 1) = ",", left$(qSpli(i), Len(qSpli(i)) - 1), qSpli(i)) & """")
            Next i
            Call Ausf(" For i = 0 to " & IndZahl - UBound(alterarr) - 2)
 '           Call Ausf("  SELECT CASE MID(Spli(i),3,3)")
@@ -1506,7 +1506,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doCopyTable/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1535,7 +1535,7 @@ Function doCopyIndices(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQ
       If ars.EOF Then zählen = True Else If ars!seq_in_index = 1 Then zählen = True
       If zählen Then
        If LenB(sql) <> 0 Then
-        sql = Left$(sql, Len(sql) - 1) & ")"
+        sql = left$(sql, Len(sql) - 1) & ")"
         If Not obZMySQL Then
 '         call sausf ("ALTER TABLE `" & zTabName & "` " & sql)
          Call sAusf(sql & IIf(obPSZ, " WITH PRIMARY", ""))
@@ -1609,7 +1609,7 @@ Function doCopyIndices(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQ
       ars.Move 1
      Loop
      If obZMySQL And LenB(sql) <> 0 Then
-      Call sAusf("ALTER TABLE `" & zTabName & "` " & Left$(sql, Len(sql) - 1), , , True)
+      Call sAusf("ALTER TABLE `" & zTabName & "` " & left$(sql, Len(sql) - 1), , , True)
       Lese.Ausgeb " Index für `" & zTabName & "`:" & sql & " erstellt", True
      End If
     End If ' not ars.bof
@@ -1670,7 +1670,7 @@ Function doCopyIndices(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQ
       
       If i = ind.Columns.COUNT - 1 Then
        If LenB(sql) <> 0 Then
-        sql = Left$(sql, Len(sql) - 1) & ")"
+        sql = left$(sql, Len(sql) - 1) & ")"
         If Not obZMySQL Then
 '         call sausf ("ALTER TABLE `" & zTabName & "` " & sql)
          Call sAusf(sql & IIf(obPSZ, " WITH PRIMARY", vNS))
@@ -1684,7 +1684,7 @@ Function doCopyIndices(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQ
      Next i
     Next ind
     If td.Indexes.COUNT > 0 And obZMySQL Then
-     Call sAusf("ALTER TABLE `" & zTabName & "` " & Left$(sql, Len(sql) - 1), , , True)
+     Call sAusf("ALTER TABLE `" & zTabName & "` " & left$(sql, Len(sql) - 1), , , True)
      Lese.Ausgeb " Index für `" & zTabName & "`:" & sql & " erstellt", True
     End If
     End If
@@ -1694,7 +1694,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doCopyIndices/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1825,7 +1825,7 @@ Function doCopyDaten(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, qCat 
       dszahl = dszahl + 1
       Lese.Ausgeb "Schreibe Datensatz Nr. " & dszahl & " in Tabelle `" & zTabName & "`", False
 '      IF dszahl > 1000 THEN Exit Do
-      sql = Left$(sql, Len(sql) - 2) + ")" & Left$(sql2, Len(sql2) - 2) + ")"
+      sql = left$(sql, Len(sql) - 2) + ")" & left$(sql2, Len(sql2) - 2) + ")"
       On Error Resume Next
       Err.Clear
       rAf = 0
@@ -1853,7 +1853,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doCopyDaten/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1888,7 +1888,7 @@ Private Sub CptListeGanz()
  obNurLauf = False
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in CptListeGanz/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in CptListeGanz/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1917,7 +1917,7 @@ Private Sub NurLauf_Click()
 '   SET rs = Nothing
    Err.Clear
    On Error Resume Next
-   rTs.Open "DRIVER={" & ODBCStr & "};server=" & Trim$(Left$(Me.ServerZ.List(i), 15)) & ";option=3;uid=praxis;pwd=...;"
+   rTs.Open "DRIVER={" & ODBCStr & "};server=" & Trim$(left$(Me.ServerZ.List(i), 15)) & ";option=3;uid=praxis;pwd=...;"
 '   rs.Open "SELECT * FROM mysql.user LIMIT 1", "DRIVER={" & Me.ODBC & "};server=" & trim$(LEFT(Me.ServerZ.List(i), 15)) & ";option=3;uid=" & Me.uid & ";pwd=" & Me.pwd & ";", adOpenStatic, adLockReadOnly
    If Err.Number = 0 Or InStrB(Err.Description, "denied") > 0 Then ' Access denied
     On Error GoTo fehler
@@ -1934,7 +1934,7 @@ Private Sub NurLauf_Click()
  Exit Sub
 fehler:
   ' vermutlich ist kein WMI installiert
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in NurLauf_Click/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in NurLauf_Click/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1977,7 +1977,7 @@ Private Sub ServerZListeGanz()
  obNurLauf = False
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ServerZListeGanz/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ServerZListeGanz/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1998,7 +1998,7 @@ Sub ShowAllDomains()
   Exit Sub
 fehler:
   ' vermutlich ist kein WMI installiert
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllDomains/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllDomains/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -2014,7 +2014,7 @@ Public Sub ShowAllComputers(ByVal strDomain As String)
   On Error Resume Next
   
   For Each oComputer In PrimDomainContr
-    Cpts.Add Left$(oComputer.name & Space$(CptLänge), CptLänge) & "| " & HostByName(oComputer.name)
+    Cpts.Add left$(oComputer.name & Space$(CptLänge), CptLänge) & "| " & HostByName(oComputer.name)
     Debug.Print oComputer.name
   Next
   On Error GoTo fehler
@@ -2022,7 +2022,7 @@ Public Sub ShowAllComputers(ByVal strDomain As String)
 
 fehler:
   ' vermutlich ist kein WMI installiert
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllComputers/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllComputers/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -2147,9 +2147,9 @@ Function doCopyRelations(obQMySQL%, obZMySQL%, qds$, zds$)
         ConstrNam = LCase$(ConstrNam)
        End If
        
-       sql3 = Left$(sql3, Len(sql3) - 1)
+       sql3 = left$(sql3, Len(sql3) - 1)
     '   sql = sql & sql3 & ") " & "references `" & TabRef & "` (" & LEFT(sql2, Len(sql2) - 1) & ")" & IIf(obZMySQL, " ON update " & ars!update_rule & " ON delete " & ars!delete_rule, vns)
-       sql = sql & sql3 & ") " & "REFERENCES `" & TabRef & "` (" & Left$(sql2, Len(sql2) - 1) & ")" & IIf(obZMySQL, " ON update " & qcont(update_rule, qj) & " ON DELETE " & qcont(delete_rule, qj), vNS)
+       sql = sql & sql3 & ") " & "REFERENCES `" & TabRef & "` (" & left$(sql2, Len(sql2) - 1) & ")" & IIf(obZMySQL, " ON update " & qcont(update_rule, qj) & " ON DELETE " & qcont(delete_rule, qj), vNS)
     '   ON Error Resume Next
     '   call sausf ("ALTER TABLE `" & TabHier & "` " & "drop " & IIf(obZMySQL, "FOREIGN KEY", "Constraint") & "`" & ars!constraint_name & "`")
        If qcont(UBound(qcont, 1), qj) = 0 Then Call sAusf("ALTER TABLE `" & TabHier & "` " & "drop " & IIf(obZMySQL, "FOREIGN KEY", "Constraint") & "`" & qcont(constraint_name, qj) & "`", , , True)
@@ -2159,7 +2159,7 @@ Function doCopyRelations(obQMySQL%, obZMySQL%, qds$, zds$)
        If ErrNumber = -2147467259 And Err.Description = "Es wurde kein eindeutiger Index für das in Beziehung stehende Feld der Primärtabelle angegeben." Then
        ' hier dürfte er nicht mit nurSchreiben hinkommen
         Err.Clear
-        Call sAusf("create unique index `" & TabHier & "_rel` ON `" & TabRef & "` (" & Left$(sql2, Len(sql2) - 1) & ")")
+        Call sAusf("create unique index `" & TabHier & "_rel` ON `" & TabRef & "` (" & left$(sql2, Len(sql2) - 1) & ")")
         Debug.Print Err.Number, Err.Description
         On Error GoTo fehler
         Call sAusf("ALTER TABLE `" & TabHier & "` " & sql, , , True)
@@ -2204,15 +2204,15 @@ Function doCopyRelations(obQMySQL%, obZMySQL%, qds$, zds$)
     arsz.Move 1
    Loop
    
-   sql3 = Left$(sql3, Len(sql3) - 1)
-   sql = sql & sql3 & ") " & "REFERENCES `" & TabRef & "` (" & Left$(sql2, Len(sql2) - 1) & ")" & IIf(obZMySQL, " ON UPDATE CASCADE ON DELETE RESTRICT", vNS)
+   sql3 = left$(sql3, Len(sql3) - 1)
+   sql = sql & sql3 & ") " & "REFERENCES `" & TabRef & "` (" & left$(sql2, Len(sql2) - 1) & ")" & IIf(obZMySQL, " ON UPDATE CASCADE ON DELETE RESTRICT", vNS)
    On Error Resume Next
    Call sAusf("ALTER TABLE `" & TabHier & "` " & "drop " & IIf(obZMySQL, "FOREIGN KEY", "CONSTRAINT") & "`" & ars!szrelationship & "`")
    Err.Clear
    Call sAusf("ALTER TABLE `" & TabHier & "` " & sql)
    If Err.Number = -2147467259 And Err.Description = "Es wurde kein eindeutiger Index für das in Beziehung stehende Feld der Primärtabelle angegeben." Then
     Err.Clear
-    Call sAusf("CREATE UNIQUE INDEX `" & TabHier & "_rel` ON `" & TabRef & "` (" & Left$(sql2, Len(sql2) - 1) & ")")
+    Call sAusf("CREATE UNIQUE INDEX `" & TabHier & "_rel` ON `" & TabRef & "` (" & left$(sql2, Len(sql2) - 1) & ")")
     Debug.Print Err.Number, Err.Description
     On Error GoTo fehler
     Call sAusf("ALTER TABLE `" & TabHier & "` " & sql)
@@ -2231,7 +2231,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in doCopyRelations/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -2263,23 +2263,23 @@ Function sAusf(sql$, Optional obRückg%, Optional rAf&, Optional obtolerant%, Opt
   End If
   On Error GoTo fehler
   nsql = sql
-  If nsql.length <= 5000 Then
-   If nsql.length <= 900 Then
+  If nsql.Length <= 5000 Then
+   If nsql.Length <= 900 Then
     If Right$(nsql, 5) = " & "" " Then
-     nskurz = nsql.Left(nsql.length - 5) & ","
+     nskurz = nsql.left(nsql.Length - 5) & ","
     Else
      nskurz = nsql & ""","
     End If
     Print #299, Space$(Einzug) & " call doex(""" & nskurz & IIf(obtolerant, "-1", "0") & ")"
    Else
-    Print #299, Space$(Einzug) & " call doex(""" & nsql.Left(900) & """ & _ "
+    Print #299, Space$(Einzug) & " call doex(""" & nsql.left(900) & """ & _ "
     Set nsql = nsql.cMid(901)
     Do
-     If nsql.length <= 900 Then
+     If nsql.Length <= 900 Then
       Print #299, Space$(Einzug) & """" & nsql & """," & IIf(obtolerant, "-1", "0") & ")"
       Exit Do
      Else
-      Print #299, Space$(Einzug) & """" & nsql.Left(900) & """ & _ "
+      Print #299, Space$(Einzug) & """" & nsql.left(900) & """ & _ "
       Set nsql = nsql.cMid(901)
      End If
     Loop
@@ -2292,23 +2292,23 @@ Function sAusf(sql$, Optional obRückg%, Optional rAf&, Optional obtolerant%, Opt
    Print #299, Space$(Einzug) & " nsql="""""
    Do
     If Len(sql) <= 900 Then
-     Print #299, Space$(Einzug) & " nsql = nsql & """ & nsql.Left(900) & """"
+     Print #299, Space$(Einzug) & " nsql = nsql & """ & nsql.left(900) & """"
      Set nsql = nsql.cMid(901)
      Exit Do
     Else
-     Print #299, Space$(Einzug) & " nsql = nsql & """ & nsql.Left(900) & """ & _ "
+     Print #299, Space$(Einzug) & " nsql = nsql & """ & nsql.left(900) & """ & _ "
      Set nsql = nsql.cMid(901)
      For i = 0 To 5
       If Len(nsql) <= 900 Or i = 5 Then
-       Print #299, Space$(Einzug) & """" & nsql.Left(900) & """"
+       Print #299, Space$(Einzug) & """" & nsql.left(900) & """"
        Set nsql = nsql.cMid(901)
        Exit For
       Else
-       Print #299, Space$(Einzug) & """" & nsql.Left(900) & """ & _ "
+       Print #299, Space$(Einzug) & """" & nsql.left(900) & """ & _ "
        Set nsql = nsql.cMid(901)
       End If
      Next i
-     If nsql.length = 0 Then Exit Do
+     If nsql.Length = 0 Then Exit Do
     End If
    Loop
    Print #299, Space$(Einzug) & " call doex(nsql," & IIf(obtolerant, "-1", "0") & ")"
@@ -2345,7 +2345,7 @@ fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
  ErrLastDllError = Err.LastDllError
- ErrSource = Err.source
+ ErrSource = Err.Source
  'Call XPH
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in sAusf/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -2364,17 +2364,17 @@ Function Ausf(ByRef Befehl$)
 '  Print #299, befehl
   nbefehl = Befehl
 '  IF nbefehl.Length <= 5000 THEN
-   If nbefehl.length <= 900 Then
+   If nbefehl.Length <= 900 Then
     Print #299, nbefehl
    Else
-    Print #299, nbefehl.Left(900) & """ & _ "
+    Print #299, nbefehl.left(900) & """ & _ "
     Set nbefehl = nbefehl.cMid(901)
     Do
-     If nbefehl.length <= 900 Then
+     If nbefehl.Length <= 900 Then
       Print #299, Space$(Einzug) & """" & nbefehl
       Exit Do
      Else
-      Print #299, Space$(Einzug) & """" & nbefehl.Left(900) & """ & _ "
+      Print #299, Space$(Einzug) & """" & nbefehl.left(900) & """ & _ "
       Set nbefehl = nbefehl.cMid(901)
      End If
     Loop
@@ -2508,7 +2508,7 @@ Function SchreibF2(DBn$)
   Print #299, "#Else"
   Print #299, " AnwPfad = App.Path"
   Print #299, "#END IF"
-  Print #299, "SELECT CASE MsgBox(""FNr: "" & FNr & "", ErrNr: "" & CStr(Err.Number) + vbCrLf + ""LastDLLError: "" + CStr(Err.LastDllError) + vbCrLf + ""Source: "" + IIf(ISNULL(Err.source), vns, CStr(Err.source)) + vbCrLf + ""Description: "" + Err.Description, vbAbortRetryIgnore, ""Aufgefangener Fehler in SplitN/"" + AnwPfad)"
+  Print #299, "SELECT CASE MsgBox(""FNr: "" & FNr & "", ErrNr: "" & CStr(Err.Number) + vbCrLf + ""LastDLLError: "" + CStr(Err.LastDllError) + vbCrLf + ""Source: "" + cstr(nz(err.source,"")) + vbCrLf + ""Description: "" + Err.Description, vbAbortRetryIgnore, ""Aufgefangener Fehler in SplitN/"" + AnwPfad)"
   Print #299, " Case vbAbort: Call MsgBox(""Höre auf""): Progende"
   Print #299, " Case vbRetry: Call MsgBox(""Versuche nochmal""): Resume"
   Print #299, " Case vbIgnore: Call MsgBox(""Setze fort""): Resume Next"
@@ -2612,7 +2612,7 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
        erg = 0
        Select Case td.Type
         Case "VIEW"
-         If (runde = 2 And Left$(zTabName, 2) = "__") Or (runde = 3 And Left$(zTabName, 2) <> "__" And Left$(zTabName, 1) = "_") Or (runde = 4 And Left$(zTabName, 1) <> "_") Then
+         If (runde = 2 And left$(zTabName, 2) = "__") Or (runde = 3 And left$(zTabName, 2) <> "__" And left$(zTabName, 1) = "_") Or (runde = 4 And left$(zTabName, 1) <> "_") Then
           erg = doCopyView(qds, td.name, cnz, zTabName, obQMySQL, qCat)
          End If
         Case "TABLE"
@@ -2639,7 +2639,7 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
          Stop
        End Select
   '   cnz.CommitTrans
-       If erg = 1 Then Lese.Ausgeb Left$(zTabName & Space$(25), 25) & " erstellt in " & zds & " aus " & qds & " Runde: " & runde, True
+       If erg = 1 Then Lese.Ausgeb left$(zTabName & Space$(25), 25) & " erstellt in " & zds & " aus " & qds & " Runde: " & runde, True
       End If ' me.mitTabellen
     Next td
    Next runde
@@ -2660,8 +2660,8 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
              "hausaerzte", "kassenliste", "laborgruppen", "liuez", "medarten", _
              "pauschalen", "werte_scheingruppen", "werte_weggeldzonen"
           doCop = True
-         Case "laborxbakt", "laborxeingel", "laborxleist", "laborxsaetze", "laborxus", "laborxwert", _
-          "laborybakt", "laborydat", "laboryleist", "laborysaetze", "laboryus", "laborywert"
+         Case "" & vorsil & "bakt", "" & vorsil & "eingel", "" & vorsil & "leist", "" & vorsil & "saetze", "" & vorsil & "us", "" & vorsil & "wert", _
+          "" & vorsil & "bakt", "" & vorsil & "dat", "" & vorsil & "leist", "" & vorsil & "saetze", "" & vorsil & "us", "" & vorsil & "wert"
           If Me.auchLaborX <> 0 Then doCop = True
          Case "anamnesebogen"
           If Me.auchAnamnese <> 0 Then doCop = True
@@ -2792,7 +2792,7 @@ If FNr = 1 Then
 Else
  MsgBox "Fehler bei dbKopier in '" & uVerz & "dbkopier.txt':"
 End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in dbKopier/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in dbKopier/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -2830,7 +2830,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in datFormZ/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in datFormZ/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -2888,7 +2888,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in JetTyp/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in JetTyp/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -2948,7 +2948,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in MySQLTyp/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in MySQLTyp/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next

@@ -825,8 +825,10 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
  Dim myru%, lauf&, CS$, ddb$
  Dim gcrs As New Adodb.Recordset
  Static fangefangen%
- Const maxru% = 3
+ Dim maxru%
  Dim MaxLauf&
+ Dim bConnLost As Boolean, bLockWait As Boolean
+ maxru = 3
  On Error GoTo fehler
 ' syscmd 4, sql
  
@@ -863,7 +865,9 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
  End If ' InStr(1, sql, "GROUP_CONCAT", vbTextCompare) <> 0 Then
  On Error Resume Next
 ' Debug.Print "SQL: " & sql
- For myru = 1 To maxru
+ myru = 0
+ Do
+  myru = myru + 1
   Dim lngTime&
   lngTime = GetTickCount
   Err.Clear
@@ -884,6 +888,17 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
    Print #321, Now(), lngTime, " ms", sql
    Close #321
   End If
+  If ErrNr <> 0 Then
+   bConnLost = (Cn.State = 0) _
+    Or (InStr(1, ErrDes, "gone away", vbTextCompare) <> 0) _
+    Or (InStr(1, ErrDes, "lost connection", vbTextCompare) <> 0) _
+    Or (ErrNr = 3704) Or (ErrNr = -2147467259)
+   bLockWait = (InStr(1, ErrDes, "Lock wait timeout", vbTextCompare) <> 0) _
+    Or (InStr(1, ErrDes, "Deadlock found", vbTextCompare) <> 0)
+   If bLockWait And Not bConnLost Then
+    If maxru < 10 Then maxru = 10
+   End If
+  End If
   If ErrNr = 0 Then Set myFrag = rs: Exit Function Else
    If myru <> 1 Then ' z.B. bei gleichzeitigem BDT-Import regelm‰ﬂig auftretend
     If Not fangefangen Then
@@ -894,10 +909,14 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
     If keinfehler <> 0 Then Exit Function
     Debug.Print "MyFrag: Fehler " & Err.Number & ": " & Err.Description & vbCrLf; " bei: " & sql
     DoEvents
-    Sleep 1000
+    If bLockWait And Not bConnLost Then
+     Sleep 2000 + Int(Rnd * 1001)
+    Else
+     Sleep 1000
+    End If
     DoEvents
    End If ' myru <> 1 Then ' z.B. bei gleichzeitigem BDT-Import regelm‰ﬂig auftretend
-   If myru = 1 Or myru >= maxru - 2 Then
+   If bConnLost Then
 '    Call DBCnOpen
 '    Set Cn = DBCn
     If myru = 1 Then
@@ -909,9 +928,8 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
      Cn.DefaultDatabase = ddb
     End If ' myru = 1 else
  '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
-   Else: On Error GoTo fehler
   End If ' ErrNr = 0 Then Set myFrag = rs: Exit Function Else
- Next myru
+ Loop While myru < maxru
  Exit Function
 fehler:
  Dim AnwPfad$

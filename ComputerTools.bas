@@ -323,7 +323,7 @@ Public Function GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As
   If SHGetSpecialFolderLocation(0, Folder, tIIDL) = S_OK Then
     strPath = Space$(MAX_PATH)
     If SHGetPathFromIDList(tIIDL.mkid.cb, strPath) <> 0 Then
-      GetSpecialFolder = Left$(strPath, InStr(1, strPath, vbNullChar) - 1)
+      GetSpecialFolder = left$(strPath, InStr(1, strPath, vbNullChar) - 1)
     End If
   End If
 End Function
@@ -382,7 +382,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SetEnvir/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SetEnvir/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -496,7 +496,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetOSVersion/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetOSVersion/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -518,7 +518,7 @@ Set objWMIService = GetObject("winmgmts:" & "{impersonationLevel=impersonate}!\\
 Set colOperatingSystems = objWMIService.ExecQuery("SELECT * FROM Win32_OperatingSystem")
 For Each objOperatingSystem In colOperatingSystems
 '    syscmd 4, objOperatingSystem.Caption & "  " & objOperatingSystem.Version
-    GetOSVersion = Left$(objOperatingSystem.Version, InStr(objOperatingSystem.Version, ".") - 1)
+    GetOSVersion = left$(objOperatingSystem.Version, InStr(objOperatingSystem.Version, ".") - 1)
     Exit Function
 Next
 fehler:
@@ -528,7 +528,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetOSVersion/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetOSVersion/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -571,7 +571,7 @@ Public Function HostByName(name As String, Optional x As Integer = 0) As String
         IpAddress = IpAddress & MemIp(Y) & "."
     Next Y
     
-    IpAddress = Left$(IpAddress, Len(IpAddress) - 1)
+    IpAddress = left$(IpAddress, Len(IpAddress) - 1)
     HostByName = IpAddress
     Exit Function
 fehler:
@@ -581,7 +581,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in HostByName/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in HostByName/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -608,7 +608,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in InitSockets/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in InitSockets/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -634,7 +634,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in CleanSockets/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in CleanSockets/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -663,7 +663,7 @@ Function VerzPrüfneu$(ByVal Verz$)
   If LenB(tStr) <> 0 Then
    tStr = LokPfad(tStr)
    If Not FSO.FolderExists(tStr) Then
-    If Not (Left$(tStr, 2) = "\\" And InStrB(Mid$(tStr, 3), "\") = 0) Then
+    If Not (left$(tStr, 2) = "\\" And InStrB(Mid$(tStr, 3), "\") = 0) Then
      FNr = 5
      Call FSO.CreateFolder(tStr)
     End If
@@ -679,7 +679,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & " tstr = " & tStr & ", j:" & j & ", ErrNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in VerzPrüfneu/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & " tstr = " & tStr & ", j:" & j & ", ErrNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in VerzPrüfneu/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -711,7 +711,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in LokPfad/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in LokPfad/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -750,7 +750,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ListFreiGaben/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ListFreiGaben/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -781,7 +781,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in VerzPrüf/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in VerzPrüf/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -801,7 +801,7 @@ Function VerzPrüfAlt(Verz$)
   If LenB(Spli(i)) <> 0 Then
    Zus = Zus + IIf(LenB(Zus) = 0, "", "\") + Spli(i)
    If Not FSO.FolderExists(Zus) Then
-    If Not (Left$(Zus, 2) = "\\" And InStr(3, Zus, "\") = 0) Then
+    If Not (left$(Zus, 2) = "\\" And InStr(3, Zus, "\") = 0) Then
      Call FSO.CreateFolder(Zus)
     End If
    End If
@@ -815,7 +815,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in VerzPrüfAlt/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in VerzPrüfAlt/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -859,7 +859,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in Meld/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in Meld/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -911,7 +911,7 @@ Function DateiVergleichen%(D1$, D2$)
  Close #356
  Exit Function
 fehler:
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DateiVergleichen/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DateiVergleichen/" + App.path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1063,7 +1063,7 @@ Public Sub machOrdner(tStr$, Optional obaggr%)
  On Error GoTo fehler
   If WV = 0 Then WV = GetOSVersion
   If LenB(tStr) <> 0 Then
-    If Right$(tStr, 1) = "\" Then tStr = Left$(tStr, Len(tStr) - 1)
+    If Right$(tStr, 1) = "\" Then tStr = left$(tStr, Len(tStr) - 1)
     For runde = 1 To 2
      If DirExists(tStr) Then
       gibts = True
@@ -1091,7 +1091,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in machOrdner/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in machOrdner/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1158,7 +1158,7 @@ Public Function KopDat%(q$, z$, Optional WV As WindowsVersion)
  End If
  Exit Function
 fehler:
- Select Case MsgBox("Fpos: " & FPos & " ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in KopDat/" & App.path)
+ Select Case MsgBox("Fpos: " & FPos & " ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & CStr(nz(Err.Source, vbNullString)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in KopDat/" & App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1234,7 +1234,7 @@ Public Sub KopDat(q$, z$, Optional WV As WindowsVersion)
   If Not FSO.FolderExists(z) Then  ' 21.8.15, noetig fuer 'c:\program files'
 '   ShellaW vverz & doalsad & acceu & AdminGes & " cmd /e:on /c xcopy /d /h /r " & Chr$(34) & userprof & "\" & Datei & Chr$(34) & " " & Chr$(34) & Left$(z, InStrRev(z, "\")) & Chr$(34), vbHide, , 10000
 '   SuSh "xcopy /d /h /r " & Chr$(34) & userprof & "\" & Datei & Chr$(34) & " " & Chr$(34) & Left$(z, InStrRev(z, "\")) & Chr$(34), 3, , 0
-    rufauf "xcopy", "/d /h /r """ & userprof & "\" & Datei & """ """ & Left$(z, InStrRev(z, "\")) & """", 0, , 0, 0
+    rufauf "xcopy", "/d /h /r """ & userprof & "\" & Datei & """ """ & left$(z, InStrRev(z, "\")) & """", 0, , 0, 0
 '   Shell vverz & doalsad & acceu & AdminGes & " cmd /e:on /c del " & Chr$(34) & userprof & "\" & Datei & Chr$(34), vbHide
 '   SuSh "cmd /e:on /c del " & Chr$(34) & userprof & "\" & Datei & Chr$(34), 1, , 0
    rufauf "cmd", "/e:on /c del """ & userprof & "\" & Datei & """", , , 0, 0
@@ -1253,7 +1253,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("Fehler beim Kopieren von '" & q & "'" & vbCrLf & " nach '" & z & "':" & vbCrLf & "FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in KopDat/" + AnwPfad)
+Select Case MsgBox("Fehler beim Kopieren von '" & q & "'" & vbCrLf & " nach '" & z & "':" & vbCrLf & "FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in KopDat/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1278,7 +1278,7 @@ Public Function FindProcessID(ByVal pExename As String) As Long
     Do While rProcessFound
         pos = InStr(1, uProcess.szExeFile, vbNullChar)
         If pos Then
-            szExename = Left$(uProcess.szExeFile, pos - 1)
+            szExename = left$(uProcess.szExeFile, pos - 1)
         End If
         If LCase$(szExename) = LCase$(pExename) Then
             'Found it
@@ -1393,7 +1393,7 @@ Dim AnwPfad$
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), "", CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in rufauf/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in rufauf/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1414,7 +1414,7 @@ nochmal:
  Open Environ("appdata") & "\obadmin.txt" For Input As #193
  Do While Not EOF(193)
   Line Input #193, Text
-  If Left$(Text, 11) = "Konto aktiv" Then
+  If left$(Text, 11) = "Konto aktiv" Then
    If Text Like "*Nein*" Then
     If AdminPwd = "" Then AdminPwd = holap("Administrator")
     rufauf "cmd", "/c net user Administrator " & AdminPwd & " /active:yes", 1, , , 0

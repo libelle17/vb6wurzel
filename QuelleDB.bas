@@ -23,12 +23,12 @@ Public CStrHAE$ ' Connection String für Hausärzte
 Public ifexists$, ifnotexists$, sqliif$, sqllen$, sqlALTER$, sqltodays$, sqlfloor$, sqlText$, sqlmemo$, sqlBool$, sqlDeletefrom$, sqlIGNORE$, sqlStern$, sqlPlus$, sqlAutoIncr$, sqlLong$ ' Klammer auf, Klammer zu für Tabellen- und Feldnamen in Access ``, in MySQL `` ' kla$, klz$,
 'Public MyDB$ ' quelle, quelle1, quelle2
 'Public ConStr$ ' Connection String
-Public HAECn As New Adodb.Connection
+Public HAECn As New ADODB.Connection
 'Public HACnS$ ' desgleichen für HACn
-Public FxCn As New Adodb.Connection ' Kommentar hinter FxCn wieder entfernt 3.12.22 für FaxAkt
+Public FxCn As New ADODB.Connection ' Kommentar hinter FxCn wieder entfernt 3.12.22 für FaxAkt
 Public FxCnS$ ' Für Windows 7
-Public FtCn As New Adodb.Connection
-Public OffCn As New Adodb.Connection
+Public FtCn As New ADODB.Connection
+Public OffCn As New ADODB.Connection
 Public KVÄDatei$
 Public AnamneseVerZeichnis$
 Public LVobMySQL As Boolean ' ob letzte Verbindung MySQL
@@ -49,7 +49,7 @@ Public Enum ConDtb
  q2Dtb
 End Enum ' ConDtb
 
-Public Function DBCnOSchema(adSc As SchemaEnum, Crit, Optional SchemaID) As Adodb.Recordset
+Public Function DBCnOSchema(adSc As SchemaEnum, Crit, Optional SchemaID) As ADODB.Recordset
  On Error GoTo fehler
 ' SET DBCnOSchema = DBCn.OpenSchema(adSc, Crit, SchemaID)
   Set DBCnOSchema = myEFrag("SELECT * FROM information_schema.columns WHERE table_catalog='def' AND table_schema='" & IIf(DBCn.DefaultDatabase = "", Forms(0).MyDB, DBCn.DefaultDatabase) & "' AND TABLE_NAME='" & Crit(2) & "' AND is_generated='NEVER'")
@@ -67,7 +67,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DBCnOSchema/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DBCnOSchema/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -94,7 +94,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in syscmd/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in syscmd/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -301,7 +301,7 @@ Public Function aCStr$(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccNam
 fehler:
 ErrNumber = Err.Number
 ErrLastDllError = Err.LastDllError
-ErrSource = Err.source
+ErrSource = Err.Source
 ErrDescr = Err.Description
 
  Dim AnwPfad$
@@ -339,7 +339,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ACStr/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ACStr/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -347,7 +347,7 @@ End Select
 End Function ' DBName
 
 ' in Vergleiche
-Public Function acon(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccName$, Optional DBName$, Optional CnStr$, Optional obZinit%, Optional obregneu%, Optional ohneFallzeig%) As Adodb.Connection
+Public Function acon(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccName$, Optional DBName$, Optional CnStr$, Optional obZinit%, Optional obregneu%, Optional ohneFallzeig%) As ADODB.Connection
  Static altcdTB As ConDtb
  Dim erg$
  On Error GoTo fehler
@@ -432,7 +432,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ACon/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ACon/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -583,7 +583,7 @@ End Function ' acon
 '#Else
 ' AnwPfad = App.Path
 '#END IF
-'SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(ISNULL(Err.source), vns, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in acon_/" + AnwPfad)
+'SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + cstr(nz(err.source,"")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in acon_/" + AnwPfad)
 ' Case vbAbort: Call MsgBox("Höre auf"): Progende
 ' Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
 ' Case vbIGNORE: Call MsgBox("Setze fort"): Resume Next
@@ -623,7 +623,7 @@ End Function ' acon
 '#Else
 ' AnwPfad = App.Path
 '#END IF
-'SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(ISNULL(Err.source), vns, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in doConstrFestleg/" + AnwPfad)
+'SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + cstr(nz(err.source,"")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in doConstrFestleg/" + AnwPfad)
 ' Case vbAbort: Call MsgBox("Höre auf"): Progende
 ' Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
 ' Case vbIGNORE: Call MsgBox("Setze fort"): Resume Next
@@ -649,7 +649,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DatFor_k/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DatFor_k/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -673,7 +673,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DatForD/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DatForD/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -691,21 +691,21 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SelDatum/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SelDatum/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' SelDatum
 
-Public Function AccOpen(ByRef accrs As Adodb.Recordset, ByRef sql$, ByRef Pfad$)
+Public Function AccOpen(ByRef accrs As ADODB.Recordset, ByRef sql$, ByRef Pfad$)
  Set accrs = Nothing
  accrs.Open sql, CStrAcc & Pfad, adOpenStatic, adLockReadOnly
 End Function ' AccOpen
 
-Public Function xlsopen(ByRef accrs As Adodb.Recordset, ByRef Pfad$)
+Public Function xlsopen(ByRef accrs As ADODB.Recordset, ByRef Pfad$)
  Const XStrb = ";Extended Properties=""Excel 8.0;HDR=no;IMEX=1"""
- Static XlsCon As New Adodb.Connection
+ Static XlsCon As New ADODB.Connection
  Static rX As New ADOX.Catalog
  Set XlsCon = Nothing
 ' XCon.Open XStra & Me.Datei & XStrb
@@ -718,7 +718,7 @@ End Function ' xlsopen
 Public Function KVAccSuch$()
  Dim Fls As Files, Fl As File, lastDat#
  Dim FSO As New FileSystemObject
- Dim rKv As New Adodb.Recordset
+ Dim rKv As New ADODB.Recordset
  On Error GoTo fehler
    AnamneseVerZeichnis = AnamneseVerZeichnis1
    If LenB(KVÄDatei) = 0 Or Not FSO.FileExists(KVÄDatei) Then
@@ -754,7 +754,7 @@ fehler:
 If Err.Number = -2147217904 Or Err.Number = -2147217865 Or Err.Number = -2147467259 Then  ' Feld nicht in Datenbank usw.
  Resume nächstedatei
 End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in KVAccSuch/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in KVAccSuch/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -789,7 +789,7 @@ End Function ' KVAccSuch
 '#Else
 ' AnwPfad = App.Path
 '#END IF
-'SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(ISNULL(Err.source), vns, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in KVÄVorb/" + AnwPfad)
+'SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + cstr(nz(err.source,"")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in KVÄVorb/" + AnwPfad)
 ' Case vbAbort: Call MsgBox("Höre auf"): Progende
 ' Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
 ' Case vbIGNORE: Call MsgBox("Setze fort"): Resume Next
@@ -798,14 +798,14 @@ End Function ' KVAccSuch
 
 #If False Then
 Public Function doSortierungÄndern()
- Dim rs As New Adodb.Recordset, rdb As Adodb.Recordset, rt As Adodb.Recordset, rc As Adodb.Recordset
- Dim rAF&, altDefDB$
+ Dim rs As New ADODB.Recordset, rdb As ADODB.Recordset, rt As ADODB.Recordset, rc As ADODB.Recordset
+ Dim rAf&, altDefDB$
     Dim sql$, sql0$
  If Not LVobMySQL Then Exit Function
  altDefDB = DefDB(DBCn)
  Set rdb = myEFrag("SHOW DATABASES WHERE `database` NOT IN ('mysql','information_schema') AND `database` = 'quelle2'")
  Do While Not rdb.EOF
-  myEFrag "USE `" & rdb!Database & "`", rAF
+  myEFrag "USE `" & rdb!Database & "`", rAf
   myEFrag ("SET foreign_key_checks=0")
 '  SET rs = myEFrag("SHOW VARIABLES WHERE variable_name = 'collation_database' AND value = '" & altColl & "'")
 '  IF Not rs.EOF THEN
@@ -827,9 +827,9 @@ Public Function doSortierungÄndern()
      sql = sql & "MODIFY `" & rc!Field & "` " & rc!Type & " COLLATE '" & rc!collation & "' default '' NOT NULL comment '" & rc!Comment & "',"
      rc.Move 1
     Loop
-    sql = Left$(sql, Len(sql) - 1)
+    sql = left$(sql, Len(sql) - 1)
     If sql <> sql0 Then
-     myEFrag sql, rAF
+     myEFrag sql, rAf
 '     Debug.Print rAF & ": " & sql
     End If
     rt.Move 1
@@ -851,7 +851,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doSortierungÄndern/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doSortierungÄndern/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -861,19 +861,19 @@ End Function 'doSortierungÄndern
 
 Public Function doSortierungÄndern0()
  Const altColl$ = "latin1_german1_ci", neuColl$ = "utf8mb4_german2_ci" 'neuColl$ = "latin1_german2_ci"
- Dim rs As New Adodb.Recordset, rdb As Adodb.Recordset, rt As Adodb.Recordset, rc As Adodb.Recordset
- Dim rAF&, altDefDB$
+ Dim rs As New ADODB.Recordset, rdb As ADODB.Recordset, rt As ADODB.Recordset, rc As ADODB.Recordset
+ Dim rAf&, altDefDB$
     Dim sql$, sql0$
  
  If Not LVobMySQL Then Exit Function
 ' altDefDB = DefDB(DBCn)
  Set rdb = myEFrag("SHOW DATABASES WHERE `database` NOT IN ('mysql','information_schema')")
  Do While Not rdb.EOF
-  myEFrag "USE `" & rdb!Database & "`", rAF
+  myEFrag "USE `" & rdb!Database & "`", rAf
   myEFrag ("SET foreign_key_checks=0")
   Set rs = myEFrag("SHOW VARIABLES WHERE variable_name = 'collation_database' AND value = '" & altColl & "'")
   If Not rs.EOF Then
-   myEFrag "ALTER DATABASE COLLATE '" & neuColl & "'", rAF ' "`" & rdb!Database & "`"
+   myEFrag "ALTER DATABASE COLLATE '" & neuColl & "'", rAf ' "`" & rdb!Database & "`"
   End If
   Set rt = myEFrag("SHOW FULL TABLES WHERE table_type = 'BASE TABLE'") ' FROM `" & rdb!Database & "`
   If Not rt.BOF Then
@@ -891,9 +891,9 @@ Public Function doSortierungÄndern0()
      sql = sql & "MODIFY `" & rc!Field & "` " & rc!Type & " COLLATE '" & neuColl & "' default " & IIf(IsNull(rc!Default), IIf(rc!Null = "YES", "NULL", "'' NOT NULL"), "'" & rc!Default & "' " & IIf(rc!Null = "YES", "NULL", "NOT NULL")) & " " & " comment '" & rc!Comment & "',"
      rc.Move 1
     Loop
-    sql = Left$(sql, Len(sql) - 1)
+    sql = left$(sql, Len(sql) - 1)
     If sql <> sql0 Then
-     myEFrag sql, rAF
+     myEFrag sql, rAf
 '     Debug.Print rAF & ": " & sql
     End If
     rt.Move 1
@@ -914,7 +914,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doSortierungÄndern0/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doSortierungÄndern0/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -923,7 +923,7 @@ End Function ' doSortierungÄndern0
 
 
 ' in obAcc_Click, acon, wCnAendern, VergleichTab, fzsfuell
-Public Function SetDBCn(CS As Adodb.Connection, CSStr$, Optional ohneFallzeig%)
+Public Function SetDBCn(CS As ADODB.Connection, CSStr$, Optional ohneFallzeig%)
   Dim altCS$
   On Error GoTo fehler
   If Not DBCn Is Nothing Then
@@ -958,7 +958,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in setDBCN/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in setDBCN/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1024,7 +1024,7 @@ End Function ' DBCnSet(CS)
 '#Else
 ' AnwPfad = App.path
 '#END IF
-'SELECT CASE MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(ISNULL(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in testAktiv/" + AnwPfad)
+'SELECT CASE MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + cstr(nz(err.source,"")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIGNORE, "Aufgefangener Fehler in testAktiv/" + AnwPfad)
 ' Case vbAbort: Call MsgBox("Höre auf"): Progende
 ' Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
 ' Case vbIGNORE: Call MsgBox("Setze fort"): Resume Next

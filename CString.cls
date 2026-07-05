@@ -30,7 +30,7 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
-Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (dest As Any, source As Any, ByVal Bytes&)
+Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (dest As Any, Source As Any, ByVal Bytes&)
 Private Declare Sub ZeroMemory Lib "kernel32" Alias "RtlZeroMemory" (dest As Any, ByVal numBytes&)
 Private Declare Sub FillMemory Lib "kernel32" Alias "RtlFillMemory" (dest As Any, ByVal numBytes&, ByVal fillByte%)
 
@@ -118,11 +118,11 @@ End Sub ' CopyData
 
 ' the current Length (can also be written to)
 ' ("Len" can't be used because it is a reserved word)
-Property Get length&()
-    length = m_Len
+Property Get Length&()
+    Length = m_Len
 End Property ' Get length&()
 
-Property Let length(ByVal NewValue&)
+Property Let Length(ByVal NewValue&)
     ' raise error IF new Length is invalid
     If NewValue < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
     ' check that the private array is large enough
@@ -149,18 +149,18 @@ Function Copy() As CString
 End Function ' Copy() As CString
 
 ' create a new CString object with leftmost Characters
-Property Get Left(ByVal NumChars&) As CString
+Property Get left(ByVal NumChars&) As CString
     ' raise error IF new Length is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
     ' adjust length IF necessary
     If NumChars > m_Len Then NumChars = m_Len
     ' create a new CString object
-    Set Left = New CString
-    Left.CopyData StrPtr(), NumChars
+    Set left = New CString
+    left.CopyData StrPtr(), NumChars
 End Property ' Get LEFT(
 
 ' replace leftmost Characters USING a given string
-Property Let Left(ByVal NumChars&, NewValue As Variant)
+Property Let left(ByVal NumChars&, NewValue As Variant)
     ' raise error IF new parameter is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
     ' can't copy more Character than existing
@@ -174,13 +174,13 @@ Property Let Left(ByVal NumChars&, NewValue As Variant)
 End Property ' LET LEFT
 
 ' replace leftmost Characters USING a CString object
-Property Set Left(ByVal NumChars&, NewValue As CString)
+Property Set left(ByVal NumChars&, NewValue As CString)
     ' raise error IF new parameter is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
     ' can't copy more Character than existing
     If NumChars > m_Len Then NumChars = m_Len
     ' can't copy more Characters THEN the string's length
-    If NumChars > NewValue.length Then NumChars = NewValue.length
+    If NumChars > NewValue.Length Then NumChars = NewValue.Length
     ' copy CHARs FROM the string INTO the local array
     If NumChars > 0 Then
         CopyMemory chars(0), ByVal NewValue.StrPtr, NumChars
@@ -219,7 +219,7 @@ Property Set Right(ByVal NumChars&, NewValue As CString)
     ' can't copy more Character than existing
     If NumChars > m_Len Then NumChars = m_Len
     ' can't copy more Characters THEN the string's length
-    If NumChars > NewValue.length Then NumChars = NewValue.length
+    If NumChars > NewValue.Length Then NumChars = NewValue.Length
     ' copy CHARs FROM the string INTO the local array
     If NumChars > 0 Then
         CopyMemory chars(m_Len - NumChars), ByVal NewValue.StrPtr, NumChars
@@ -302,7 +302,7 @@ Property Set cMid(ByVal StartPos&, Optional NumChars As Variant, NewValue As CSt
         End If
     End If
 
-    If Bytes > NewValue.length Then Bytes = NewValue.length
+    If Bytes > NewValue.Length Then Bytes = NewValue.Length
     If Bytes > 0 Then
         CopyMemory chars(StartPos - 1), ByVal NewValue.StrPtr, Bytes
     End If
@@ -344,7 +344,7 @@ Function Instr&(search As Variant, Optional StartPos& = 1)
 
     If TypeOf search Is CString Then 'Or TypeOf search Is cstring THEN
         ' IF a CString object is passed, THEN make a local copy of it
-        searchLen = search.length
+        searchLen = search.Length
         ' IF a null string, exit immediately
         If searchLen = 0 Then Instr = StartPos: Exit Function
         ReDim searchChars(0 To searchLen - 1) As Byte
@@ -375,9 +375,9 @@ End Function ' Instr(search
 
 Sub REPLACE(search As Variant, repl As Variant)
  Dim pos&, Slen&, RLen&
- If TypeOf search Is CString Then Slen = search.length Else Slen = Len(search)  ' OR TypeOf search Is cstring
+ If TypeOf search Is CString Then Slen = search.Length Else Slen = Len(search)  ' OR TypeOf search Is cstring
  If Slen = 0 Then Exit Sub
-If TypeOf search Is CString Then RLen = repl.length Else RLen = Len(repl) ' OR TypeOf search Is cstring
+If TypeOf search Is CString Then RLen = repl.Length Else RLen = Len(repl) ' OR TypeOf search Is cstring
  Do
   pos = Me.Instr(search, pos + 1)
   If pos = 0 Then Exit Do
@@ -439,7 +439,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in AppVar/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in AppVar/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -461,7 +461,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in AppVar/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in AppVar/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -485,7 +485,7 @@ Function Append(arg As Variant) As CString
     
     If TypeOf arg Is CString Then ' OR TypeOf arg Is cstring
         Set argObj = arg
-        argLen = argObj.length
+        argLen = argObj.Length
     Else
         If IsNull(arg) Then
          Exit Function
@@ -521,7 +521,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in Append/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in Append/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -601,7 +601,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ZSUh/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ZSUh/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
