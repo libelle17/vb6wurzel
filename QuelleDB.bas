@@ -932,7 +932,9 @@ Public Function SetDBCn(CS As ADODB.Connection, CSStr$, Optional ohneFallzeig%)
   DBCnS = CSStr
 '  SET DBCn = CS
   On Error Resume Next ' 19.7.23
-  If obTrans Then Set DBCn = Nothing Else If DBCn.State <> 0 Then DBCn.Close
+  If DBCn.State <> 0 Then DBCn.Close ' 6.7.26: vorher bei obTrans nur 'Set DBCn = Nothing' ohne Close,
+  ' dadurch blieb die Verbindung serverseitig offen und wurde irgendwann unsauber (Aborted connection) getrennt
+  If obTrans Then Set DBCn = Nothing
   On Error GoTo fehler
 '  Set DBCn = Nothing ' geändert 21.10.22
   If DBCnS = "" Then DBCnS = altCS
