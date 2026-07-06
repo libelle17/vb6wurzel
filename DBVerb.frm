@@ -1152,6 +1152,7 @@ Function doVerbind%(Optional Tabelle$, Optional ErrDes$)
 '    END IF
 again:
     Err.Clear
+    If Not wCn Is Nothing Then If wCn.State <> 0 Then wCn.Close ' 6.7.26: alte Verbindung erst sauber schliessen
     Set wCn = Nothing
     wCn.Open Me.CnStr
     DBCnS = Me.CnStr
@@ -1182,6 +1183,7 @@ again:
      If InStrB(ErrDescr, "Unknown database") <> 0 Then
       ErrDes = Err.Description
       Err.Clear
+      If Not wCn Is Nothing Then If wCn.State <> 0 Then wCn.Close ' 6.7.26: alte Verbindung erst sauber schliessen
       Set wCn = Nothing
       Me.CnStr = Me.CoStr
       wCn.Open Me.CnStr
@@ -1623,6 +1625,9 @@ zeig:
     zuRaisen = False
 '   END IF
 '  END IF
+  On Error Resume Next ' 6.7.26: damit ein Fehler beim Schliessen der schon defekten Verbindung nicht die Fehlerbox ausloest
+  If Not wCn Is Nothing Then If wCn.State <> 0 Then wCn.Close
+  On Error GoTo fehler
   Set wCn = Nothing
   wCn.Open Me.CnStr
   DBCnS = Me.CnStr
