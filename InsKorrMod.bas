@@ -4,7 +4,7 @@ Option Explicit
 Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds&)
 Private Declare Function GetTickCount Lib "kernel32" () As Long
 Public maxlz& ' maximale Laufzahl für DBCnOpen
-Public DBCn As New Adodb.Connection
+Public DBCn As New ADODB.Connection
 Public DBCnS$ ' Connection-String von DBCn, da auf Vista dieser unvollständig => immer mitführen
 Public ErrNumber&, ErrDescr$, ErrSource$, ErrLastDllError&
 Public obTrans% ' ob BeginTrans für DBCn aufgerufen wurde => in
@@ -55,13 +55,13 @@ Public Function GetSpecialFolder$(ByVal Folder As ShellSpecialFolderConstants)
   If SHGetSpecialFolderLocation(0, Folder, tIIDL) = S_OK Then
     strPath = Space$(MAX_PATH)
     If SHGetPathFromIDList(tIIDL.mkid.cb, strPath) <> 0 Then
-      GetSpecialFolder = Left$(strPath, InStr(1, strPath, vbNullChar) - 1)
+      GetSpecialFolder = left$(strPath, InStr(1, strPath, vbNullChar) - 1)
     End If
   End If
 End Function ' GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As String
 
 Function CurDB$(DBCn)
- Dim Cn As New Adodb.Connection
+ Dim Cn As New ADODB.Connection
  On Error GoTo fehler
  If VarType(DBCn) = vbString And Not IsObject(DBCn) Then
   Cn.Open DBCn
@@ -81,7 +81,7 @@ fehler:
 '  DBCn.Open DBCnS
 '  Resume
 ' End If
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in CurDB/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vbNullString, CStr(Err.Source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in CurDB/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -129,7 +129,7 @@ Function DefDB$(DBCn)
      sp2 = InStr(spos, DBCn, ";")
      If sp2 = 0 Then sp2 = Len(DBCn)
      DefDB = Mid$(DBCn, spos + Len(dWort), sp2 - spos - Len(dWort))
-     If (Left$(DefDB, 1) = """" And Right$(DefDB, 1) = """") Or (Left$(DefDB, 1) = "'" And Right$(DefDB, 1) = "'") Then DefDB = Mid$(DefDB, 2, Len(DefDB) - 2)
+     If (left$(DefDB, 1) = """" And Right$(DefDB, 1) = """") Or (left$(DefDB, 1) = "'" And Right$(DefDB, 1) = "'") Then DefDB = Mid$(DefDB, 2, Len(DefDB) - 2)
      Exit For
     End If
    Next runde
@@ -152,7 +152,7 @@ Function DefDB$(DBCn)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in DefDB/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vbNullString, CStr(Err.Source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in DefDB/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -173,7 +173,7 @@ Function GetSvr$(DBCn)
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetSvr/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vbNullString, CStr(Err.Source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetSvr/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -232,7 +232,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SplitNeu/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SplitNeu/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -257,7 +257,7 @@ Public Function fUmwfSQL(q$, Optional obmy% = True) As CString ' flexibles Umwan
  End If
  Set fUmwfSQL = New CString
  fUmwfSQL = q
- For pos = fUmwfSQL.length To 1 Step -1
+ For pos = fUmwfSQL.Length To 1 Step -1
   For j = 0 To Maxz
    If fUmwfSQL.cMid(pos, 1) = z(j) Then
     obumw = 0
@@ -284,7 +284,7 @@ Public Function fUmwfSQL(q$, Optional obmy% = True) As CString ' flexibles Umwan
 fehler:
  ErrNumber = Err.Number
  ErrDescr = Err.Description
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vbNullString, CStr(Err.source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fUmwfSQL/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vbNullString, CStr(Err.Source)) + vbCrLf + "Description: " + ErrDescr + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fUmwfSQL/" + App.path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -310,12 +310,12 @@ Function Ausgeb(Text$, obDauer%)
 End Function ' Ausgeb
 
 
-Sub InsKorr(Cn As Adodb.Connection, sql$, Optional ByRef rAF&, Optional ErrDes$, Optional restarttrans%, Optional ErrNr&, Optional sfkco%)
+Sub InsKorr(Cn As ADODB.Connection, sql$, Optional ByRef rAf&, Optional ErrDes$, Optional restarttrans%, Optional ErrNr&, Optional sfkco%)
  Dim Feld$, UFELD$, Tbl$, p1$, p2$, spl1s$, spl2s$, s1$(), s2$(), csql As New CString, ix&, i&, j&
  Dim cDB$, svr$, CNs$
- Dim rs As New Adodb.Recordset
+ Dim rs As New ADODB.Recordset
 ' Dim rErr As New ADODB.Recordset
- Dim altmode$, obneuMode%, raM As New Adodb.Recordset
+ Dim altmode$, obneuMode%, raM As New ADODB.Recordset
  Dim Dtl$(5)
  Dim altDes$
  Dim altErrDes$, FMeld$
@@ -330,7 +330,7 @@ Sub InsKorr(Cn As Adodb.Connection, sql$, Optional ByRef rAF&, Optional ErrDes$,
    altmode = raM.Fields(0)
    If InStrB(altmode, "strict_trans_tables") = 0 Then
     obneuMode = True
-    myEFrag "SET SESSION sql_mode='strict_trans_tables'", rAF, Cn
+    myEFrag "SET SESSION sql_mode='strict_trans_tables'", rAf, Cn
    End If ' InStrB(altMode, "strict_trans_tables") = 0 Then
   End If ' not raM.BOF
  End If ' InStrB(CNs, "MySQL") <> 0 Or InStrB(CNs, "MSDASQL") <> 0 Then
@@ -339,9 +339,9 @@ anfang:
  On Error Resume Next
  For j = 1 To 2
   FNr = 2 + j
-  rAF = 0
+  rAf = 0
 nochmal:
-  myEFrag sql, rAF, Cn, True, ErrNr, ErrDes, , , sfkco
+  myEFrag sql, rAf, Cn, True, ErrNr, ErrDes, , , sfkco
 '  ErrNr = Err.Number
 '  ErrDes = Err.Description
   
@@ -365,7 +365,7 @@ nochmal:
     altDes = ErrDes
     altErrDes = ErrDes
     If InStrB(ErrDes, "'READ-COMMITTED'") <> 0 Then
-     myEFrag "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ", rAF, Cn
+     myEFrag "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ", rAf, Cn
     End If
    Else
 '   IF rAF <> 0 THEN Stop
@@ -424,7 +424,7 @@ nochmal:
      p1 = InStr(sql, insanw) + Len(insanw) + 1
      p2 = InStr(p1, sql, "(") - p1
      Tbl = Trim$(Mid$(sql, p1, p2))
-     If Left$(Tbl, 1) = "`" And Right$(Tbl, 1) = "`" Then Tbl = Mid$(Tbl, 2, Len(Tbl) - 2)
+     If left$(Tbl, 1) = "`" And Right$(Tbl, 1) = "`" Then Tbl = Mid$(Tbl, 2, Len(Tbl) - 2)
      p1 = InStr(sql, "(") + 1
      p2 = InStr(p1, sql, ")") - p1 ' wenn keine Klammern im Namen vorkommen
      spl1s = Mid$(sql, p1, p2)
@@ -443,7 +443,7 @@ nochmal:
      If LenB(UFELD) <> 0 Then
       For i = 0 To UBound(s1)
        s1(i) = Trim$(s1(i))
-       If Left$(s1(i), 1) = "`" Then
+       If left$(s1(i), 1) = "`" Then
         If Right$(s1(i), 1) = "`" Then
          If UCase$(Mid$(s1(i), 2)) = UFELD & "`" Then
           ix = i
@@ -481,7 +481,7 @@ nochmal:
           spl2s = spl2s & s2(i) & ","
          Next i
          spl2s = spl2s & s2(UBound(s2))
-         sql = Left$(sql, p1 - 1) & spl2s & ")"
+         sql = left$(sql, p1 - 1) & spl2s & ")"
         Else ' neus2 < 1000 Then
         End If ' neus2 < 1000 Then Else
        ElseIf LenB(Mid$(s2(ix), 2, Len(s2(ix)) - 2)) = 0 Then
@@ -494,7 +494,7 @@ nochmal:
          spl2s = spl2s & s2(i) & ","
         Next i
         spl2s = spl2s & s2(UBound(s2))
-        sql = Left$(sql, p1 - 1) & spl2s & ")"
+        sql = left$(sql, p1 - 1) & spl2s & ")"
        End If ' IsDate(Mid$(s2(ix), 2, Len(s2(ix)) - 2)) Then else
       End If ' j = 4 Then
       FNr = 70 + j
@@ -509,7 +509,7 @@ nochmal:
        aktlen = Len(s2(iru))
        If aktlen > 0 Then
         If aktlen > neulen Then
-         If Left$(s2(iru), 1) = "'" And Right$(s2(iru), 1) = "'" Then aktlen = aktlen - 2
+         If left$(s2(iru), 1) = "'" And Right$(s2(iru), 1) = "'" Then aktlen = aktlen - 2
          If aktlen > neulen Then
           neulen = aktlen
          End If
@@ -549,8 +549,8 @@ nochmal:
 '      On Error GoTo fehler
 ''      myEFrag "COMMIT", , Cn
       ComTrans Cn, , keinetrans
-      myEFrag csql.Value, rAF, Cn, keinfehler, ErrNr, ErrDes
-      If rAF = 0 Then
+      myEFrag csql.Value, rAf, Cn, keinfehler, ErrNr, ErrDes
+      If rAf = 0 Then
        Call Ausgeb(ErrDes, 0)
        syscmd 4, ErrDes
       Else
@@ -611,14 +611,14 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & "ErrDes: " & ErrDes & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(IsNull(Err.source), vNS, CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in InsKorr/" & AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & "ErrDes: " & ErrDes & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in InsKorr/" & AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Sub      ' InsKorr
 
-Public Function TabAusgeb(rEinl As Adodb.Recordset, AusgebFrm As Form, Optional obMitausgeb% = False, Optional nz$ = vbCrLf, Optional ohneKopfZ% = False, Optional SpMinÜ, Optional spmaxü, Optional mitLeerZeilen% = False, Optional AusgabeDatei$, Optional obMitZähler = 1, Optional obohneForm%, Optional Überschrift$, Optional padCaption$, Optional obappend%, Optional obOhneAufruf%, Optional mitExcel%) As CString
+Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional obMitausgeb% = False, Optional nz$ = vbCrLf, Optional ohneKopfZ% = False, Optional SpMinÜ, Optional spmaxü, Optional mitLeerZeilen% = False, Optional AusgabeDatei$, Optional obMitZähler = 1, Optional obohneForm%, Optional Überschrift$, Optional padCaption$, Optional obappend%, Optional obOhneAufruf%, Optional mitExcel%) As CString
  Dim i%, j&, maxL%(), Zrm%(), notNum%(), F1alt, Datei$, obcsv%
  Dim TAc As New CString ' Tabausgeb für csv-Dateien
  Dim pupos&
@@ -645,7 +645,7 @@ Public Function TabAusgeb(rEinl As Adodb.Recordset, AusgebFrm As Form, Optional 
  syscmd 4, "erstelle die Datei " & Datei & " ..."
  If mitExcel Then
   pupos = InStrRev(Datei, ".")
-  AusgEx = Left$(Datei, pupos) & ".xls"
+  AusgEx = left$(Datei, pupos) & ".xls"
   'Start a new workbook in Excel
 '  Set oExcel = CreateObject("Excel.Application")
   On Error Resume Next
@@ -708,12 +708,12 @@ On Error GoTo fehler
   TabAusgeb.Clear
   If ohneKopfZ = 0 Then
    For i = 0 To rEinl.Fields.COUNT - 1
-    TabAusgeb.Append Left$(rEinl.Fields(i).name & Space$(maxL(i) + Zrm(i)), maxL(i) + Zrm(i))
+    TabAusgeb.Append left$(rEinl.Fields(i).name & Space$(maxL(i) + Zrm(i)), maxL(i) + Zrm(i))
     If obcsv Then TAc.AppVar Array(rEinl.Fields(i).name, ";")
 '    If mitExcel Then oSheet.Range(Chr$(65 + i) & (j + 1)).Value = rEinl.Fields(i).name
      If mitExcel Then
       oSheet.Cells(j + 1, i + 1).Value = rEinl.Fields(i).name
-      oSheet.Cells(j + 1, i + 1).Font.Bold = True
+      oSheet.Cells(j + 1, i + 1).Font.bold = True
      End If
    Next i
    TabAusgeb.Append nz
@@ -733,7 +733,7 @@ On Error GoTo fehler
     End If
     For i = 0 To rEinl.Fields.COUNT - 1
      If notNum(i) Then
-      TabAusgeb.Append Left$(rEinl.Fields(i).Value & Space$(maxL(i) + Zrm(i)), maxL(i) + Zrm(i))
+      TabAusgeb.Append left$(rEinl.Fields(i).Value & Space$(maxL(i) + Zrm(i)), maxL(i) + Zrm(i))
      Else
       TabAusgeb.Append Right$(Space$(maxL(i)) & rEinl.Fields(i).Value, maxL(i)) & Space$(Zrm(i))
      End If
@@ -778,10 +778,10 @@ On Error GoTo fehler
   pad.obMitZähler = IIf(obMitZähler = 0, 0, 1)
   pad.Typisierung = AusgabeDatei
   pad.Label1 = AusgabeDatei
-  pad.Label1.Left = 2000
+  pad.Label1.left = 2000
   pad.Caption = Überschrift
-  pad.Text1.Left = MINvb(pad.Label1.Left + MAXvb(pad.Label1.Width, Len(pad.Label1) * 80) + 50, pad.Width - 1500)
-  pad.Label1.Width = pad.Width - pad.Left - 100
+  pad.Text1.left = MINvb(pad.Label1.left + MAXvb(pad.Label1.Width, Len(pad.Label1) * 80) + 50, pad.Width - 1500)
+  pad.Label1.Width = pad.Width - pad.left - 100
   Set pad.hlese = Lese
   If padCaption <> vNS Then pad.Caption = padCaption
   pad.Show
@@ -795,7 +795,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + nz + "LastDLLError: " + CStr(Err.LastDllError) + nz + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + nz + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in TabAusgeb/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + nz + "LastDLLError: " + CStr(Err.LastDllError) + nz + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + nz + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in TabAusgeb/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -803,27 +803,27 @@ End Select
 End Function      ' TabAusgeb
 
 ' myFrag für Execute
-Public Function myEFrag(ByRef sql$, Optional ByRef rAF&, Optional Cn As Adodb.Connection = Nothing, Optional keinfehler%, Optional ErrNr&, Optional ErrDes$, Optional gcl& = 700, Optional keinExec%, Optional sfkco%) As Adodb.Recordset
- Dim rs As Adodb.Recordset
- Set myEFrag = myFrag(rs, sql, IIf(keinExec, adOpenDynamic, adOpenUnspecified), Cn, adLockReadOnly, gcl, rAF, keinfehler, ErrNr, ErrDes, sfkco)
+Public Function myEFrag(ByRef sql$, Optional ByRef rAf&, Optional Cn As ADODB.Connection = Nothing, Optional keinfehler%, Optional ErrNr&, Optional ErrDes$, Optional gcl& = 700, Optional keinExec%, Optional sfkco%) As ADODB.Recordset
+ Dim rs As ADODB.Recordset
+ Set myEFrag = myFrag(rs, sql, IIf(keinExec, adOpenDynamic, adOpenUnspecified), Cn, adLockReadOnly, gcl, rAf, keinfehler, ErrNr, ErrDes, sfkco)
 End Function ' myEFrag
 
 ' .Execute nimmt adOpenForwardOnly, was viel schneller ist, aber nach einer Abfrage isnull(rs!Feld) rs!Feld zu null setzt
 ' rückwärts aufrufen: adopendynamic
 ' .update geht nur mit adOpenDynamic und (z.B.?) adLockOptimistic
-Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
-                 Optional ByVal CursTp As Adodb.CursorTypeEnum = adOpenUnspecified, _
-                 Optional ByRef Cn As Adodb.Connection = Nothing, _
-                 Optional ByVal LockTp As Adodb.LockTypeEnum = adLockReadOnly, _
+Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
+                 Optional ByVal CursTp As ADODB.CursorTypeEnum = adOpenUnspecified, _
+                 Optional ByRef Cn As ADODB.Connection = Nothing, _
+                 Optional ByVal LockTp As ADODB.LockTypeEnum = adLockReadOnly, _
                  Optional ByVal gcl$ = "700", _
-                 Optional ByRef rAF&, _
+                 Optional ByRef rAf&, _
                  Optional ByVal keinfehler%, _
                  Optional ByRef ErrNr&, _
                  Optional ByRef ErrDes$, _
                  Optional ByRef sfkco% _
-                 ) As Adodb.Recordset
+                 ) As ADODB.Recordset
  Dim myru%, lauf&, CS$, ddb$
- Dim gcrs As New Adodb.Recordset
+ Dim gcrs As New ADODB.Recordset
  Static fangefangen%
  Dim maxru%
  Dim MaxLauf&
@@ -841,7 +841,7 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
  CS = Cn.Properties("Extended Properties")
  ddb = Cn.DefaultDatabase
 ' If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("show databases") ' USE `" & DefaultDatabase & "`
- If Not rs Is Nothing Then If rs.source <> "" Then If rs.source = sql Then Set myFrag = rs: Exit Function
+ If Not rs Is Nothing Then If rs.Source <> "" Then If rs.State <> 0 And rs.Source = sql Then Set myFrag = rs: Exit Function
  On Error Resume Next
  If InStr(1, sql, "GROUP_CONCAT", vbTextCompare) <> 0 Then
   For myru = 1 To maxru
@@ -857,7 +857,8 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
    If myru = maxru - 2 Then
 '     Call DBCnOpen
 '     Set Cn = DBCn
-      Set Cn = New Adodb.Connection
+      If Not Cn Is Nothing Then If Cn.State <> 0 Then Cn.Close ' 6.7.26: alte Verbindung erst sauber schliessen
+      Set Cn = New ADODB.Connection
       Cn.Open CS
       Cn.DefaultDatabase = ddb
       Cn.CommandTimeout = 10
@@ -877,16 +878,16 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
   Err.Clear
   If CursTp = adOpenUnspecified And LockTp = adLockReadOnly And Not sfkco Then
 '   If InStrB(sql, "fuell") <> 0 Then Stop
-   Set rs = Cn.Execute(sql, rAF)
+   Set rs = Cn.Execute(sql, rAf)
   Else
    If sfkco Then Cn.Execute ("SET foreign_key_checks=0")
-   Set rs = New Adodb.Recordset ' If rs.State <> 0 Then rs.Close
+   Set rs = New ADODB.Recordset ' If rs.State <> 0 Then rs.Close
    rs.Open sql, Cn, CursTp, LockTp
   End If ' CursTp = adOpenUnspecified And LockTp = adLockReadOnly Then
   lngTime = GetTickCount - lngTime
 '  If InStrB(sql, "SELECT * FROM `dienstplan` LEFT JOIN `arten` ON `dienstplan`.artnr = `arten`.artnr") <> 0 Then Stop
   ErrNr = Err.Number
-  ErrDes = "Description: " & Err.Description & " " & ", LastDllError: " & Err.LastDllError & ", Source: " & Err.source
+  ErrDes = "Description: " & Err.Description & " " & ", LastDllError: " & Err.LastDllError & ", Source: " & Err.Source
   If lngTime > 1000 Then
    Open pVerz & "fehler\perf.txt" For Append As #321
    Print #321, Now(), lngTime, " ms", sql
@@ -930,7 +931,8 @@ Public Function myFrag(ByRef rs As Adodb.Recordset, ByRef sql$, _
      Cn.Open
      Cn.CommandTimeout = 10
     Else ' myru = 1
-     Set Cn = New Adodb.Connection
+     If Not Cn Is Nothing Then If Cn.State <> 0 Then Cn.Close ' 6.7.26: alte Verbindung erst sauber schliessen
+     Set Cn = New ADODB.Connection
      Cn.Open CS
      Cn.DefaultDatabase = ddb
      Cn.CommandTimeout = 10
@@ -962,7 +964,10 @@ End If ' ErrDes = "Der Vorgang ist für ein geschlossenes Objekt nicht zugelassen
 If InStr(1, ErrDes, "gone away", vbTextCompare) <> 0 Then ' Or InStr(LCase$(ErrDes), "lost connection") <> 0 Then
 ' DBCnOpen
 ' Set Cn = DBCn
- Set Cn = New Adodb.Connection
+ On Error Resume Next ' 6.7.26: damit ein Fehler beim Schliessen der schon defekten Verbindung nicht crasht
+ If Not Cn Is Nothing Then If Cn.State <> 0 Then Cn.Close
+ On Error GoTo 0
+ Set Cn = New ADODB.Connection
  Cn.Open CS
  Cn.DefaultDatabase = ddb
  Cn.CommandTimeout = 10
@@ -975,7 +980,10 @@ ElseIf InStr(1, ErrDes, "ANGEFORDERTEN EIGENSCHAFTEN", vbTextCompare) <> 0 Or In
   lauf = lauf + 1
 '  DBCnOpen
 '  Set Cn = DBCn
-  Set Cn = New Adodb.Connection
+  On Error Resume Next ' 6.7.26: damit ein Fehler beim Schliessen der schon defekten Verbindung nicht crasht
+  If Not Cn Is Nothing Then If Cn.State <> 0 Then Cn.Close
+  On Error GoTo 0
+  Set Cn = New ADODB.Connection
   Cn.Open CS
   Cn.DefaultDatabase = ddb
   Cn.CommandTimeout = 10
@@ -995,7 +1003,7 @@ ElseIf InStr(1, ErrDes, "INCORRECT", vbTextCompare) = 0 And InStr(1, ErrDes, "UN
   If MaxLauf = 5 Then
 '   DBCnOpen
 '   Set Cn = DBCn
-   Set Cn = New Adodb.Connection
+   Set Cn = New ADODB.Connection
    Cn.Open CS
    Cn.DefaultDatabase = ddb
    Cn.CommandTimeout = 10
@@ -1009,7 +1017,7 @@ ElseIf InStr(1, ErrDes, "INCORRECT", vbTextCompare) = 0 And InStr(1, ErrDes, "UN
  If InStr(1, ErrDes, "lost connection", vbTextCompare) <> 0 Then Resume Next
 End If
 ErrDes = ErrDes & ": " & sql
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNr) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + ErrDes, vbAbortRetryIgnore, "Aufgefangener Fehler in myFrag/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNr) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + ErrDes, vbAbortRetryIgnore, "Aufgefangener Fehler in myFrag/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1048,7 +1056,7 @@ neuverbind:
   DBCnS = CS
   If obTrans = 1 Then Set DBCn = Nothing Else If DBCn.State <> 0 Then DBCn.Close
 '  Set DBCn = Nothing ' geändert 21.10.22
-  syscmd 4, "DBCnOpen " & Left$(DBCnS, InStr(DBCnS, "pwd"))
+  syscmd 4, "DBCnOpen " & left$(DBCnS, InStr(DBCnS, "pwd"))
   DBCn.Open DBCnS, uid, pwd, opt
   DBCn.CommandTimeout = 10
 #If KeinePatListe = 0 Then
@@ -1058,7 +1066,7 @@ neuverbind:
 #End If
  Else ' DBCn.ConnectionString = "" Then
   On Error Resume Next
-  syscmd 4, "DBCnOpen (2) " & Left$(DBCnS, InStr(DBCnS, "pwd"))
+  syscmd 4, "DBCnOpen (2) " & left$(DBCnS, InStr(DBCnS, "pwd"))
   If DBCn.State <> 0 Then DBCn.RollbackTrans: DBCn.Close: Set DBCn = Nothing
   On Error GoTo fehler
   DBCn.Open DBCnS
@@ -1084,14 +1092,14 @@ ElseIf lauf = laufgr Then
   Resume neuverbind
  End If
 End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DBCnOpen/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DBCnOpen/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' DBCnOpen(CS$, uid$, pwd$, Opt&)
 
-Public Function BegTrans(Optional Cn As Adodb.Connection = Nothing, Optional obkeinetr% = 0)
+Public Function BegTrans(Optional Cn As ADODB.Connection = Nothing, Optional obkeinetr% = 0)
  On Error GoTo fehler
  If obkeinetr = 0 Then
   If Cn Is Nothing Then Set Cn = DBCn
@@ -1110,14 +1118,14 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in BegTrans/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in BegTrans/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' BegTrans(Optional CN As ADODB.Connection = DBCn)
 
-Public Function ComTrans(Optional Cn As Adodb.Connection = Nothing, Optional obtr% = 1, Optional ByRef keinetrans%)
+Public Function ComTrans(Optional Cn As ADODB.Connection = Nothing, Optional obtr% = 1, Optional ByRef keinetrans%)
  On Error GoTo fehler
  If obtr = 1 Then
   If Cn Is Nothing Then Set Cn = DBCn
@@ -1137,14 +1145,14 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ComTrans/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ComTrans/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' ComTrans
 
-Public Function wechsTrans(Optional Cn As Adodb.Connection = Nothing, Optional obtr% = 1)
+Public Function wechsTrans(Optional Cn As ADODB.Connection = Nothing, Optional obtr% = 1)
  On Error GoTo fehler
  If obtr = 1 Then
   If Cn Is Nothing Then Set Cn = DBCn
@@ -1168,7 +1176,7 @@ fehler:
 #Else
  AnwPfad = App.path
 #End If
-Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in wechsTrans/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in wechsTrans/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
