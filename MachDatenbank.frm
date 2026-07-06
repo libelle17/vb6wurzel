@@ -364,6 +364,9 @@ End Function ' aktualisiercon
 Private Sub AusgangsdatenbankWählen_Click()
  DBVerb.Auswahl DBVerb.DaBa, vNS, "Kopierquelle auswählen"
  Me.Ausgangsdb = "Ausgangs-DB: " & IIf(DBVerb.DaBa = "", DBCn.DefaultDatabase, DBVerb.DaBa)
+ On Error Resume Next ' 6.7.26: damit ein Fehler beim Schliessen der schon defekten Verbindung nicht crasht
+ If Not DBCn Is Nothing Then If DBCn.State <> 0 Then DBCn.Close
+ On Error GoTo 0
  Set DBCn = Nothing
  DBCnS = DBVerb.CnStr
  DBCn.Open DBCnS ' DBVerb.CnStr
@@ -495,6 +498,9 @@ Private Sub MachAlle_Click()
     Do While Not rt.EOF
      Me.SchreibenAuf = Me.SchreibenAuf & "MachDB" & rt.Fields(0) & ".bas"
      DoEvents
+     On Error Resume Next ' 6.7.26: damit ein Fehler beim Schliessen der schon defekten Verbindung nicht crasht
+     If Not DBCn Is Nothing Then If DBCn.State <> 0 Then DBCn.Close
+     On Error GoTo 0
      Set DBCn = Nothing
      DBCnS = lies.dbv.CoStr & "database=" & rt.Fields(0) & ";"
      DBCn.Open DBCnS
@@ -503,6 +509,9 @@ Private Sub MachAlle_Click()
      rt.MoveNext
     Loop
     MsgBox "Fertig mit alle Datenbankbeschreibungen fixien von Server: " & GetServr(DBCn) & vbCrLf & "auf: " & altSA
+    On Error Resume Next ' 6.7.26: damit ein Fehler beim Schliessen der schon defekten Verbindung nicht crasht
+    If Not DBCn Is Nothing Then If DBCn.State <> 0 Then DBCn.Close
+    On Error GoTo 0
     Set DBCn = Nothing
     DBCnS = altDBCn
     DBCn.Open DBCnS
