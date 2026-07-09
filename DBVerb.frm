@@ -983,24 +983,28 @@ End Sub ' Form_Activate()
 ' liest Zugangsdaten (uid/pwd) aus der zentralen Freigabedatei statt aus der Registry
 Private Function LiesZentraleDatei(schluessel$) As String
  Const ZentralPfad$ = "\\linux1\dbverbfreigabe\dbverb.cfg"
- Dim f%, s$, p&, k$
+ Dim f%, ganz$, zeilen() As String, i&, p&, k$
  On Error Resume Next
  LiesZentraleDatei = vNS
  f = FreeFile
  Open ZentralPfad For Input As #f
  If Err.Number <> 0 Then Exit Function
- Do While Not EOF(f)
-  Line Input #f, s
-  p = InStr(s, "=")
+ If LOF(f) > 0 Then ganz = Input(LOF(f), f)
+ Close #f
+ ' robust gegen CRLF/LF/CR, falls die Datei je mit Unix-Zeilenenden gespeichert wird
+ ' (Line Input erkennt reines LF nicht als Zeilenende - s. Korrektur 10.07.2026)
+ ganz = Replace$(Replace$(ganz, vbCrLf, vbLf), vbCr, vbLf)
+ zeilen = Split(ganz, vbLf)
+ For i = 0 To UBound(zeilen)
+  p = InStr(zeilen(i), "=")
   If p > 1 Then
-   k = Trim$(left$(s, p - 1))
+   k = Trim$(left$(zeilen(i), p - 1))
    If StrComp(k, schluessel, vbTextCompare) = 0 Then
-    LiesZentraleDatei = Mid$(s, p + 1)
-    Exit Do
+    LiesZentraleDatei = Mid$(zeilen(i), p + 1)
+    Exit Function
    End If
   End If
- Loop
- Close #f
+ Next i
 End Function ' LiesZentraleDatei
 
 ' aufgerufen in Form_Load
