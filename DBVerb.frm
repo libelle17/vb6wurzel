@@ -980,6 +980,29 @@ fehler:
  End Select
 End Sub ' Form_Activate()
 
+' liest Zugangsdaten (uid/pwd) aus der zentralen Freigabedatei statt aus der Registry
+Private Function LiesZentraleDatei(schluessel$) As String
+ Const ZentralPfad$ = "\\linux1\dbverbfreigabe\dbverb.cfg"
+ Dim f%, s$, p&, k$
+ On Error Resume Next
+ LiesZentraleDatei = vNS
+ f = FreeFile
+ Open ZentralPfad For Input As #f
+ If Err.Number <> 0 Then Exit Function
+ Do While Not EOF(f)
+  Line Input #f, s
+  p = InStr(s, "=")
+  If p > 1 Then
+   k = Trim$(left$(s, p - 1))
+   If StrComp(k, schluessel, vbTextCompare) = 0 Then
+    LiesZentraleDatei = Mid$(s, p + 1)
+    Exit Do
+   End If
+  End If
+ Loop
+ Close #f
+End Function ' LiesZentraleDatei
+
 ' aufgerufen in Form_Load
 Private Sub RegLaden(‹$, Optional nuranfangs%)
  Dim neus$, neuB&
@@ -998,10 +1021,10 @@ Private Sub RegLaden(‹$, Optional nuranfangs%)
 '  END IF
   neus = cR.ReadKey("Datenbank", RegPos, HKEY_CURRENT_USER)
   If LenB(neus) <> 0 Then Me.DaBa = neus Else Me.DaBa = vNS
-  neus = cR.ReadKey("uid", RegPos, HKEY_CURRENT_USER)
+  neus = LiesZentraleDatei("uid")
   If LenB(neus) <> 0 Then Me.uid = neus
   If LenB(Me.uid) = 0 Then Me.uid = "mysql"
-  neus = cR.ReadKey("pwd", RegPos, HKEY_CURRENT_USER)
+  neus = LiesZentraleDatei("pwd")
   If LenB(neus) <> 0 Then Me.pwd = neus Else If LenB(Me.DaBa) = 0 Then Me.pwd = vNS
   neus = cR.ReadKey("server", RegPos, HKEY_CURRENT_USER)
   If LenB(neus) <> 0 Then Me.Cpt = neus
@@ -1036,10 +1059,8 @@ Public Sub RegSpeichern()
   cR.WriteKey Me.ODBC, "ODBC", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey Me.Cpt, "Server", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey Me.Benutzer, "Benutzer", RegPos, HKEY_CURRENT_USER, REG_SZ
-  cR.WriteKey Me.pwd, "pwd", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey Me.DaBa, "Datenbank", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey opt, "options", RegPos, HKEY_CURRENT_USER, REG_DWORD
-  cR.WriteKey Me.uid, "uid", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey Me.Paﬂwort, "Paﬂwort", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey Me.Datei, "Datei", RegPos, HKEY_CURRENT_USER, REG_SZ
   cR.WriteKey Me.DBKennw, "DBKennw", RegPos, HKEY_CURRENT_USER, REG_SZ
