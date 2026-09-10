@@ -567,7 +567,7 @@ Function ShowAllDomains(Optional obneu%) As Collection
   Dim oDomain     As Object
   Dim zuprüfen%
   On Error GoTo fehler
-  If obneu Or CptN Is Nothing Then zuprüfen = True Else If CptN.COUNT = 0 Then zuprüfen = True
+  If obneu Or CptN Is Nothing Then zuprüfen = True Else If CptN.Count = 0 Then zuprüfen = True
   If zuprüfen Then
    Set oNameSpace = GetObject("WinNT:")
    For Each oDomain In oNameSpace
@@ -580,7 +580,7 @@ Function ShowAllDomains(Optional obneu%) As Collection
   Exit Function
 fehler:
   ' vermutlich ist kein WMI installiert
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllDomains/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllDomains/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -605,7 +605,7 @@ Public Sub ShowAllComputers(ByVal strDomain$)
 
 fehler:
   ' vermutlich ist kein WMI installiert
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllComputers/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in ShowAllComputers/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -662,16 +662,16 @@ Private Sub Datei_Click()
  Dim filefilter$
  CommonDialog1.DialogTitle = "Datenbankdatei auswählen:"
  'Set the default file name AND filter
- CommonDialog1.initDir = uVerz
- CommonDialog1.Filename = vNS
+ CommonDialog1.InitDir = uVerz
+ CommonDialog1.FileName = vNS
  filefilter = "Access-Dateien(*.mdb)|*.mdb|Alle Dateien (*.*)|*.*"
  CommonDialog1.Filter = filefilter
  CommonDialog1.FilterIndex = 0
  'Verify that the file exists
  fileflags = cdlOFNFileMustExist + cdlOFNHideReadOnly
- CommonDialog1.flags = fileflags
+ CommonDialog1.Flags = fileflags
  CommonDialog1.ShowOpen
- Me.Datei = CommonDialog1.Filename
+ Me.Datei = CommonDialog1.FileName
  Call Me.Verbind
 End Sub ' Datei_Click()
 
@@ -753,7 +753,7 @@ Private Sub odbcAngl()
  Me.DBKennwLab.Visible = False
  If InStrB(Me.ODBC, "Acc") > 0 Then
   Me.Datei.Visible = True
-  For i = 0 To Me.Check1.COUNT - 1
+  For i = 0 To Me.Check1.Count - 1
    Me.Check1(i).Visible = False
   Next i
   Me.DaBa.Visible = False
@@ -777,7 +777,7 @@ Private Sub odbcAngl()
   Me.NurLauf.Visible = False
  ElseIf InStrB(Me.ODBC, "MySQL") <> 0 Or InStr(Me.ODBC, "MSDASQL") > 0 Then
   Me.Datei.Visible = False
-  For i = 0 To Me.Check1.COUNT - 1
+  For i = 0 To Me.Check1.Count - 1
    Me.Check1(i).Visible = True
   Next i
   Me.DaBa.Visible = True
@@ -862,7 +862,7 @@ Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
  End Select
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_KeyDown/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_KeyDown/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -908,7 +908,7 @@ Private Sub NurLauf_Click()
  Exit Sub
 fehler:
   ' vermutlich ist kein WMI installiert
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in NurLauf_Click/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in NurLauf_Click/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -941,7 +941,7 @@ Private Sub CptListeGanz()
  obNurLauf = False
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in CptListeGanz/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in CptListeGanz/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -959,7 +959,7 @@ Private Sub Form_Load()
 ' Next i
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_Load/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_Load/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -973,7 +973,7 @@ Private Sub Form_Activate()
  Screen.MousePointer = vbNormal
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_Activate/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_Activate/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -993,7 +993,7 @@ Private Function LiesZentraleDatei(schluessel$) As String
  Close #f
  ' robust gegen CRLF/LF/CR, falls die Datei je mit Unix-Zeilenenden gespeichert wird
  ' (Line Input erkennt reines LF nicht als Zeilenende - s. Korrektur 10.07.2026)
- ganz = Replace$(Replace$(ganz, vbCrLf, vbLf), vbCr, vbLf)
+ ganz = REPLACE$(REPLACE$(ganz, vbCrLf, vbLf), vbCr, vbLf)
  zeilen = Split(ganz, vbLf)
  For i = 0 To UBound(zeilen)
   p = InStr(zeilen(i), "=")
@@ -1049,7 +1049,7 @@ Private Sub RegLaden(Ü$, Optional nuranfangs%)
  End If ' not nuranfangs OR not angefangen
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegLaden/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegLaden/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1070,7 +1070,7 @@ Public Sub RegSpeichern()
   cR.WriteKey Me.DBKennw, "DBKennw", RegPos, HKEY_CURRENT_USER, REG_SZ
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegSpeichern/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegSpeichern/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1086,7 +1086,7 @@ Private Sub Form_Unload(Cancel As Integer)
  End If
  Exit Sub
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_Unload/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Form_Unload/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1097,7 +1097,7 @@ Sub setzeOpt()
  Dim i%, aktopt&
  aktopt = opt
  changeStill = True
- For i = 0 To Me.Check1.COUNT - 1
+ For i = 0 To Me.Check1.Count - 1
   If aktopt Mod 2 = 1 Then
    Me.Check1(i) = 1
    aktopt = aktopt - 1
@@ -1111,7 +1111,7 @@ Sub rechneOpt()
  Dim i%, lauf&
  opt = 0
  lauf = 1
- For i = 0 To Me.Check1.COUNT - 1
+ For i = 0 To Me.Check1.Count - 1
   If Me.Check1(i) = 1 Then opt = opt + lauf
   lauf = lauf + lauf
  Next i
@@ -1332,7 +1332,7 @@ Sub zeigdatenbanken()
  End If
  Exit Sub
 fehler:
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in zeigdatenbanken/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in zeigdatenbanken/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1365,7 +1365,7 @@ Sub zeigtabellen()
  End If
  Exit Sub
 fehler:
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in zeigtabellen/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in zeigtabellen/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1382,9 +1382,9 @@ Sub Verbind()
   On Error Resume Next
   Me.Image1Ersatz = "nicht verbunden"
   Me.Tabellen = vNS
-  Me.Image1 = LoadPicture(App.path & "\..\icons\tele\164.ico") '"\..\icons\tele\636I93.ico")
+  Me.Image1 = LoadPicture(App.Path & "\..\icons\tele\164.ico") '"\..\icons\tele\636I93.ico")
   If Err.Number <> 0 Then
-   Me.Image1 = LoadPicture(App.path & "\164.ico")
+   Me.Image1 = LoadPicture(App.Path & "\164.ico")
   End If
   On Error GoTo fehler
   Me.Refresh
@@ -1397,9 +1397,9 @@ Sub Verbind()
      If erg = 1 Then
        Me.Image1Ersatz = "verbunden, Datenbank nicht gefunden"
        Me.Tabellen = vNS
-       Me.Image1 = LoadPicture(App.path & "\..\icons\tele\131.ico") '"\..\icons\tele\636I93.ico")
+       Me.Image1 = LoadPicture(App.Path & "\..\icons\tele\131.ico") '"\..\icons\tele\636I93.ico")
        If Err.Number <> 0 Then
-        Me.Image1 = LoadPicture(App.path & "\131.ico")
+        Me.Image1 = LoadPicture(App.Path & "\131.ico")
        End If
      End If
      Call zeigdatenbanken
@@ -1408,9 +1408,9 @@ Sub Verbind()
     If erg = 0 Then
      On Error Resume Next
      Me.Image1Ersatz = "verbunden"
-     Me.Image1 = LoadPicture(App.path & "\..\icons\tele\156.ico") '"\..\icons\tele\636I91.ico")
+     Me.Image1 = LoadPicture(App.Path & "\..\icons\tele\156.ico") '"\..\icons\tele\636I91.ico")
      If Err.Number <> 0 Then
-      Me.Image1 = LoadPicture(App.path & "\156.ico") '"\..\icons\tele\636I91.ico")
+      Me.Image1 = LoadPicture(App.Path & "\156.ico") '"\..\icons\tele\636I91.ico")
      End If
      Set rs = Nothing
      altUser = Me.uid
@@ -1453,7 +1453,7 @@ Sub Verbind()
  lDaBa = Me.DaBa
  Exit Sub
 fehler:
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Verbind/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in Verbind/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1535,7 +1535,7 @@ Public Sub listOdbc()
  End If
  Exit Sub
 fehler:
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in listODBC/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in listODBC/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -1611,9 +1611,9 @@ Function cnVorb$(DBName$, TBName$, Optional Ü$, Optional obregneu%, Optional Reg
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in cnVorb/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1663,9 +1663,9 @@ zeig:
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in Auswahl/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -1727,7 +1727,7 @@ Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Opti
  Call Me.ShowAllDomains
  For runde = 1 To 2
   For Each Cpt In CptN
-   If (runde = 1 And Cpt = LiName) Or (runde = 2 And Cpt <> LiName) Then
+   If (runde = 1 And Cpt = liName) Or (runde = 2 And Cpt <> liName) Then
    Set MyCn = New ADODB.Connection
    On Error Resume Next
    Err.Clear
@@ -1796,9 +1796,9 @@ Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Opti
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in getAllDB/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
