@@ -180,7 +180,7 @@ fehler:
  End Select
 End Function ' GetServer
 
-Function SplitNeu&(ByRef q$, Sep$, erg$(), Optional nichtWenn$, Optional Bis$) ' da Split() Speicher fraﬂ
+Function SplitNeu&(ByRef q$, Sep$, Erg$(), Optional nichtWenn$, Optional Bis$) ' da Split() Speicher fraﬂ
 ' split
 ' in einem Fragment darf nicht nichtWenn enthalten sein, ohne dass Bis enthalten ist
  Dim p1&, p2&, Slen&, lSlen&, obExit%, runde&, p3&, p4&, obgesprungen%
@@ -206,10 +206,10 @@ Function SplitNeu&(ByRef q$, Sep$, erg$(), Optional nichtWenn$, Optional Bis$) '
     End If
     If p2 = 0 Then p2 = Len(q) + 1: obExit = True
     If runde = 2 Then
-     erg(SplitNeu) = Mid$(q, p1 + lSlen, p2 - p1 - lSlen)
+     Erg(SplitNeu) = Mid$(q, p1 + lSlen, p2 - p1 - lSlen)
      If obgesprungen Then
       If Sep <> " " Then
-       erg(SplitNeu) = REPLACE$(erg(SplitNeu), Sep, " ")
+       Erg(SplitNeu) = REPLACE$(Erg(SplitNeu), Sep, " ")
       End If
      End If
     End If
@@ -218,7 +218,7 @@ Function SplitNeu&(ByRef q$, Sep$, erg$(), Optional nichtWenn$, Optional Bis$) '
     If obExit Then Exit Do
    Loop
    If runde = 1 Then
-    ReDim erg(SplitNeu - 1)
+    ReDim Erg(SplitNeu - 1)
     SplitNeu = 0
     obExit = 0
    End If

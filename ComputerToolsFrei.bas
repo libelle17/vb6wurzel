@@ -18,17 +18,17 @@ Public Function ausfsyn&(Befehl$, Focus As VbAppWinStyle)
  On Error GoTo fehler
  Set wsh = New IWshShell_Class
  WaitForTermination = True
- ausfsyn = wsh.rUn(Befehl, Focus, WaitForTermination)
+ ausfsyn = wsh.Run(Befehl, Focus, WaitForTermination)
  Set wsh = Nothing
  Exit Function
  Dim AnwPfad$
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 fehler:
- Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ausfsyn()/" + AnwPfad)
+ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in ausfsyn()/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -48,7 +48,7 @@ Private Function RegInh$(schl$, Optional nuranfangs%)
  End If ' not nuranfangs OR not angefangen
  Exit Function
 fehler:
- Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegInh/" + App.path)
+ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegInh/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -105,7 +105,7 @@ Public Function maxODBC()
    Dim rEx As RegExp
    Set rEx = New RegExp
    rEx.Pattern = "MySQL ODBC [0123456789]\.[0123456789]* Unicode Driver"
-   If rEx.test(arrValueNames(i)) Then
+   If rEx.Test(arrValueNames(i)) Then
     Version = Mid$(arrValueNames(i), 12, 3)
     If Version > maxv Then
      maxv = Version
@@ -119,7 +119,7 @@ fehler:
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in maxODBC/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -148,7 +148,7 @@ Dim AnwPfad$
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in CptName/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -176,7 +176,7 @@ Dim AnwPfad$
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in UserName/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -344,7 +344,7 @@ fehler:
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SplitNeuArr/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -476,7 +476,7 @@ Function GetExeF$(q$)
  Next i
  Exit Function
 fehler:
-Select Case MsgBox("FNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetExeF/" + App.path)
+Select Case MsgBox("FNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetExeF/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -490,7 +490,7 @@ Public Function getIViewPfad$()
  If getIViewPfad = "" Then getIViewPfad = GetExeF(getReg(2, "Software\Classes\Applications\i_view32.exe\shell\open\command", ""))
 Exit Function
 fehler:
-Select Case MsgBox("FNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in getIViewPfad/" + App.path)
+Select Case MsgBox("FNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in getIViewPfad/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -544,7 +544,7 @@ Dim AnwPfad$
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
  Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in zeigan/" + AnwPfad)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
@@ -590,7 +590,7 @@ fehler:
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
 Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in syscmd/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde

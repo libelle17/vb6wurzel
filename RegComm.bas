@@ -85,7 +85,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr, vbAbortRetryIgnore, "Aufgefangener Fehler in doSetzReg/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr, vbAbortRetryIgnore, "Aufgefangener Fehler in doSetzReg/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -116,7 +116,7 @@ If ErrNumber = -2147024894 Then
   obRegFehlt = -1
   Resume Next ' Reg-Eintrag nicht gefunden
 End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr, vbAbortRetryIgnore, "Aufgefangener Fehler in doHolReg/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr, vbAbortRetryIgnore, "Aufgefangener Fehler in doHolReg/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -153,7 +153,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fStSpei/" & App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fStSpei/" & App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -181,7 +181,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fDWSpei/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fDWSpei/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -210,7 +210,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fBeiSpei/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fBeiSpei/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -258,7 +258,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fBiSpei/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fBiSpei/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -331,9 +331,9 @@ fehler:
 #If VBA6 Then
  AnwPfad = CurrentDb.name
 #Else
- AnwPfad = App.path
+ AnwPfad = App.Path
 #End If
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + CStr(nz(Err.Source, "")) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in fRegAbfrageWert/" + AnwPfad)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), "", CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in fRegAbfrageWert/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -363,14 +363,14 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fWerteLoeschen/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in fWerteLoeschen/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Sub ' fWerteLoeschen
 
-Function getReg(Zuord&, schlüssel$, Wert$) As Variant
+Function getReg(Zuord&, Schlüssel$, Wert$) As Variant
 Dim erg& ' Ergebnisse von RegOpenKeyEx und RegQueryValueEx
 Dim hKey&
 Dim lpSubKey$
@@ -402,7 +402,7 @@ Select Case Zuord
  Case Else
     hKey = Zuord
 End Select
-lpSubKey = schlüssel
+lpSubKey = Schlüssel
 ulOptions = 0
 samDesired = &H20119 ' ' steht in winnt.h -> KEY_READ (alles zusammenzählen)
 'Const KEY_READ& = &H20019
@@ -425,7 +425,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetReg/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in GetReg/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -456,7 +456,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegTrim/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "LastDLLError: " & CStr(ErrLastDllError) & vbCrLf & "Source: " & IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) & vbCrLf & "Description: " & ErrDescr & vbCrLf & "Fehlerposition: " & CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in RegTrim/" + App.Path)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -495,7 +495,7 @@ ErrNumber = Err.Number
 ErrDescr = Err.Description
 ErrSource = Err.Source
 ErrLastDllError = Err.LastDllError
-Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr, vbAbortRetryIgnore, "Aufgefangener Fehler in ReadRegisterGetVALUES/" + App.path)
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "LastDLLError: " + CStr(ErrLastDllError) + vbCrLf + "Source: " + IIf(IsNull(ErrSource), vNS, CStr(ErrSource)) + vbCrLf + "Description: " + ErrDescr, vbAbortRetryIgnore, "Aufgefangener Fehler in ReadRegisterGetVALUES/" + App.Path)
   Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
   Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
@@ -503,11 +503,11 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "Las
 End Function ' ReadRegistryGetSubkey$(ByVal Group&, ByVal Section$, Idx&)
 
 'Sub REG_EnumUSBDevices(Schlüssel$)
-Sub regEnumSub(Abschn&, schlüssel$, Sch)
+Sub regEnumSub(Abschn&, Schlüssel$, Sch)
 Dim Key As String, lCount As Byte, lResult As Long, hKey As Long
 ReDim Sch(0)
 'lResult = RegOpenKeyEx(abschn, "SYSTEM\CurrentControlSet\Enum", 0, KEY_ENUMERATE_SUB_KEYS, hkey)
-lResult = RegOpenKeyEx(Abschn, schlüssel, 0, KEY_ENUMERATE_SUB_KEYS, hKey)
+lResult = RegOpenKeyEx(Abschn, Schlüssel, 0, KEY_ENUMERATE_SUB_KEYS, hKey)
 If Not (lResult = ERROR_SUCCESS) Then Exit Sub
 
 lCount = 0
@@ -526,14 +526,14 @@ Do
 Loop Until Not (lResult = ERROR_SUCCESS)
 End Sub ' regEnumSub(Abschn&, Schlüssel$, Sch)
 
-Sub regEnumVal(schlüssel$, Sch, Inh)
+Sub regEnumVal(Schlüssel$, Sch, Inh)
 Dim Key As String, lCount As Byte, lResult As Long, hKey As Long, lValueLength&
 Const vnz% = 2048
 Dim ValueN$, cbValueN&, vTyp&, sValue$
 cbValueN = Len(ValueN)
 lValueLength = Len(sValue)
 ReDim Sch(0), Inh(0)
-lResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, schlüssel, 0, KEY_QUERY_VALUE, hKey)
+lResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, Schlüssel, 0, KEY_QUERY_VALUE, hKey)
 If Not (lResult = ERROR_SUCCESS) Then Exit Sub
 
 lCount = 1
