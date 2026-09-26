@@ -172,6 +172,27 @@ Public Enum ShellSpecialFolderConstants
 End Enum
 #End If
 
+' für rufauf: liefert anders als ShellExecute den Handle des gestarteten Prozesses
+Private Type SHELLEXECUTEINFO
+  cbSize As Long
+  fMask As Long
+  hwnd As Long
+  lpVerb As String
+  lpFile As String
+  lpParameters As String
+  lpDirectory As String
+  nShow As Long
+  hInstApp As Long
+  lpIDList As Long
+  lpClass As String
+  hkeyClass As Long
+  dwHotKey As Long
+  hIcon As Long
+  hProcess As Long
+End Type
+Private Const SEE_MASK_NOCLOSEPROCESS = &H40
+Private Declare Function ShellExecuteEx& Lib "shell32.dll" Alias "ShellExecuteExA" (lpExecInfo As SHELLEXECUTEINFO)
+Private Declare Function GetProcessId& Lib "kernel32" (ByVal hProcess&)
 ' für fuehraus
 Private Declare Function ShellExecute& Lib "shell32.dll" Alias "ShellExecuteA" (ByVal hwnd&, ByVal lpOperation$, ByVal lpFile$, ByVal lpParameters$, ByVal lpDirectory$, ByVal nShowCmd&)
 Private Enum enSW
@@ -1311,8 +1332,9 @@ Public Function rufauf&(Datei$, Optional Para$, Optional alsAdm%, Optional vz$, 
     Optional obkill&)
   Dim hierdir$
   Dim iru%
-  Dim RetVal&, lHwnd&, pid&
+  Dim RetVal&, hProc&
   Dim hDatei$, hPara$, FMld$
+  Dim sei As SHELLEXECUTEINFO
   syscmd 4, "Rufe auf: " & Datei & " " & Para & " in " & vz
   rufauf = False
   If hierdir = vbNullString Then hierdir = Environ("userprofile")
@@ -1326,7 +1348,21 @@ Public Function rufauf&(Datei$, Optional Para$, Optional alsAdm%, Optional vz$, 
     hPara = Para
     hDatei = Datei
    End If
-   RetVal = ShellExecute(0, IIf(Abs(alsAdm) = 1, "runas", vbNullString), hDatei, hPara, hierdir, fengroe)
+'   RetVal = ShellExecute(0, IIf(Abs(alsAdm) = 1, "runas", vbNullString), hDatei, hPara, hierdir, fengroe)
+   ' 26.9.26: ShellExecuteEx statt ShellExecute, damit auf genau den gestarteten Prozess gewartet wird
+   ' und nicht per FindProcessID auf irgendeinen gleichnamigen (z.B. ein schon laufendes Firefox)
+   With sei
+    .cbSize = Len(sei)
+    .fMask = SEE_MASK_NOCLOSEPROCESS
+    .lpVerb = IIf(Abs(alsAdm) = 1, "runas", vbNullString)
+    .lpFile = hDatei
+    .lpParameters = hPara
+    .lpDirectory = hierdir
+    .nShow = fengroe
+   End With
+   If ShellExecuteEx(sei) = 0 And sei.hInstApp > 32 Then sei.hInstApp = SE_ERR_FNF
+   RetVal = sei.hInstApp
+   hProc = sei.hProcess
 '   IF RetVal <> 0 AND alsAdm = 2 THEN alsAdm = 1 ELSE Exit For
 '  Next iru
   If RetVal >= 0 And RetVal < 33 Then FMld = "Shellexecute " & hDatei & " " & hPara & ", vz: " & vz & ", alsAdm: " & alsAdm & ": "
@@ -1367,31 +1403,22 @@ Public Function rufauf&(Datei$, Optional Para$, Optional alsAdm%, Optional vz$, 
     Case ERROR_BAD_FORMAT
       MsgBox FMld & "Datei keine zulässige Win32-Anwendung", vbInformation, "Fehler"
       Exit Function
-    Case Is > 32 ' Handle (1.2.26: stimmt offenbar nicht)
+    Case Is > 32 ' Erfolg
       rufauf = True
-      If dwmillis <> 0 Then ' 0 = asynchron
-       If alsAdm = 2 Then hDatei = FSO.GetFileName(vVerz & doalsAd) Else If InStrB(hDatei, "\") <> 0 Then hDatei = FSO.GetFileName(hDatei)
-       pid = FindProcessID(hDatei)
-  '    lHwnd = GetWinHandle(PID) ' funzt (zumindest hier) nicht
-       If pid <> 0 Then
-        Const SYNCHRONIZE = &H100000
-'        Const INFINITE = &HFFFF ' -1
-        lHwnd = OpenProcess(SYNCHRONIZE, 0, pid)
-        If lHwnd <> 0 Then
-         RetVal = WaitForSingleObject(lHwnd, dwmillis)
-         If RetVal = WAIT_ABANDONED Or RetVal = WAIT_TIMEOUT Then ' nonsignaled
-          If obkill <> 0 Then
-           KillProcessByPID (pid)
-          End If
-         End If
+      ' dwmillis = 0: asynchron; hProc = 0: kein neuer Prozess (z.B. per DDE an laufendes Programm übergeben)
+      If dwmillis <> 0 And hProc <> 0 Then
+       RetVal = WaitForSingleObject(hProc, dwmillis)
+       If RetVal = WAIT_ABANDONED Or RetVal = WAIT_TIMEOUT Then ' nonsignaled
+        If obkill <> 0 Then
+         KillProcessByPID GetProcessId(hProc)
         End If
-        CloseHandle (lHwnd)
        End If
       End If
     Case Else
      MsgBox "RetVal " & RetVal & ", ist in rufauf nicht vorgesehen"
      Stop
   End Select
+  If hProc <> 0 Then CloseHandle hProc
   syscmd 5
   Exit Function
 fehler:
