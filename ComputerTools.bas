@@ -838,6 +838,13 @@ Public Sub SetProgV()
   End If ' WV < win_vista Then else
   uVerz = IIf(FSO.FolderExists("u:"), "u:", LiServer & "Daten\eigene Dateien") & "\"
  End If
+ ' 26.9.26: am 15.3.26 nach Lese5.frm verschoben, fehlte seitdem in NVerb u.a. (vVerz leer -> psexec nicht gefunden)
+ If LenB(pVerz) = 0 Then pVerz = IIf(FSO.FolderExists("p:"), "p:", LiServer & "Daten\Patientendokumente") & "\"
+ If LenB(vVerz) = 0 Then vVerz = IIf(FSO.FolderExists("v:"), "v:", LiServer & "Daten\down") & "\"
+ If LenB(tVerz) = 0 Then tVerz = IIf(FSO.FolderExists("t:"), "t:", LiServer & "Daten\shome\gerald") & "\"
+ If LenB(xVerz) = 0 Then xVerz = IIf(FSO.FolderExists("x:"), "x:", LiServer & "turbomed") & "\"
+ If LenB(zVerz) = 0 Then zVerz = IIf(FSO.FolderExists("z:"), "z:", LiServer & "Daten") & "\"
+ If LenB(plzVz) = 0 Then plzVz = pVerz & "plz\"
 End Sub ' SetProgV()
 
 ' in doVorhandene, tuBriefStandalone, GetVorDat, Epikrise
@@ -1075,6 +1082,7 @@ Public Sub machOrdner(tStr$, Optional obaggr%)
        Call FSO.CreateFolder(tStr)
       Else
        rufauf "cmd", "/c mkdir """ & tStr & """", IIf(runde = 1, 0, 2), , , 0
+       Sleep 100
       End If
      Else
       Exit For
