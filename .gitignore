@@ -1,0 +1,2 @@
+# kompilierte Programme nicht versionieren; NVerb verteilt sie aus dem Netzordner
+*.exe
