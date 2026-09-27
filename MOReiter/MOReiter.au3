@@ -16,6 +16,7 @@
 ;            Strg+Alt+Umsch+P  Kalibrieren: Maus auf Reiter "ePA" halten und druecken
 ;            Strg+Alt+Umsch+A  Kalibrieren: Maus auf Reiter "ePAAbr" halten und druecken
 ;            Beenden ueber das Tray-Menue (kein Strg+Alt+Q, das waere AltGr+Q = @)
+; Laeuft Medical Office noch nicht, startet jeder Aufruf die Zentrale (medoff.exe) zum Anmelden.
 ; Die Reiterleiste ist ein Delphi-Control (TmoTabSet) ohne eigene Handles je Reiter,
 ; deshalb wird relativ zur linken oberen Ecke dieses Controls geklickt.
 #include <Misc.au3>
@@ -28,9 +29,9 @@ Const $Ini = @AppDataDir & "\MOReiter\MOReiter.ini"
 
 ; Voreinstellungen (Pixel relativ zum Control), werden durch Kalibrieren in der INI ueberschrieben
 Const $defCtrl = "[CLASS:TmoTabSet; INSTANCE:1]"
-Const $defKarteiX = 20, $defKarteiY = 10, $defKrbX = 85, $defKrbY = 10
-; ePA und ePAAbr nur geschaetzt, bitte kalibrieren
-Const $defEpaX = 140, $defEpaY = 10, $defEpaAbrX = 185, $defEpaAbrY = 10
+; (kalibriert am 27.9.26)
+Const $defKarteiX = 53, $defKarteiY = 10, $defKrbX = 117, $defKrbY = 9
+Const $defEpaX = 164, $defEpaY = 14, $defEpaAbrX = 212, $defEpaAbrY = 10
 ; Hintergrund des aktiven Reiters (hellblau, gemessen RGB 210,226,247), inaktive Reiter sind weiss
 Const $defAktivFarbe = 0xD2E2F7, $defToleranz = 12
 
@@ -93,7 +94,7 @@ Func Reiter($name)
 	Local $wechsel = ($name = "Wechsel" Or $name = "ePAWechsel")
 	If Not $wechsel And Not HolPos($name, $x, $y) Then Return Meldung("Unbekannter Reiter: " & $name)
 	Local $hWnd = WinGetHandle($MOFenster)
-	If @error Then Return Meldung("Medical Office nicht gefunden")
+	If @error Then Return MOStarten()
 	Local $ctrl = IniRead($Ini, "Allgemein", "Control", $defCtrl)
 	Local $hCtrl = ControlGetHandle($hWnd, "", $ctrl)
 	If @error Or Not BitAND(WinGetState($hCtrl), 2) Then Return Meldung("Reiterleiste nicht sichtbar (Patient geoeffnet?)")
@@ -162,7 +163,7 @@ EndFunc
 ; merkt sich die aktuelle Mausposition relativ zur Reiterleiste
 Func Kalibrieren($name)
 	Local $hWnd = WinGetHandle($MOFenster)
-	If @error Then Return Meldung("Medical Office nicht gefunden")
+	If @error Then Return MOStarten()
 	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
 	If @error Then Return Meldung("Reiterleiste nicht gefunden")
 	Opt("MouseCoordMode", 1)
@@ -174,6 +175,20 @@ Func Kalibrieren($name)
 	IniWrite($Ini, $name, "Y", $y)
 	Hinweis($name & " kalibriert: " & $x & ", " & $y)
 	Return True
+EndFunc
+
+; startet die Zentrale, falls medoff.exe noch gar nicht laeuft (sonst ist z.B. nur der Login offen)
+; liefert immer False, weil der Reiter erst nach dem Anmelden gewaehlt werden kann
+Func MOStarten()
+	If ProcessExists("medoff.exe") Then Return Meldung("Medical Office nicht angemeldet")
+	Local $pfad, $pfade[4] = ["C:\medoff\medoff.exe", "C:\INDAMED\medoff.exe", "D:\medoff\medoff.exe", "D:\INDAMED\medoff.exe"]
+	For $pfad In $pfade
+		If FileExists($pfad) Then
+			Run($pfad, StringLeft($pfad, StringInStr($pfad, "\", 0, -1) - 1))
+			Return Meldung("Medical Office wird gestartet, bitte anmelden")
+		EndIf
+	Next
+	Return Meldung("Medical Office nicht gefunden")
 EndFunc
 
 Func Meldung($txt)
