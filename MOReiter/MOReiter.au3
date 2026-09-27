@@ -40,7 +40,7 @@ If $CmdLine[0] > 0 Then
 EndIf
 If _Singleton("MOReiter_resident", 1) = 0 Then ; laeuft schon
 	; sonst merkt man nicht, dass noch eine alte Version mit alten Hotkeys aktiv ist
-	MsgBox(64, "MOReiter", "MOReiter laeuft bereits." & @CRLF & "Fuer eine neue Version die alte zuerst ueber das Tray-Menue beenden.", 10)
+;	MsgBox(64, "MOReiter", "MOReiter laeuft bereits." & @CRLF & "Fuer eine neue Version die alte zuerst ueber das Tray-Menue beenden.", 10)
 	Exit
 EndIf
 
