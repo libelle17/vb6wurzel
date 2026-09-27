@@ -66,16 +66,15 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function 'Add
 
-' fügt der letzten Eigenschaft eine Untereigenschaft an
-' (Hinweis: TMIniProp hat kein UnterEig und die Auflistung kein EAdd - wohl Überbleibsel, s. TMIniSectionColl.UEAdd)
+' legt die Eigenschaft Bezeichnung = Inhalt an und hängt sie an (wie Add ohne Schlüssel)
+' (27.9.26: rief vorher das nicht vorhandene UnterEig.EAdd der letzten Eigenschaft auf)
 ' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function UEAdd(Bezeichnung$, Inhalt$)
  On Error GoTo fehler
  Dim objNewMember As New TMIniProp
     objNewMember.Bezeichnung = Bezeichnung
     objNewMember.Inhalt = Inhalt
-    If mCol.Item(mCol.COUNT).UnterEig Is Nothing Then Set mCol.Item(mCol.COUNT).UnterEig = New TMIniPropColl
-    mCol.Item(mCol.COUNT).UnterEig.EAdd objNewMember
+    mCol.Add objNewMember ' 27.9.26: statt .UnterEig.EAdd (gibt es bei TMIniProp nicht) direkt anhängen
     Set UEAdd = objNewMember
     Set objNewMember = Nothing
  Exit Function

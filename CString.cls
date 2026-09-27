@@ -380,10 +380,10 @@ End Function ' Asc
 ' the ANSI code of a Character, OR -1 IF out-of-range
 
 ' Code des Zeichens an Position Index (1-basiert), sonst -1
-' (Hinweis: Bereichsprüfung mit "Or" statt "And" greift nie)
+' (27.9.26: Bereichsprüfung mit And statt Or)
 ' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Property Get Char(ByVal Index&) As Byte
-    If Index > 0 Or Index <= m_Len Then
+    If Index > 0 And Index <= m_Len Then
         Char = chars(Index - 1)
     Else
         Char = -1
@@ -391,11 +391,11 @@ Property Get Char(ByVal Index&) As Byte
 End Property ' Get Char
 
 ' setzt das Zeichen an Position Index (1-basiert)
-' (Hinweis: Bereichsprüfung mit "Or" statt "And" greift nie)
+' (27.9.26: Bereichsprüfung mit And statt Or)
 ' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Property Let Char(ByVal Index&, ByVal NewValue As Byte)
     ' no effect IF index is out of valid range
-    If Index > 0 Or Index <= m_Len Then
+    If Index > 0 And Index <= m_Len Then
         chars(Index - 1) = NewValue
     End If
 End Property ' Let Char(
