@@ -3,14 +3,18 @@
 #AutoIt3Wrapper_Outfile=MOReiter.exe
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 ; Kompilieren mit Icon: Aut2exe.exe /in MOReiter.au3 /out MOReiter.exe /icon MOReiter.ico
-; MOReiter: waehlt in Medical Office den Reiter "Kartei" oder "Krankenblatt" per Mausklick
-; Aufruf:  MOReiter.exe Kartei | Krankenblatt   -> einmal klicken und beenden (z.B. aus VB6 per Shell)
+; MOReiter: waehlt in Medical Office den Reiter "Kartei", "Krankenblatt", "ePA" oder "ePAAbr" per Mausklick
+; Aufruf:  MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr  -> einmal klicken und beenden (z.B. aus VB6 per Shell)
 ;          MOReiter.exe Wechsel                  -> Kartei, bzw. Krankenblatt, wenn Kartei schon aktiv ist
+;          MOReiter.exe ePAWechsel               -> ePA, bzw. ePAAbr, wenn ePA schon aktiv ist
 ;          MOReiter.exe                          -> bleibt resident mit Hotkeys:
 ;            Strg+Alt+K        Kartei, ist Kartei schon aktiv: Krankenblatt
 ;            Strg+Alt+L        Krankenblatt
+;            Strg+Alt+P        ePA, ist ePA schon aktiv: ePAAbr
 ;            Strg+Alt+Umsch+K  Kalibrieren: Maus auf Reiter "Kartei" halten und druecken
 ;            Strg+Alt+Umsch+L  Kalibrieren: Maus auf Reiter "Krankenblatt" halten und druecken
+;            Strg+Alt+Umsch+P  Kalibrieren: Maus auf Reiter "ePA" halten und druecken
+;            Strg+Alt+Umsch+A  Kalibrieren: Maus auf Reiter "ePAAbr" halten und druecken
 ;            Beenden ueber das Tray-Menue (kein Strg+Alt+Q, das waere AltGr+Q = @)
 ; Die Reiterleiste ist ein Delphi-Control (TmoTabSet) ohne eigene Handles je Reiter,
 ; deshalb wird relativ zur linken oberen Ecke dieses Controls geklickt.
@@ -25,6 +29,8 @@ Const $Ini = @AppDataDir & "\MOReiter\MOReiter.ini"
 ; Voreinstellungen (Pixel relativ zum Control), werden durch Kalibrieren in der INI ueberschrieben
 Const $defCtrl = "[CLASS:TmoTabSet; INSTANCE:1]"
 Const $defKarteiX = 20, $defKarteiY = 10, $defKrbX = 85, $defKrbY = 10
+; ePA und ePAAbr nur geschaetzt, bitte kalibrieren
+Const $defEpaX = 140, $defEpaY = 10, $defEpaAbrX = 185, $defEpaAbrY = 10
 ; Hintergrund des aktiven Reiters (hellblau, gemessen RGB 210,226,247), inaktive Reiter sind weiss
 Const $defAktivFarbe = 0xD2E2F7, $defToleranz = 12
 
@@ -35,11 +41,14 @@ If _Singleton("MOReiter_resident", 1) = 0 Then Exit ; laeuft schon
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, Strg+Alt+L Krankenblatt")
+TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, Strg+Alt+L Krankenblatt, Strg+Alt+P ePA/ePAAbr")
 HotKeySet("^!k", "Wechsel")
 HotKeySet("^!l", "Krankenblatt")
+HotKeySet("^!p", "EpaWechsel")
 HotKeySet("^!+k", "KalibKartei")
 HotKeySet("^!+l", "KalibKrankenblatt")
+HotKeySet("^!+p", "KalibEpa")
+HotKeySet("^!+a", "KalibEpaAbr")
 While 1
 	Sleep(100)
 WEnd
@@ -52,6 +61,10 @@ Func Krankenblatt()
 	Reiter("Krankenblatt")
 EndFunc
 
+Func EpaWechsel()
+	Reiter("ePAWechsel")
+EndFunc
+
 Func KalibKartei()
 	Kalibrieren("Kartei")
 EndFunc
@@ -60,17 +73,29 @@ Func KalibKrankenblatt()
 	Kalibrieren("Krankenblatt")
 EndFunc
 
+Func KalibEpa()
+	Kalibrieren("ePA")
+EndFunc
+
+Func KalibEpaAbr()
+	Kalibrieren("ePAAbr")
+EndFunc
+
 ; liefert True bei Erfolg
 Func Reiter($name)
 	Local $x, $y
-	If $name <> "Wechsel" And Not HolPos($name, $x, $y) Then Return Meldung("Unbekannter Reiter: " & $name)
+	Local $wechsel = ($name = "Wechsel" Or $name = "ePAWechsel")
+	If Not $wechsel And Not HolPos($name, $x, $y) Then Return Meldung("Unbekannter Reiter: " & $name)
 	Local $hWnd = WinGetHandle($MOFenster)
 	If @error Then Return Meldung("Medical Office nicht gefunden")
 	Local $ctrl = IniRead($Ini, "Allgemein", "Control", $defCtrl)
 	Local $hCtrl = ControlGetHandle($hWnd, "", $ctrl)
 	If @error Or Not BitAND(WinGetState($hCtrl), 2) Then Return Meldung("Reiterleiste nicht sichtbar (Patient geoeffnet?)")
 	If $name = "Wechsel" Then
-		$name = KarteiAktiv($hWnd, $hCtrl) ? "Krankenblatt" : "Kartei"
+		$name = ReiterAktiv("Kartei", $hWnd, $hCtrl) ? "Krankenblatt" : "Kartei"
+		HolPos($name, $x, $y)
+	ElseIf $name = "ePAWechsel" Then
+		$name = ReiterAktiv("ePA", $hWnd, $hCtrl) ? "ePAAbr" : "ePA"
 		HolPos($name, $x, $y)
 	EndIf
 
@@ -97,17 +122,23 @@ Func HolPos($name, ByRef $x, ByRef $y)
 		Case "Krankenblatt"
 			$x = Int(IniRead($Ini, "Krankenblatt", "X", $defKrbX))
 			$y = Int(IniRead($Ini, "Krankenblatt", "Y", $defKrbY))
+		Case "ePA"
+			$x = Int(IniRead($Ini, "ePA", "X", $defEpaX))
+			$y = Int(IniRead($Ini, "ePA", "Y", $defEpaY))
+		Case "ePAAbr"
+			$x = Int(IniRead($Ini, "ePAAbr", "X", $defEpaAbrX))
+			$y = Int(IniRead($Ini, "ePAAbr", "Y", $defEpaAbrY))
 		Case Else
 			Return False
 	EndSwitch
 	Return True
 EndFunc
 
-; prueft am Bildschirm, ob der Reiter "Kartei" hellblau hinterlegt, also aktiv ist
+; prueft am Bildschirm, ob der Reiter $name hellblau hinterlegt, also aktiv ist
 ; (eine PixelSearch ueber ein kleines Rechteck dauert nur wenige Millisekunden)
-Func KarteiAktiv($hWnd, $hCtrl)
+Func ReiterAktiv($name, $hWnd, $hCtrl)
 	Local $x, $y
-	HolPos("Kartei", $x, $y)
+	HolPos($name, $x, $y)
 	If Not WinActive($hWnd) Then
 		WinActivate($hWnd)
 		If Not WinWaitActive($hWnd, "", 2) Then Return False
