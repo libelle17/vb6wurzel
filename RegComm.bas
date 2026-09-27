@@ -71,6 +71,8 @@ Dim ErrNumber&
 Dim ErrDescr$, ErrSource$
 Dim ErrLastDllError&
 
+' speichert den Inhalt des Steuerelements ctl von frm in HKCU\<RegWurzel><Programm>\<RegName> (als DWORD bei obWord, sonst Text)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function doSetzReg(frm As Form, ctl$, Optional obWord%, Optional RegName$)
  Dim RegStelle$, rVal, obRegFehlt%
  On Error GoTo fehler
@@ -93,6 +95,7 @@ End Select
 End Function ' doSetzReg
 
 'Public WMIreg AS SWbemObjectEx ' %windir%\system32\wbem\wbemdisp.tlb
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function doHolReg(frm As Form, ctl$, Optional Vorgabe, Optional RegName$)
  Dim RegStelle$, rVal, obRegFehlt%
  On Error GoTo fehler
@@ -139,6 +142,8 @@ End Function ' doHolReg
 'sValue (Schlüsselname): z.B. Path
 'iData (Schlüsselwert) : z.B. progverz\MeineAnwendung
            
+' schreibt den Textwert sValue = iData in den Schlüssel sPath (legt ihn bei Bedarf an)
+' Aufruf in: Haupt.PutReg, Lade.RegSpeichern
 Public Sub fStSpei(hKey&, sPath$, sValue$, iData$)
 
   Dim vRet, vDisp& ' 1 = neu, 2 = schon da
@@ -161,6 +166,8 @@ End Select
 End Sub ' fStSpei
 
 
+' schreibt den DWORD-Wert sValue = iData in den Schlüssel sPath (legt ihn bei Bedarf an)
+' Aufruf in: Formular.AnBogUnload, RegComm.test2
 Public Sub fDWSpei(hKey&, sPath$, sValue$, iData)
   Dim vRet As Variant, vDisp&, erg& ' 1 = neu, 2 = schon da
   On Error GoTo fehler
@@ -189,6 +196,8 @@ End Select
 End Sub ' fDWSpei
 
 
+' schreibt den Binärwert sValue (iLen Bytes aus iData) in den Schlüssel sPath (legt ihn bei Bedarf an)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Sub fBeiSpei(hKey&, sPath$, sValue, iData, iLen&)
   Dim erg
   Dim vRet As Variant, vDisp& ' 1 = neu, 2 = schon da
@@ -217,6 +226,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "Las
 End Select
 End Sub ' fBeiSpei
 
+' schreibt iData je nach Datentyp (Text, Boolean, Byte, Bytefeld) als Binärwert sValue in den Schlüssel sPath
+' Aufruf in: AbrechFehler.EinstSpeichern
 Public Sub fBiSpei(hKey&, sPath$, sValue, iData)
   Dim erg
   Dim VarT&
@@ -275,6 +286,8 @@ End Sub ' fBiSpei
 'sValue (Schlüsselname): z.B. Path
 'Rückgabewert          : z.B. progverz\MeineAnwendung
 
+' liest den Wert sValue aus dem Schlüssel sPath (in Länge die Datenlänge)
+' Aufruf in: AbrechFehler.Form_Load, AbrechFehler.ZeigSQL, Formular.doForm_Load, Lade.RegLaden, RegComm.test2
 Public Function fWertLesen(hKey&, sPath$, sValue$, Optional Länge&)
   Dim vRet
   RegOpenKey hKey, sPath, vRet
@@ -282,6 +295,8 @@ Public Function fWertLesen(hKey&, sPath$, sValue$, Optional Länge&)
   RegCloseKey vRet
 End Function ' fWertLesen
 
+' Testroutine: liest und setzt Start_AdminToolsTemp im Explorer-Schlüssel des Benutzers
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function test2()
 test2 = fWertLesen(HCU, "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_AdminToolsTemp")
 ' test = GetReg(1, "AppEvents\Schemes\Apps\.Default\SystemExit\.Current", vns)
@@ -292,6 +307,7 @@ End Function ' test2
 'eines Schlüsselnamens zurück. Hierbei wird autom.
 'ermittelt, ob es sich um einen String oder Binärwert
 'handelt.
+' 27.9.26: Aufruf in: RegComm.fWertLesen
 Public Function fRegAbfrageWert(ByVal hKey&, ByVal sValueName$, Optional lBufferSizeData&)
   Dim sBuffer$
   Dim lRes&
@@ -350,6 +366,8 @@ End Function ' fRegAbfrageWert(ByVal hKey&, ByVal sValueName$, Optional lBufferS
 'sPath (Schlüsselpfad) : z.B. MeineAnwendung
 'sValue (Schlüsselname): z.B. Path
 
+' löscht den Wert sValue im Schlüssel sPath
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Sub fWerteLoeschen(hKey&, sPath$, sValue$)
 
   Dim vRet, vDisp&  ' 1 = neu, 2 = schon da
@@ -370,6 +388,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "Las
 End Select
 End Sub ' fWerteLoeschen
 
+' liest den Wert Wert aus dem Schlüssel Schlüssel unter dem Hauptschlüssel Zuord (0-6 bzw. HKEY_...-Konstante)
+' Aufruf in: ComputerToolsFrei.getIViewPfad, Formular.makeDatPfad, Haupt.HolReg, Laufzettel.plzAnzeig, RegComm.ReadRegistryGetVALUES
 Function getReg(Zuord&, Schlüssel$, Wert$) As Variant
 Dim erg& ' Ergebnisse von RegOpenKeyEx und RegQueryValueEx
 Dim hKey&
@@ -432,6 +452,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "Las
 End Select
 End Function ' GetReg
 
+' schneidet abschließende Leer- und Nullzeichen ab (ab Länge lenge, sonst Gesamtlänge); gibt in lenge die neue Länge zurück
+' Aufruf in: RegComm.getReg
 Function RegTrim$(Val$, Optional ByRef lenge&)
  Dim i&
  On Error GoTo fehler
@@ -463,6 +485,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "Las
 End Select
 End Function ' RegTrim
 
+' liefert den Namen des idx-ten Werts im Schlüssel Section und in Inhalt den darin enthaltenen Pfad ("Path=...", Freigabe-Einträge)
+' Aufruf in: ComputerTools.ListFreigaben
 Public Function ReadRegistryGetVALUES$(ByVal Group&, ByVal Section$, idx&, Inhalt$)
 Dim lResult&, lKeyValue&, lValueLength&, td As Double, res&, vTyp&, cbValueN&
 Dim ValueN As String * 2048, sValue As String * 2048
@@ -503,6 +527,7 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) + vbCrLf + "Las
 End Function ' ReadRegistryGetSubkey$(ByVal Group&, ByVal Section$, Idx&)
 
 'Sub REG_EnumUSBDevices(Schlüssel$)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Sub regEnumSub(Abschn&, Schlüssel$, Sch)
 Dim Key As String, lCount As Byte, lResult As Long, hKey As Long
 ReDim Sch(0)
@@ -526,6 +551,8 @@ Do
 Loop Until Not (lResult = ERROR_SUCCESS)
 End Sub ' regEnumSub(Abschn&, Schlüssel$, Sch)
 
+' liefert Namen (Sch) und Inhalte (Inh) aller Werte des Schlüssels Schlüssel unter HKEY_LOCAL_MACHINE
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Sub regEnumVal(Schlüssel$, Sch, Inh)
 Dim Key As String, lCount As Byte, lResult As Long, hKey As Long, lValueLength&
 Const vnz% = 2048

@@ -35,6 +35,9 @@ dwProcessID As Long
 dwThreadID  As Long
 End Type
 
+' startet CommandLine (ggf. verborgen) und wartet bis zum Ende bzw. (WaitForInputIdle) bis zur Eingabebereitschaft,
+' höchstens Timeout ms; wahr, wenn das Programm rechtzeitig fertig bzw. bereit war
+' Aufruf in: LabEintr.Irfan_Click
 Public Function Syncshell(CommandLine As String, Optional Timeout As Long, Optional WaitForInputIdle As Boolean, Optional Hide As Boolean = False) As Boolean
     Dim hProcess As Long
     Dim ret As Long
@@ -54,6 +57,8 @@ Public Function Syncshell(CommandLine As String, Optional Timeout As Long, Optio
     Syncshell = (ret = WAIT_OBJECT_0)
 End Function ' Syncshell
 
+' startet CommandLine über CreateProcess (ggf. mit verborgenem Fenster) und gibt das Prozesshandle zurück
+' Aufruf in: SyncshellModul.Syncshell
 Public Function StartProcess(CommandLine As String, Optional Hide As Boolean = False) As Long
 Const STARTF_USESHOWWINDOW As Long = &H1
 Const SW_HIDE As Long = 0

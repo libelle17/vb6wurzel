@@ -49,6 +49,8 @@ Private Declare Function SHGetPathFromIDList& Lib "Shell32" (ByVal pidList&, ByV
 Private Const S_OK = 0
 Private Const MAX_PATH = 260
 
+' Pfad eines Windows-Spezialordners (z.B. Eigene Dateien)
+' Aufruf in: InsKorrMod.TabAusgeb
 Public Function GetSpecialFolder$(ByVal Folder As ShellSpecialFolderConstants)
   Dim tIIDL As ITEMIDLIST
   Dim strPath$
@@ -60,6 +62,8 @@ Public Function GetSpecialFolder$(ByVal Folder As ShellSpecialFolderConstants)
   End If
 End Function ' GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As String
 
+' Name der aktuellen Datenbank einer Verbindung (Objekt oder Verbindungszeichenfolge)
+' Aufruf in: HAAkt.doHAAkt, HAEinlesen.HALöschen, Haupt.TabFuellSnSh, InsKorrMod.InsKorr, Medarten.vCheckb_MouseMove, Medarten.vTextB_MouseMove, TabÜbertr.TZahl
 Function CurDB$(DBCn)
  Dim Cn As New ADODB.Connection
  On Error GoTo fehler
@@ -117,6 +121,11 @@ End Function ' CurDB$(DBCn)
 ' Debug.Print rs!Value
 'End Function
 
+' Standarddatenbank einer Verbindung: aus der Zeichenfolge (data source=/database=) bzw. der offenen Verbindung,
+' notfalls je nach Programm fest (Dateilese: quelle)
+' Aufruf in: AbrechFehler.Form_Load, Dialog.doEinles, Formular.DtbCreateQueryDef, HAAkt.doHAAkt, Haupt.Vergleiche, Importiere.GesLies, InsKorrMod.CurDB,
+'   Laufzettel.dodoplz, Lese.HolEinstvonDB, Lese.KassenEditieren_Click, Lese.MDIForm_Activate, MachDatenbank.aktualisiercon, MachDatenbank.dbKopier,
+'   MachDatenbank.doCopyDaten, MachDatenbank.doCopyTable, MachDatenbank.SchreibF1, TabÜbertr.Start_Click
 Function DefDB$(DBCn)
  Dim spos&, sp2&, runde%, dWort$
  On Error GoTo fehler
@@ -159,6 +168,8 @@ fehler:
  End Select
 End Function ' DefDB
 
+' Servername aus den erweiterten Eigenschaften (server=...) einer Verbindung
+' Aufruf in: InsKorrMod.InsKorr, vonMo.moausgeb
 Function GetSvr$(DBCn)
  Dim spos&, sp2&, ep$
  On Error GoTo fehler
@@ -180,6 +191,12 @@ fehler:
  End Select
 End Function ' GetServer
 
+' Ersatz für Split() ohne dessen Speicherverbrauch: zerlegt q an Sep in Erg() und gibt die Zahl der Teile zurück;
+' ein Teil, das nichtWenn enthält, reicht bis nach Bis (z.B. Trenner innerhalb von Anführungszeichen)
+' Aufruf in: AnBog.Suchen_Click, Formular.doForm_Load, HAAkt.doHAAkt, HAEinlesen.proTeilnehmer, ImportiereLabor.LaborDirektImport, InsKorrMod.InsKorr,
+'   Lese.doGNR_Statistiken_einl_Click, Lese.FalscheDokumente_Click, Lese.SonderpatientenAnzeigen_Click, Lese.VerhunzteFotosEinfärben_Click,
+'   MachDatenbank.doCopyAllMyMy, MachDatenbank.doCopyTable, MachDatenbank.doGenMachDB_Direkt, PatAuswahl.PatName_Change, ZielDBFunktionen.diI,
+'   ZielDBFunktionen.diT
 Function SplitNeu&(ByRef q$, Sep$, Erg$(), Optional nichtWenn$, Optional Bis$) ' da Split() Speicher fraß
 ' split
 ' in einem Fragment darf nicht nichtWenn enthalten sein, ohne dass Bis enthalten ist
@@ -239,6 +256,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' SplitNeu ' aufSplit
 
+' maskiert Hochkomma, Backslash und Anführungszeichen in q für SQL (MySQL mit \, sonst Hochkomma verdoppelt)
+' Aufruf in: InsKorrMod.InsKorr
 Public Function fUmwfSQL(q$, Optional obmy% = True) As CString ' flexibles Umwandeln für SQL
  Const Maxz% = 2
  Dim pos&, obumw%, zwi$, z$(Maxz), vz$(Maxz), j%
@@ -292,6 +311,9 @@ fehler:
 End Function ' fumwfsql
 
 ' aufgerufen in InsKorr (3x)
+' sammelt Meldungen (höchstens 3000 Zeichen; obDauer: bleibt für die nächste Ausgabe erhalten)
+' 27.9.26: Aufruf in: Haupt.fallzeig, Importiere.alleSpeichern, Importiere.doConAnal, InsKorrMod.InsKorr, PatListe.doStart, vonMo.MOLeistungen,
+'   ZielDBFunktionen.doVerdächtigeÜberweiser
 Function Ausgeb(Text$, obDauer%)
  Dim aktText As New CString, Ausgabe$
  Static altAusgabe As New CString
@@ -310,6 +332,21 @@ Function Ausgeb(Text$, obDauer%)
 End Function ' Ausgeb
 
 
+' führt die Einfüge-Anweisung sql aus; scheitert sie an zu kurzen Feldern ("Data too long", falscher Datums-/Zahlwert),
+' wird das betroffene Feld per ALTER TABLE ... MODIFY COLUMN verbreitert (Typ, Zeichensatz, Vorgabe, Kommentar bleiben)
+' und die Anweisung wiederholt; setzt vorübergehend sql_mode strict_trans_tables, rAf/ErrNr/ErrDes geben das Ergebnis zurück
+' Aufruf in: Formular.do_RRParse, Formular.doDiagnosenexport, Formular.dodo_u_Click, Formular.doRückgängig, Formular.test_fdübertrag, HAEinlesen.proTeilnehmer,
+'   Haupt.anaIns, Haupt.ergEBM, Haupt.liesExcel, Haupt.TabFuellSnSh, Haupt.TIns, Importiere.alleSpeichern, Importiere.AZEinfüg, Importiere.dolies,
+'   Importiere.EintragStart, Importiere.kassenSpeichern, Importiere.KomEinfüg, Importiere.laborparameterSpeichern, Importiere.LTEinfüg, Importiere.medklass2,
+'   Importiere.nbEinfüg, Importiere.rsAnamOpen, ImportiereLabor.indIns, ImportiereLabor.LaborDirektImport, LabEintr.abhaken_Click,
+'   Lese.doGNR_Statistiken_einl_Click, Lese.DokumenteNeuAbhaken_Click, Lese.dVerz, Lese.harealNeu_Click, Lese.HausärztemitalterKVNrergänzen_Click,
+'   PatListe.csvLesen, PatListe.ExcelLesen, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern,
+'   typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
+'   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern, vonMo.doPatvonMO,
+'   vonMo.holHAausMO, vonMo.LaborAusStaging, vonMo.laborges, ZielDBFunktionen.TherAuskunft
 Sub InsKorr(Cn As ADODB.Connection, sql$, Optional ByRef rAf&, Optional ErrDes$, Optional restarttrans%, Optional ErrNr&, Optional sfkco%)
  Dim Feld$, UFELD$, Tbl$, p1$, p2$, spl1s$, spl2s$, s1$(), s2$(), csql As New CString, ix&, i&, j&
  Dim cDB$, svr$, CNs$
@@ -618,6 +655,28 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & "ErrDes: " &
 End Select
 End Sub      ' InsKorr
 
+' gibt das Recordset rEinl als Tabelle mit angepassten Spaltenbreiten aus: in AusgebFrm (obMitausgeb), in eine Text- oder
+' csv-Datei (AusgabeDatei, sonst Ordner Listen) und/oder nach Excel (mitExcel)
+' Aufruf in: AbrechFehler.AbrFausg, Formular.doDuplexkontrollieren, Haupt.doAnrufliste, Haupt.dofallzahlstand, Haupt.doFÜwS, Haupt.doHABKK, Haupt.doLdFH,
+'   Haupt.doSuchTel, Hausarztanzeigen.OK_Click, KassenEditieren.Anzeigen_Click, Lese.Barthelindexliste_Click, Lese.Covid_Impfliste_Click,
+'   Lese.DiabetesQuartalsdiagnosenInDauerdiagnosenUmwandeln_Click, Lese.DiabetikerOhneSchulungLetztesJahr_Click, Lese.DMP_Dokumente_an_HA_Nachweis_Click,
+'   Lese.DMP_Übersicht_Click, Lese.DMPKHKAsthma_Click, Lese.DMPRückmeldungsfehler_Click, Lese.Dokumentnamenprüfung_Click, Lese.Doppelte_Labore_anzeigen_Click,
+'   Lese.Doppelzeilen_in_Notizen_auflisten_Click, Lese.Einlesungen_Click, Lese.EinlesungenAnzeigen_Click, Lese.FalscheDiabetesdiagnosen_Click,
+'   Lese.FalscheKarteikarteneinträge_Click, Lese.Faxe_gescheitert_Click, Lese.Faxnachweis_Click, Lese.Faxwarteschlange_Click,
+'   Lese.Gestationsdiabetikerinnen_Click, Lese.GestationsdiabetikerinnenProQuartal_Click, Lese.Gewichtsabnahmekandidaten_Click, Lese.GNR_Statistik_Click,
+'   Lese.GruppenSchulungsstatisiknachZiffernzahlproQuartal_Click, Lese.HausärztemitDMPPatienten_Click, Lese.HbA1cStatistik_Click, Lese.KVÜberw_Click,
+'   Lese.Laborvergleich_Click, Lese.LfdKosten_Click, Lese.LfdKostenEigenbetrieb_Click, Lese.LfdKostenEigenbetrmBetrag_Click, Lese.LfdKostenMitBetrag_Click,
+'   Lese.LfdKostenPGiro_Click, Lese.LfdKostenPGiromBetrag_Click, Lese.Motivationsgesprächskandidaten_Click, Lese.Motivationsgesprächsstatistik_Click,
+'   Lese.Niereninsuffizienzpauschalendiabetiker_Click, Lese.Notizen_übertragen_4_Quartale_Click, Lese.Notizen_übertragen_akt_u_letztes_Quartal_Click,
+'   Lese.Notizen_übertragen_aktuelles_Quartal_Click, Lese.Notizen_übertragen_alle_Click, Lese.Omnipod5Trägerliste_Click,
+'   Lese.PatientenlistefürHausarztmodell_Click, Lese.PatientenlistefürVollpauschale_Click, Lese.PatientenMitAOKKriterien_Click, Lese.PioglitazonRezepte_Click,
+'   Lese.Pumpenträgerliste_Click, Lese.Quartalsvergleich_Click, Lese.Schlungsziffer_analyse_Click, Lese.Schulungsstatistik_Click,
+'   Lese.Schulungsziffereinzelnachweis_Click, Lese.SonderpatientenAnzeigen_Click, Lese.Statistik_03355_Click, Lese.Statistik_zu_03230_einzeln_Click,
+'   Lese.Statistik_zu_03230nachArzt_Click, Lese.Statistik_zu_03230nachPatient_Click, Lese.Statistik_zu_03230nachTag_Click,
+'   Lese.Statistik_zu_03230nachTagundArzt_Click, Lese.testlqanf_Click, Lese.Therapieartenfürallefestlegeneinernachdemanderen_Click, Lese.TUGListe_Click,
+'   Lese.UnverwertbareDMPEinträge_Click, Lese.WiedereinbestellungenDMP_Click, Lese.Wohnortstatistik_Click, Lese.ZeigGefaxteAn,
+'   Lese.Ziffer30u31Ausschlüsse_Click, Lese.Überweiserstatistik2_Click, PatAuswahl.Leistungen_Click, PatAuswahl.Therapiearten_Click, ZielDBFunktionen.testhl,
+'   ZielDBFunktionen.testlab
 Public Function TabAusgeb(rEinl As ADODB.Recordset, AusgebFrm As Form, Optional obMitausgeb% = False, Optional nz$ = vbCrLf, Optional ohneKopfZ% = False, Optional SpMinÜ, Optional spmaxü, Optional mitLeerZeilen% = False, Optional AusgabeDatei$, Optional obMitZähler = 1, Optional obohneForm%, Optional Überschrift$, Optional padCaption$, Optional obappend%, Optional obOhneAufruf%, Optional mitExcel%) As CString
  Dim i%, j&, maxL%(), Zrm%(), notNum%(), F1alt, Datei$, obcsv%
  Dim TAc As New CString ' Tabausgeb für csv-Dateien
@@ -803,6 +862,42 @@ End Select
 End Function      ' TabAusgeb
 
 ' myFrag für Execute
+' Aufruf in: AbrechFehler.AbrFausg, AbrechFehler.SQLvorZeigSQL, AbrechFehler.ZeigSQL, AnAnpassen.do_anImp, AnBog.AbfragenLad, AnBog.cmdCancel_Click,
+'   AnBog.cmdDelete_Click, AnBog.cmdFirst_Click, AnBog.cmdLast_Click, AnBog.cmdUpdate_Click, AnBog.Suchen_Click, DBVerb.doVerbind, DBVerb.getAllDB,
+'   DBVerb.zeigdatenbanken, DBVerb.zeigtabellen, Dialog.doEinles, Dialog.FrmLEinlesung, Formular.diagexpHerricht, Formular.do_Form_Current_AnBog,
+'   Formular.doDiagnosenexport, Formular.dodo_u_Click, Formular.doForm_Load, Formular.doVa_Click, Formular.doViewsErstellen, Formular.doXtra_Click,
+'   Formular.doZn_Click, Formular.DtbCreateQueryDef, Formular.dynDiag, Formular.Epikrise, Formular.RRParseF, Formular.sensib, Formular.testthap,
+'   Formular.therinit, Formular.tuBriefStandalone, HAAkt.doHAAkt, HAAkt.hausaerztekomprimier, HAEinlesen.HAVerbinde, HAEinlesen.proTeilnehmer,
+'   HAEinlesen.TLösch, Haupt.anaIns, Haupt.anaUpd, Haupt.BooleanFld, Haupt.doKassKat, Haupt.dokpfadänder, Haupt.ForeignNo0, Haupt.ForeignNo1, Haupt.ForeignYes0,
+'   Haupt.ForeignYes1, Haupt.fzsfuell, Haupt.holFrist, Haupt.liesExcel, Haupt.LiesKassen, Haupt.liste_43, Haupt.MacheTypen, Haupt.TabFuellSnSh, Haupt.TIns,
+'   Haupt.TUpd, Haupt.ZahlEintrag, Importiere.alleKassenSpeichern, Importiere.alleSpeichern, Importiere.AnPack, Importiere.AZEinfüg, Importiere.doConAnal,
+'   Importiere.dolies, Importiere.doMedklassT, Importiere.doTabVorb, Importiere.Eintragszl, Importiere.EintragZusatz, Importiere.EmailsImport,
+'   Importiere.fctEintrHist, Importiere.GesLies, Importiere.getAktByte, Importiere.holiAzu, Importiere.kassenSpeichern, Importiere.KomEinfüg,
+'   Importiere.laborparvorladen, Importiere.LTEinfüg, Importiere.medklass2, Importiere.nbEinfüg, Importiere.neuQuartal, Importiere.rsAnamOpen, Importiere.test7,
+'   Importiere.testload, ImportiereLabor.indIns, ImportiereLabor.LaborDirektImport, ImportiereLabor.LaborErgPatId, ImportiereLabor.löschBezügeausLaboryus,
+'   ImportiereLabor.LöschRefNr, ImportiereLabor.SpMod, InsKorrMod.BegTrans, InsKorrMod.ComTrans, InsKorrMod.InsKorr, InsKorrMod.wechsTrans,
+'   KassenEditieren.Start_Click, LabEintr.abhaken_Click, Laborregel.ErmittleAlter, LaborregelDetail.cmdLoeschen_Click, LaborregelDetail.cmdSpeichern_Click,
+'   Lade.DateiBearbeiten_Click, LANRauswahl.OK_Click, Laufzettel.dodoplz, Laufzettel.letztGFR, Laufzettel.mplan, Laufzettel.tabelleInplz,
+'   Lese.AlleDopPatLöschen_Click, Lese.DMPkorrigier, Lese.doGNR_Statistiken_einl_Click, Lese.DokumenteInDatenbank_Click, Lese.DokumenteNeuAbhaken_Click,
+'   Lese.FalschAbgehakteUngueltig_Click, Lese.Falsche_Benutzer_korrigieren_Click, Lese.falschenLaboreintragZuPatlöschen_Click, Lese.Formulare_bereinigen_Click,
+'   Lese.Gewichte_Click, Lese.harealNeu_Click, Lese.HolEinstFeld, Lese.HolEinstvonDB, Lese.korrQB_Click, Lese.korrQD_Click, Lese.LaborLöschenAb_Click,
+'   Lese.mdiForm_Resize, Lese.MedOffTabZahl_Click, Lese.MedOffZpSetzen_Click, Lese.MOSV, Lese.NachzuholendeLaborimporte_Click,
+'   Lese.Niereninsuffizienzpauschalendiabetiker_Click, Lese.Notizen_übertragen_vorbereiten_Click, Lese.Punktwerte_Click, Lese.Schulungsstatistik_Click,
+'   Lese.SuchInSpaltenInMO_Click, Lese.TherapieartenEinzelübervb6Festlegen_Click, Lese.Therapieartenfürallefestlegeneinernachdemanderen_Click,
+'   MachDatenbank.aktualisiercon, MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy, MachDatenbank.doCopyDaten, MachDatenbank.doEx_Direkt,
+'   MachDatenbank.MachAlle_Click, MachDatenbank.sAusf, PatAuswahl.do_Pat_ID_Change, PatAuswahl.Therartenfestlegen_Click, PatListe.AlleMark, PatListe.csvLesen,
+'   PatListe.ExcelLesen, PatListe.Form_Load, PatListe.LabordateiAnzeig, PatListe.li1_Click, PatListe.MFG_MouseUp, PatListe.Text1_Fertig, PatListe.tmbrloe,
+'   PatListe.tmbrumb, PatListe.tmbrverschieb, PatListe.verschieb, QuelleDB.DBCnOSchema, QuelleDB.doSortierungÄndern0, TabÜbertr.Start_Click, TabÜbertr.TIns,
+'   TabÜbertr.zeigtabellen, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.doEntleer, typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern,
+'   typen.formulareSpeichern, typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern,
+'   typen.laboryeingelSpeichern, typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern,
+'   typen.lbanforderungenSpeichern, typen.leistungenSpeichern, typen.liuezSpeichern, typen.LöschePat, typen.medplanSpeichern, typen.namenSpeichern,
+'   typen.rezepteintraegeSpeichern, typen.rrSpeichern, typen.swsSpeichern, typen.tuSpeichern, typen.tuStutzen, typen.ulcusSpeichern, typen.unbek_kennSpeichern,
+'   typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern, vonMo.doMarkierungen, vonMo.doNotizen, vonMo.doPatvonMO, vonMo.HATrans, vonMo.holHAausMO,
+'   vonMo.LaborAusStaging, vonMo.laborges, vonMo.LaborStagingFuellen, vonMo.LaborStagingFuellenOutfile, vonMo.LaborStagingFuellenVB6, vonMo.MOKatLaden,
+'   vonMo.richtHA, vonMo.richtleist, vonMo.tbtrans, vonMo.turichtdiag, WerteVerarbeiten.AnReparieren, WerteVerarbeiten.KommRep, WerteVerarbeiten.machwertString,
+'   ZielDBFunktionen.DMPString, ZielDBFunktionen.neuTher, ZielDBFunktionen.testhl, Übertragungsoptionen.Pat_id_Change, Übertragungsoptionen.zuletzt_Click
 Public Function myEFrag(ByRef sql$, Optional ByRef rAf&, Optional Cn As ADODB.Connection = Nothing, Optional keinfehler%, Optional ErrNr&, Optional ErrDes$, Optional gcl& = 700, Optional keinExec%, Optional sfkco%) As ADODB.Recordset
  Dim rs As ADODB.Recordset
  Set myEFrag = myFrag(rs, sql, IIf(keinExec, adOpenDynamic, adOpenUnspecified), Cn, adLockReadOnly, gcl, rAf, keinfehler, ErrNr, ErrDes, sfkco)
@@ -811,6 +906,72 @@ End Function ' myEFrag
 ' .Execute nimmt adOpenForwardOnly, was viel schneller ist, aber nach einer Abfrage isnull(rs!Feld) rs!Feld zu null setzt
 ' rückwärts aufrufen: adopendynamic
 ' .update geht nur mit adOpenDynamic und (z.B.?) adLockOptimistic
+' 27.9.26: Aufruf in: AbrechFehler.AbrFausg, AnAnpassen.do_anImp, AnBog.cmdFirst_Click, AnBog.cmdLast_Click, AnBog.Suchen_Click, AnBog.vCheckb_MouseMove,
+'   AnBog.vCommandB_MouseMove, AnBog.vlab_MouseMove, AnBog.vOptionB_MouseMove, AnBog.vTextB_MouseMove, DBVerb.getAllDB, DBVerb.Verbind,
+'   DiagAnzeige.DiagNeuAktiv, DiagAnzeige.LadeZeilen, DiagAnzeige.PatAlterLaden, DiagAnzeige.RegelnLaden, Dialog.FrmLEinlesung, Formular.Datenbankkontrolle,
+'   Formular.ddsono, Formular.do_abgehakt_Click, Formular.do_Diagnosen_Reset, Formular.do_DokDown, Formular.do_Form_Current2, Formular.do_Form_Current_AnBog,
+'   Formular.do_haakt, Formular.do_LaborDokumente_form_load, Formular.do_RRParse, Formular.doBriefeBerichtspflicht, Formular.doDatensatzPosition,
+'   Formular.doDiagnosenexport, Formular.dodo_u_Click, Formular.doDuplexkontrollieren, Formular.doForm_Load, Formular.doGilb, Formular.doViewsErstellen,
+'   Formular.Epikrise, Formular.fobHAimDMP, Formular.getHausarzt, Formular.getHausarzt1, Formular.GetVorDat, Formular.hkGrund, Formular.kkeintraege,
+'   Formular.knöpfeanpassen, Formular.LegNPFest, Formular.letzteMed, Formular.lFDat, Formular.obLH, Formular.PfadFestLeg, Formular.PStatNeu, Formular.PStatus,
+'   Formular.RRParseF, Formular.SchulzBest, Formular.sensib, Formular.test_fdübertrag, Formular.TheraErmitt, Formular.tuBriefStandalone, Formular.Urineintraege,
+'   Formular.zplschul, Formular.Üw12, Formular.Üwrd, frmalthae.adoPrimaryRS_MoveComplete, frmalthae.Vorbereit, HAAkt.doHAAkt, HAEinlesen.proTeilnehmer,
+'   Haupt.anaUpd, Haupt.doAnrufliste, Haupt.dofallzahlstand, Haupt.doFÜwS, Haupt.doHABKK, Haupt.doHilfsmittelklassifikationen, Haupt.dokpfadänder, Haupt.doLdFD,
+'   Haupt.doLdFH, Haupt.doLdFHalt, Haupt.doMacheTypen, Haupt.doSuchTel, Haupt.doWirt, Haupt.doWSt0Erg, Haupt.ergEBM, Haupt.fallzeig, Haupt.fzsfuell,
+'   Haupt.holFrist, Haupt.HolKRein, Haupt.liste_43, Haupt.obAutoIncr, Haupt.TabFuellSnSh, Haupt.TIns, Haupt.TUpd, Haupt.Vergleiche, Haupt.VergleichTab,
+'   Haupt.ZahlEintrag, Hausarztanzeigen.Form_Load, Hausarztanzeigen.OK_Click, HausärzteHier.HAzählen, Importiere.alleSpeichern, Importiere.AnPack,
+'   Importiere.DiagString, Importiere.dolies, Importiere.doMedklassT, Importiere.doTabVorb, Importiere.EintragZusatz, Importiere.fuellilanr, Importiere.GesLies,
+'   Importiere.kassenSpeichern, Importiere.medartenhier, Importiere.MedArtenPruef, Importiere.rrParseSpeichern, Importiere.rsAnamOpen, Importiere.testload,
+'   ImportiereLabor.indIns, ImportiereLabor.LaborDirektImport, ImportiereLabor.LaborErgPatId, ImportiereLabor.ngfestleg, ImportiereLabor.SpMod,
+'   InsKorrMod.InsKorr, InsKorrMod.myEFrag, KassenEditieren.Anzeigen_Click, Kompilierbarkeit.doFAnfFuell, Kompilierbarkeit.FAnfFuell, LabEintr.abhaken_Click,
+'   LabEintr.LadDaten, Laborregel.ErmittleDMP, Laborregel.ErmittleIndizierteLaborwerte, Laborregel.ErmittleVersicherung, Laborregel.HatICD,
+'   Laborregel.HatMedikament, Laborregel.LetzterEigenerWert, Laborregel.RRDurchschnitt, LaborregelDetail.Form_Load, Lade.DateiBearbeiten_Click, Lade.PatTeste,
+'   LANRauswahl.PrepPatid, Laufzettel.BezuegeTeile, Laufzettel.dodoplz, Laufzettel.doPatientenlaufzettel, Laufzettel.FruehereMedHTML, Laufzettel.LaborInsPLZ,
+'   Laufzettel.MedHistorieJS, Laufzettel.MedVerlaufJS, Laufzettel.mplan, Laufzettel.plzeintraege, Laufzettel.tabelleInplz, Laufzettel.UKPDS,
+'   Lese.Apothekenrezepte_Click, Lese.Barthelindexliste_Click, Lese.Covid_Impfliste_Click, Lese.DiabetesQuartalsdiagnosenInDauerdiagnosenUmwandeln_Click,
+'   Lese.DiabetikerOhneSchulungLetztesJahr_Click, Lese.DMP_Dokumente_an_HA_Nachweis_Click, Lese.DMP_Übersicht_Click, Lese.DMPForts_Click,
+'   Lese.DMPKHKAsthma_Click, Lese.DMPRückmeldungsfehler_Click, Lese.do_Medpläne_alt_für_MO_exportieren_Click, Lese.doCallDMP, Lese.dodoppelteFaxe,
+'   Lese.doGNR_Statistiken_einl_Click, Lese.DokumenteAbgehaktPrüfen_Click, Lese.Dokumentnamenprüfung_Click, Lese.Doppelte_Labore_anzeigen_Click,
+'   Lese.Doppelte_Labore_herrichten_Click, Lese.DoppelteDiagnosen_Click, Lese.Doppelzeilen_in_Notizen_auflisten_Click, Lese.Einlesungen_Click,
+'   Lese.EinlesungenAnzeigen_Click, Lese.FalschAbgehakteUngueltig_Click, Lese.Falsche_Benutzer_korrigieren_Click, Lese.FalscheDiabetesdiagnosen_Click,
+'   Lese.FalscheDokumente_Click, Lese.FalscheKarteikarteneinträge_Click, Lese.falschenLaboreintragZuPatlöschen_Click, Lese.Faxe_gescheitert_Click,
+'   Lese.Faxnachweis_Click, Lese.Faxwarteschlange_Click, Lese.Gestationsdiabetikerinnen_Click, Lese.GestationsdiabetikerinnenProQuartal_Click,
+'   Lese.Gewichte_Click, Lese.Gewichtsabnahmekandidaten_Click, Lese.GNR_Statistik_Click, Lese.GruppenSchulungsstatisiknachZiffernzahlproQuartal_Click,
+'   Lese.harealNeu_Click, Lese.HausärztemitalterKVNrergänzen_Click, Lese.HausärztemitDMPPatienten_Click, Lese.HbA1cStatistik_Click, Lese.KassenEditieren_Click,
+'   Lese.Kontrolllisten_für_DMP_HA_Click, Lese.KVÜberw_Click, Lese.LaborLöschenAb_Click, Lese.Laborvergleich_Click, Lese.LfdKosten_Click,
+'   Lese.LfdKostenEigenbetrieb_Click, Lese.LfdKostenEigenbetrmBetrag_Click, Lese.LfdKostenMitBetrag_Click, Lese.LfdKostenPGiro_Click,
+'   Lese.LfdKostenPGiromBetrag_Click, Lese.Motivationsgesprächskandidaten_Click, Lese.Motivationsgesprächsstatistik_Click,
+'   Lese.Niereninsuffizienzpauschalendiabetiker_Click, Lese.Notizen_übertragen_4_Quartale_Click, Lese.Notizen_übertragen_akt_u_letztes_Quartal_Click,
+'   Lese.Notizen_übertragen_aktuelles_Quartal_Click, Lese.Notizen_übertragen_alle_Click, Lese.Omnipod5Trägerliste_Click, Lese.Pat_loeschen_Click,
+'   Lese.PatientenlistefürHausarztmodell_Click, Lese.PatientenlistefürVollpauschale_Click, Lese.PatientenMitAOKKriterien_Click, Lese.PiDzuord_Click,
+'   Lese.PioglitazonRezepte_Click, Lese.PLZausListe_Click, Lese.PLZfuerMedikament_Click, Lese.Pumpenträgerliste_Click, Lese.Punktwerte_Click,
+'   Lese.Quartalsvergleich_Click, Lese.Schlungsziffer_analyse_Click, Lese.Schulungsstatistik_Click, Lese.Schulungsziffereinzelnachweis_Click,
+'   Lese.SonderpatientenAnzeigen_Click, Lese.Statistik_03355_Click, Lese.Statistik_zu_03230_einzeln_Click, Lese.Statistik_zu_03230nachArzt_Click,
+'   Lese.Statistik_zu_03230nachPatient_Click, Lese.Statistik_zu_03230nachTag_Click, Lese.Statistik_zu_03230nachTagundArzt_Click, Lese.SuchInSpaltenInMO_Click,
+'   Lese.testlqanf_Click, Lese.TherapieartenEinzelübervb6Festlegen_Click, Lese.Therapieartenfürallefestlegeneinernachdemanderen_Click, Lese.TUGListe_Click,
+'   Lese.UnverwertbareDMPEinträge_Click, Lese.VerhunzteFotosEinfärben_Click, Lese.WiedereinbestellungenDMP_Click, Lese.Wohnortstatistik_Click,
+'   Lese.ZeigGefaxteAn, Lese.Ziffer30u31Ausschlüsse_Click, Lese.Übertragung_aus_MO_Click, Lese.Überweiserstatistik2_Click, Lese.Überweiserstatistik_Click,
+'   MachDatenbank.aktualisiercon, MachDatenbank.doCopyDaten, MachDatenbank.doCopyIndices, MachDatenbank.doCopyRelations, MachDatenbank.doCopyTable,
+'   MachDatenbank.doCopyView, MachDatenbank.doGenMachDB_Direkt, Medarten.anaRS_MoveComplete, Medarten.vCheckb_MouseMove, Medarten.vTextB_MouseMove,
+'   Optionen.KReinCB_Click, PatAuswahl.Angeforderte_Click, PatAuswahl.AuswHA, PatAuswahl.AuswName, PatAuswahl.AuswPat_id, PatAuswahl.do_Pat_ID_Change,
+'   PatAuswahl.Geb_Change, PatAuswahl.getPat_id, PatAuswahl.HAAusw_Change, PatAuswahl.HAAusw_KeyDown, PatAuswahl.Leistungen_Click, PatAuswahl.PatName_Change,
+'   PatAuswahl.Therapiearten_Click, PatListe.AlleMark, PatListe.DMPFüll, PatListe.DokuBeliebig, PatListe.domachDMPBogen, PatListe.FertigStellen,
+'   PatListe.Form_Load, PatListe.LabordateiAnzeig, PatListe.LaborFüll, PatListe.LaborregelAnzeig, PatListe.LaborTagAnzeig, PatListe.LadeLanrListe,
+'   PatListe.MFG_Click, PatListe.MFG_MouseMove, PatListe.MFG_MouseUp, PatListe.MFGrefresh, PatListe.tmbrieAnzeig, PatListe.ZeigeZahl,
+'   QuelleDB.doSortierungÄndern0, TabÜbertr.GetAutoFeld, TabÜbertr.Start_Click, TabÜbertr.TZahl, typen.auLaden, typen.briefeLaden, typen.desktopLaden,
+'   typen.diagnosenLaden, typen.dmpreiheLaden, typen.doEntleer, typen.dokumenteLaden, typen.eintraegeLaden, typen.faelleLaden, typen.forminhkopfLaden,
+'   typen.fussLaden, typen.kheinweisLaden, typen.laborneuLaden, typen.lbanforderungenLaden, typen.leistungenLaden, typen.medplanLaden, typen.namenLaden,
+'   typen.rezepteintraegeLaden, typen.rrLaden, typen.swsLaden, typen.ulcusLaden, typen.usdmLaden, typen.vkgdLaden, typen.voplLaden, vonMo.callMODmp,
+'   vonMo.doPatvonMO, vonMo.LaborAusStaging, vonMo.laborges, vonMo.LaborStagingFuellenVB6, vonMo.MODiagnosen, vonMo.MODmpreihe, vonMo.MODmpreihe1,
+'   vonMo.MOLeistungen, vonMo.richtHA, vonMo.richtleist, vonMo.TestDmpreiheNachimport, vonMo.TestMemoZerlegen, vonMo.TestMOKatEintraege,
+'   vonMo.TestZaehleBetroffene, vonMo.turichtdiag, WerteVerarbeiten.AnReparieren, WerteVerarbeiten.AusgDiag, WerteVerarbeiten.bittest1, WerteVerarbeiten.erbe,
+'   WerteVerarbeiten.FormRestoreSource, WerteVerarbeiten.KommRep, WerteVerarbeiten.lebe, WerteVerarbeiten.machwertString, WerteVerarbeiten.werteAnzeig,
+'   ZielDBFunktionen.alleDMPLeiDok, ZielDBFunktionen.diI, ZielDBFunktionen.diT, ZielDBFunktionen.DMPString, ZielDBFunktionen.do_DMPAusgebStandAlone,
+'   ZielDBFunktionen.doAnwalt, ZielDBFunktionen.dododoPorto, ZielDBFunktionen.dodoFollowUp, ZielDBFunktionen.doRestlicheBriefe, ZielDBFunktionen.doTabakSt,
+'   ZielDBFunktionen.doUngeschriebeneBriefe, ZielDBFunktionen.doVerdächtigeÜberweiser, ZielDBFunktionen.DSeit, ZielDBFunktionen.FallExport,
+'   ZielDBFunktionen.GetPrRR, ZielDBFunktionen.hollabor, ZielDBFunktionen.LeistungsExport1, ZielDBFunktionen.MedPlanAusAna, ZielDBFunktionen.MedPlanNr,
+'   ZielDBFunktionen.neuTher, ZielDBFunktionen.rrpruef, ZielDBFunktionen.testlab, ZielDBFunktionen.testvergleicheT, ZielDBFunktionen.TherAuskunft,
+'   ZielDBFunktionen.tuBriefeLeiDok, ZielDBFunktionen.WieTabak
 Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
                  Optional ByVal CursTp As ADODB.CursorTypeEnum = adOpenUnspecified, _
                  Optional ByRef Cn As ADODB.Connection = Nothing, _
@@ -1041,6 +1202,16 @@ End Function ' myFrag(rs As ADODB.recorset, sql$)
 
 
 ' Setzt DBCn zu (falls angegeben) CS, schließt oder löscht DBCn, öffnet es mit DBCn, zeigt nach Verbindungsstringwechsel die Fälle an
+' Aufruf in: AnBog.cmdPrevious_Click, Formular.DtbCreateQueryDef, Formular.LabWert0, Haupt.dokpfadänder, Haupt.ForeignNo0, Importiere.alleSpeichern,
+'   Importiere.AZEinfüg, Importiere.doDiag, Importiere.dolies, Importiere.EintragStart, Importiere.getAktByte, Importiere.KomEinfüg, Importiere.LTEinfüg,
+'   Importiere.nbEinfüg, ImportiereLabor.SpMod, Lese.ProgStart, PatAuswahl.AuswName, PatAuswahl.getPat_id, PatListe.DMPFüll, PatListe.MFG_MouseMove,
+'   typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern, typen.dokumenteSpeichern,
+'   typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern,
+'   typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
+'   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern,
+'   ZielDBFunktionen.DMPString
 Public Function DBCnOpen(Optional CS$, Optional uid$, Optional pwd$, Optional opt&)
  Dim altCS$, lauf&
  On Error GoTo fehler
@@ -1099,6 +1270,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' DBCnOpen(CS$, uid$, pwd$, Opt&)
 
+' beginnt eine Transaktion auf Cn (Vorgabe DBCn), sofern nicht obkeinetr; merkt sie in obTrans
+' Aufruf in: HAEinlesen.proTeilnehmer, Importiere.alleSpeichern, Importiere.GesLies, ImportiereLabor.SpMod, InsKorrMod.InsKorr, MachDatenbank.dbKopier,
+'   MachDatenbank.doCopyDaten, PatListe.csvLesen, TabÜbertr.Start_Click
 Public Function BegTrans(Optional Cn As ADODB.Connection = Nothing, Optional obkeinetr% = 0)
  On Error GoTo fehler
  If obkeinetr = 0 Then
@@ -1125,6 +1299,14 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' BegTrans(Optional CN As ADODB.Connection = DBCn)
 
+' schließt die Transaktion auf Cn (Vorgabe DBCn) mit COMMIT ab (bei obtr = 1); keinetrans erhält ggf. die Fehlernummer
+' Aufruf in: Dialog.doEinles, Formular.TheraErmitt, HAEinlesen.proTeilnehmer, Haupt.anaUpd, Importiere.alleSpeichern, Importiere.GesLies, ImportiereLabor.SpMod,
+'   InsKorrMod.InsKorr, Lese.MyDB_Change, MachDatenbank.dbKopier, MachDatenbank.doCopyDaten, PatListe.csvLesen, TabÜbertr.Start_Click, typen.auSpeichern,
+'   typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern, typen.dokumenteSpeichern, typen.eintraegeSpeichern,
+'   typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern, typen.kheinweisSpeichern,
+'   typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.lbanforderungenSpeichern, typen.leistungenSpeichern, typen.medplanSpeichern, typen.namenSpeichern,
+'   typen.rezepteintraegeSpeichern, typen.rrSpeichern, typen.swsSpeichern, typen.tuSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern,
+'   typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern
 Public Function ComTrans(Optional Cn As ADODB.Connection = Nothing, Optional obtr% = 1, Optional ByRef keinetrans%)
  On Error GoTo fehler
  If obtr = 1 Then
@@ -1152,6 +1334,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' ComTrans
 
+' beginnt auf Cn (Vorgabe DBCn) eine neue Transaktion (START TRANSACTION schließt die laufende ab)
+' Aufruf in: Importiere.alleSpeichern, typen.tuLaden, typen.tuSpeichern
 Public Function wechsTrans(Optional Cn As ADODB.Connection = Nothing, Optional obtr% = 1)
  On Error GoTo fehler
  If obtr = 1 Then

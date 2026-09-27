@@ -18,6 +18,9 @@ Public id&
 Private mvIndex& 'lokale Kopie
 Private mvText$ ' lokale Kopie
 
+' Klasse SortierDatum: Sortierelement nach Datum mit zugehörigem Text, verwendet mit SortierListe
+' Index: Position des Elements (setzen)
+' 27.9.26: Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Let Index(ByVal vData As Long)
     On Error GoTo fehler
     mvIndex = vData
@@ -35,6 +38,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property
+
+' Index: Position des Elements (lesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Index() As Long
     On Error GoTo fehler
     Index = mvIndex
@@ -52,6 +58,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property
+
+' zugehöriger Text (setzen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Let Text(ByVal vData$)
     On Error GoTo fehler
     mvText = vData
@@ -69,6 +78,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property
+
+' zugehöriger Text (lesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Text() As String
     On Error GoTo fehler
     Text = mvText
@@ -87,6 +99,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property
 
+' Sortiervergleich nach Datum: wahr, wenn dieses Element vor E2 einzuordnen ist
+' Aufruf in: SortierListe.Eingrenz
 Public Function istKleinerAls(ByRef E2) As Boolean
  On Error GoTo fehler
  If mvDatum < E2.Datum Then
@@ -108,6 +122,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function
+
+' wahr, wenn sich das Datum von dem in E2 unterscheidet
+' Aufruf in: SortierListe.GetItem, SortierListe.sCAdd, SortierListe.SuchItem
 Public Function unGleich(ByRef E2) As Boolean
  On Error GoTo fehler
  If mvDatum <> E2.Datum Then unGleich = True
@@ -125,6 +142,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function
+
+' Datum (setzen per Set)
+' Aufruf in: SortierDatum.istKleinerAls, SortierDatum.unGleich, ZielDBFunktionen.hollabor
 Public Property Set Datum(ByVal vData)
     On Error GoTo fehler
     mvDatum = vData
@@ -142,6 +162,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property
+
+' Datum (lesen)
+' Aufruf in: SortierDatum.istKleinerAls, SortierDatum.unGleich, ZielDBFunktionen.hollabor
 Public Property Get Datum()
     On Error GoTo fehler
     Datum = mvDatum
@@ -160,6 +183,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property
 
+' Datum (setzen)
+' Aufruf in: SortierDatum.istKleinerAls, SortierDatum.unGleich, ZielDBFunktionen.hollabor
 Public Property Let Datum(ByVal vData)
     On Error GoTo fehler
    mvDatum = vData

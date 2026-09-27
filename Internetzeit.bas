@@ -111,6 +111,7 @@ Declare Function GetTimeZoneInformation& Lib "kernel32" (lpTimeZoneInformation A
 
 
 ' IP-Adresse einer Internetadresse ermitteln
+' Aufruf in: InternetZeit.holZeit
 Public Function GetIP$(ByVal HostName$)
   Dim pHost&, HostInfo As HOSTENT
   Dim pIP&, IPArray(3) As Byte
@@ -131,6 +132,7 @@ Public Function GetIP$(ByVal HostName$)
 End Function ' GetIP$(ByVal HostName$)
 
 ' Mit einem Server verbinden
+' Aufruf in: InternetZeit.holZeit
 Public Function ConnectToServer&(ByVal ServerIP$, ByVal ServerPort&)
     Dim hSock&, RetVal&, ServerAddr As SOCKADDR
     ' Socket erstellen
@@ -159,17 +161,20 @@ Public Function ConnectToServer&(ByVal ServerIP$, ByVal ServerPort&)
 End Function ' FUNCTION ConnectToServer&(ByVal ServerIP$, ByVal ServerPort&)
 
 ' Sock/Verbindung schließen
+' Aufruf in: InternetZeit.holZeit, InternetZeit.trenne
 Public Function Disconnect(ByRef Sock&)
   Call closesocket(hSock)
   Sock = 0
 End Function ' Disconnect(ByRef Sock&)
 
 ' Daten senden
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function SendData&(ByVal Sock&, ByVal Data$)
   SendData = send(Sock, ByVal Data, Len(Data), 0&)
 End Function ' SendData&(ByVal Sock&, ByVal Data$)
 
 ' Sind Daten angekommen ?
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function DataComeIn&(ByVal Sock&)
   Dim Tmpstr As String * 1
   DataComeIn = recv(Sock, ByVal Tmpstr, Len(Tmpstr), MSG_PEEK)
@@ -179,6 +184,7 @@ Public Function DataComeIn&(ByVal Sock&)
 End Function ' DataComeIn&(ByVal Sock&)
 
 ' Daten ermitteln
+' Aufruf in: InternetZeit.holZeit
 Public Function GetData$(ByVal Sock&)
   Dim Tmpstr As String * 4096, RetVal&
   RetVal = recv(Sock, ByVal Tmpstr, Len(Tmpstr), 0&)
@@ -190,6 +196,8 @@ Public Function GetData$(ByVal Sock&)
 End Function ' GetData$(ByVal Sock&)
 
 ' in holZeit
+' rechnet die 4-Byte-Antwort eines Zeitservers (Sekunden seit 1900, UTC) in die lokale Zeit um
+' 27.9.26: Aufruf in: InternetZeit.holZeit
 Public Function SyncClock(tStr$) As Date
     Dim NTPTime#
     Dim LngTimeFrom1990&
@@ -209,6 +217,10 @@ Public Function SyncClock(tStr$) As Date
     SyncClock = UTCDATE
 End Function ' SyncClock(tStr$) As Date
 
+' fragt reihum Zeitserver (Time-Protokoll, Port 37) ab, beginnend bei dem in der Registry gemerkten Versatz "Differenz";
+' antwortet ein Server zu langsam (> toleranz s), wird der nächste für künftige Abfragen vorgemerkt;
+' liefert die Internetzeit, in Server den benutzten Server und in verzoeg die Antwortzeit
+' 27.9.26: Aufruf in: InternetZeit.InetZeit
 Public Function holZeit(ByRef Server$, ByRef verzoeg!) As Date
   Dim ServerIP As String
   Const toleranz! = 0.9 ' Zahl der Sekunden, nach der der Zeitserver hintangestellt wird
@@ -280,6 +292,8 @@ Public Function holZeit(ByRef Server$, ByRef verzoeg!) As Date
 '  Timer1.Enabled = True
 End Function ' holZeit(ByRef Server$, ByRef Zeit!) As Date
 
+' aktuelle Zeitverschiebung gegenüber UTC in Minuten (mit Sommerzeit)
+' Aufruf in: InternetZeit.SyncClock
 Function CurrentBias%()
 '// Gibt die aktuelle Zeitverschiebung
 '// gegenüber GMT-Uhrzeit in Minuten zurück.
@@ -294,17 +308,23 @@ Function CurrentBias%()
     End With
 End Function ' CurrentBias%()
 
+' schließt den Socket und beendet Winsock
+' Aufruf in: InternetZeit.InetZeit
 Public Sub trenne()
   Call Disconnect(hSock)
   Call WSACleanup
 End Sub ' trenne()
 
+' startet Winsock (Version 2.2)
+' Aufruf in: InternetZeit.InetZeit
 Public Function starte&()
   Dim WSD As WSAData
   starte = WSAStartup(&H202, WSD)
 End Function ' starte&()
 
 
+' liefert die aktuelle Internetzeit (Winsock starten, Zeit holen, trennen)
+' Aufruf in: Laufzettel.doPatientenlaufzettel
 Public Function InetZeit() As Date
  Dim Server$, verzoeg!
  Call starte

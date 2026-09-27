@@ -23,22 +23,32 @@ Public Zahl&
 Public gewählt%
 Private mvarIndex As Long 'lokale Kopie
 
+' Klasse SortierHA: Sortierelement für Hausärzte (Überweisernummer ÜWNr, Name ÜwNm, Fax, obDMPInfo), sortiert nach Name
+' Index: Position des Elements (setzen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Let Index(ByVal vData&)
 'wird beim Zuweisen eines Werts zu der Eigenschaft auf der linken Seite einer Zuweisung verwendet.
 'Syntax: X.index = 5
     mvarIndex = vData
 End Property
 
+' Index: Position des Elements (lesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Index() As Long
 'wird beim Ermitteln eines Eigenschaftswertes auf der rechten Seite einer Zuweisung verwendet.
 'Syntax: Debug.Print X.index
     Index = mvarIndex
 End Property
 
+' Sortierwert (Name des Hausarztes)
+' Aufruf in: SortierEintr.istKleinerAls, SortierEintr.unGleich, SortierHA.istKleinerAls, SortierHA.unGleich, SortierPatZuHA.istKleinerAls,
+'   SortierPatZuHA.unGleich
 Public Property Get SortVar()
  SortVar = mvÜwNm
 End Property
 
+' Sortiervergleich nach Name: wahr, wenn dieses Element vor E2 (Element oder Wert) einzuordnen ist
+' Aufruf in: SortierListe.Eingrenz
 Public Function istKleinerAls(ByRef E2) As Boolean
  On Error GoTo fehler
  If IsObject(E2) Then
@@ -61,6 +71,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function '  istKleinerAls
 
+' wahr, wenn sich der Name von E2 (Element oder Wert) unterscheidet
+' Aufruf in: SortierListe.GetItem, SortierListe.sCAdd, SortierListe.SuchItem
 Public Function unGleich(ByRef E2) As Boolean
  On Error GoTo fehler
  If IsObject(E2) Then
@@ -83,16 +95,22 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' unGleich
 
+' Überweiser-/Arztnummer (setzen)
+' Aufruf in: PatListe.AlleMark, PatListe.DMPFüll, PatListe.doStart, PatListe.MFG_Click
 Public Property Let ÜWNr(ByVal vData)
  If mvÜWNr <> vData Then
   mvÜWNr = vData
  End If
 End Property
 
+' Überweiser-/Arztnummer (lesen)
+' Aufruf in: PatListe.AlleMark, PatListe.DMPFüll, PatListe.doStart, PatListe.MFG_Click
 Public Property Get ÜWNr() As Variant
  ÜWNr = mvÜWNr
 End Property
 
+' Name des Hausarztes (setzen, Null wird zu Leerstring)
+' Aufruf in: PatListe.DMPFüll, PatListe.doStart
 Public Property Let ÜwNm(ByVal vData)
  If IsNull(vData) Then
   mvÜwNm = vNS
@@ -101,26 +119,36 @@ Public Property Let ÜwNm(ByVal vData)
  End If
 End Property
 
+' Name des Hausarztes (lesen)
+' Aufruf in: PatListe.DMPFüll, PatListe.doStart
 Public Property Get ÜwNm() As Variant
  ÜwNm = mvÜwNm
 End Property
 
+' Faxnummer (setzen)
+' Aufruf in: PatListe.DMPFüll, PatListe.doStart
 Public Property Let fax(ByVal vData)
  If mvFax <> vData Then
   mvFax = vData
  End If
 End Property
 
+' Faxnummer (lesen)
+' Aufruf in: PatListe.DMPFüll, PatListe.doStart
 Public Property Get fax() As Variant
  fax = mvFax
 End Property
 
+' ob der Arzt DMP-Informationen erhält (setzen)
+' Aufruf in: PatListe.AlleMark, PatListe.DMPFüll
 Public Property Let obDMPInfo(ByVal vData)
  If mvobDMPInfo <> vData Then
   mvobDMPInfo = vData
  End If
 End Property
 
+' ob der Arzt DMP-Informationen erhält (lesen)
+' Aufruf in: PatListe.AlleMark, PatListe.DMPFüll
 Public Property Get obDMPInfo() As Variant
  obDMPInfo = mvobDMPInfo
 End Property

@@ -112,6 +112,8 @@ Dim FNr&
 Const INVALID_FILE_VALUE$ = -1
 Public Const HFILE_ERROR = &HFFFF
 
+' liefert einen der drei Zeitstempel (Erstellung, letzter Zugriff, letzte Änderung) einer Datei/eines Verzeichnisses als Date
+' Aufruf in: Laufzettel.dodoplz
 Public Function GetFileTime(ByVal Pfad As String, _
                             ByVal TimeToGet As FileTimeEnum _
                            ) As Date
@@ -162,6 +164,8 @@ End Select
 End Function ' GetFileTime
 
 
+' setzt einen der Zeitstempel einer Datei auf DateToSet (über SetFileTime)
+' Aufruf in: Laufzettel.dodoplz
 Public Function SetFileTimeByDate(ByVal Pfad As String, _
                                   ByVal TimeToModify As FileTimeEnum, _
                                   ByVal DateToSet As Date)
@@ -181,6 +185,9 @@ End Select
 End Function ' SetFileTimeByDate
   
   
+' setzt einen der Zeitstempel einer Datei auf die übergebenen Datums-/Zeitteile (lokale Zeit, wird nach UTC umgerechnet);
+' wahr bei Erfolg
+' Aufruf in: FileTime.SetFileTimeByDate
 Private Function SetFileTime(ByVal Pfad$, _
                              ByVal TimeToModify As FileTimeEnum, _
                              ByVal Tag%, _

@@ -67,6 +67,7 @@ End Enum
 
 ' Text durch Simulieren von Tastenanschlägen
 ' an das aktive Control senden
+' Aufruf in: ZielDBFunktionen.inMOAnz
 Public Sub SendKeysEx(ByVal sText As String)
   Dim VK As eVirtualKeyCode
   Dim sChar As String

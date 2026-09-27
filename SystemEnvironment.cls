@@ -28,6 +28,10 @@ Private Const SMTO_ABORTIFHUNG As Long = &H2
 Private Const WM_SETTINGCHANGE As Long = &H1A
 
 Private mValuePairs As cValuePairs
+' Klasse System (SystemEnvironment): liest und setzt die systemweiten Umgebungsvariablen in der Registry
+' (HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment)
+' EnumerateVariables: liest alle Variablen als Name/Wert-Paare nach mValuePairs
+' Aufruf in: System.List
 Private Sub EnumerateVariables()
     Dim sKeys() As String
     Dim iKeyCount As Long
@@ -50,11 +54,15 @@ Private Sub EnumerateVariables()
     
 End Sub
 
+' Wert der Umgebungsvariablen strName (lesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Environment(ByVal strName As String) As String
     oRegistry.ValueKey = strName
     Environment = oRegistry.Value
 End Property
 
+' Wert der Umgebungsvariablen strName (als REG_SZ setzen; Benachrichtigung der Programme ist abgeschaltet)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Let Environment(ByVal strName As String, ByVal strValue As String)
     oRegistry.ValueKey = strName
     oRegistry.ValueType = REG_SZ
@@ -63,6 +71,8 @@ Public Property Let Environment(ByVal strName As String, ByVal strValue As Strin
 '    BroadcastEnvironmentChange
 End Property
 
+' benachrichtigt alle Fenster über geänderte Umgebungsvariablen (WM_SETTINGCHANGE)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Private Sub BroadcastEnvironmentChange()
     Dim lngReturnValue As Long
 
@@ -71,6 +81,8 @@ Private Sub BroadcastEnvironmentChange()
 End Sub
 
 
+' alle Umgebungsvariablen als Name/Wert-Paare (beim ersten Zugriff gelesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get List() As cValuePairs
     If mValuePairs Is Nothing Then
         EnumerateVariables
@@ -79,6 +91,8 @@ Public Property Get List() As cValuePairs
     Set List = mValuePairs
 End Property
 
+' öffnet beim Erzeugen den Registry-Schlüssel der Umgebungsvariablen
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Initialize()
     Set oRegistry = New Registry
     oRegistry.ClassKey = HKEY_LOCAL_MACHINE
@@ -86,6 +100,8 @@ Private Sub Class_Initialize()
 End Sub
 
 
+' gibt Registry-Objekt und Liste beim Beenden frei
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Terminate()
     Set oRegistry = Nothing
     Set mValuePairs = Nothing

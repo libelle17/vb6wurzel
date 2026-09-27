@@ -230,6 +230,9 @@ Private Const STILL_ACTIVE = &H103
 
 Dim FPos&
 
+' nimmt das Fenster hwnd (Handle, Titel, Prozess-ID) in die Listen hWndList/TitelList/ProcIDList auf
+' (Fenster ohne Titel nur bei obAuchTitellose)
+' Aufruf in: GetProcColl.EnumWindows
 Private Sub GetWindowInfo(ByVal hwnd&)
   Dim Parent&, Task&, Result&, x&, style&, Title$
   On Error GoTo fehler
@@ -272,6 +275,8 @@ fehler:
  End Select
 End Sub ' GetWindowInfo
 
+' legt die Fensterlisten neu an
+' Aufruf in: GetProcColl.EnumWindows
 Private Sub Ini()
  On Error GoTo fehler
  Set hWndList = New Collection
@@ -288,6 +293,8 @@ fehler:
  End Select
 End Sub ' Ini
 
+' füllt die Fensterlisten mit dem Desktop und allen übrigen Fenstern
+' Aufruf in: GetProcColl.GFGW, GetProcColl.SchauObDa, GetProcColl.WarteAuf, GetProcColl.WarteAufAlt, GetProcColl.WarteAufNicht
 Public Sub EnumWindows()
   Dim hwnd&
   On Error GoTo fehler
@@ -318,6 +325,8 @@ fehler:
  End Select
 End Sub ' EnumWindows
 
+' wahr (-1), wenn ein Prozess mit der ID id läuft (wartet trotz des Namens nicht)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function WartAufProzeß%(id&)
 ' Ermittelt die abfragbaren laufenden Prozesse des lokalen
 ' Rechners. Jeder gefundene Prozess wird mit seiner ID
@@ -381,6 +390,8 @@ fehler:
  End Select
 End Function ' WartAufProzeß
 
+' ältere Fassung von WarteAuf: wartet bis zu Tmax Sekunden auf ein Fenster mit dem Titel Titel im Vordergrund
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function WarteAufAlt(Titel$, Tmax#)
  Dim hwnd&, i&, zl&, Zieli&, T1#, T2#
  On Error Resume Next
@@ -425,6 +436,8 @@ fehler:
  End Select
 End Function ' WarteAufAlt
 
+' wahr, wenn ein Fenster existiert, dessen Titel Titel enthält (obDebug: Titelliste nach c:\schauobdadebug.txt)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function SchauObDa(Titel$, Optional obDebug%)
   Const fDatei0$ = "c:\schauobdadebug.txt"
   Dim i&
@@ -458,6 +471,9 @@ fehler:
  End Select
 End Function ' Schauobda
 
+' wartet bis zu Tmax Sekunden, bis ein Fenster existiert, dessen Titel Titel enthält (ohne Groß-/Kleinschreibung);
+' schreibt die Titelliste dabei in %systemdrive%\p1<n>.txt; wahr, wenn gefunden
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function WarteAuf(Titel$, Tmax#)
  Dim sysdrv$
  sysdrv = LCase$(Environ("systemdrive"))
@@ -510,6 +526,8 @@ fehler:
  End Select
 End Function ' WarteAuf
 
+' wartet bis zu Tmax Sekunden, bis kein Fenster mehr existiert, dessen Titel Titel enthält
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function WarteAufNicht(Titel$, Tmax#)
  Dim hwnd&, i&, zl&, Zieli&, T1#, T2#
  On Error Resume Next
@@ -548,6 +566,7 @@ fehler:
 End Function ' WarteAufNicht
 
 'ShellAndWaitforTermination, von http://www.vbaccelerator.com/home/VB/Code/Libraries/Shell_Projects/Shell_And_Wait_For_Completion/article.asp
+' Aufruf in: Formular.GetVorDat
 Public Function ShellaW( _
         sShell As String, _
         Optional ByVal eWindowStyle As VBA.VbAppWinStyle = vbNormalFocus, _
@@ -593,6 +612,7 @@ End Function ' ShellaW
 
 'SuperShell
 'alsAdm: 0 = nein, 1= ja, 2= falls mit 0 kein Ergebnis, 3 = beide immer
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function SuSh&(ByVal App$, Optional alsAdm&, Optional ByVal WorkDir$, Optional dwmillis& = 10000, _
     Optional ByVal start_size& = SW_HIDE, Optional obkill&, Optional ByVal Priority_Class& = NORMAL_PRIORITY_CLASS)
     If WorkDir = vbNullString Then WorkDir = Environ("userprofile")
@@ -639,6 +659,7 @@ Public Function SuSh&(ByVal App$, Optional alsAdm&, Optional ByVal WorkDir$, Opt
 End Function ' SuSh
 
 #If ersatz Then
+' startet App (ggf. als Administrator) über CreateProcess und wartet bis zu dwmillis ms (nur mit ersatz)
 Public Function m1tuAufruf&(ByRef App$, Optional alsAdm&, Optional ByVal WorkDir$, Optional dwmillis& = 10000, Optional ByVal start_size& = 0, Optional ByVal Priority_Class& = NORMAL_PRIORITY_CLASS)
          Dim pInfo As PROCESS_INFORMATION
          Dim sInfo As STARTUPINFO
@@ -676,6 +697,7 @@ Public Function m1tuAufruf&(ByRef App$, Optional alsAdm&, Optional ByVal WorkDir
 #End If
 
 ' GetForegroundWindow
+' Aufruf in: LabEintr.Irfan_Click
 Function GFGW&()
  Dim hwnd&, i&, zl&
  On Error GoTo fehler
@@ -705,6 +727,8 @@ fehler:
  End Select
 End Function ' GFGW
 
+' holt das Fenster hwnd nach vorn (stellt es wieder her, wenn es minimiert ist)
+' Aufruf in: LabEintr.Irfan_Click
 Public Sub SwitchTo(hwnd&)
  Dim ret&, wStyle& ' Window Style bits
  On Error GoTo fehler
@@ -731,6 +755,7 @@ End Sub ' SwitchTo
 ' ----------------------------- CODE ------------------------------
   
 ' integriert das z.Zt. nicht funktionierende StopFos
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function GetProcessCollection(Optional obkill%, Optional Exe$) As Collection
 ' Ermittelt die abfragbaren laufenden Prozesse des lokalen
 ' Rechners. Jeder gefundene Prozess wird mit seiner ID
@@ -887,6 +912,8 @@ fehler:
  End Select
 End Function ' GetProcessCollection(Optional obKill%, Optional exe$) AS Collection
    
+' Prozessname aus einem Listeneintrag "Prozessname|Prozess-ID"
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function ProcessName(ByVal CollectionString As String) As String
 ' Extrahiert aus einem String der Collection den Prozessnamen.
   Dim Pos1&
@@ -909,6 +936,8 @@ fehler:
 End Function ' ProcessName(ByVal CollectionString AS String) AS String
   
   
+' Prozess-ID aus einem Listeneintrag "Prozessname|Prozess-ID"
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function ProcessHandle(ByVal CollectionString As String) As Long
 ' Extrahiert aus einem String der Collection die Prozess-ID.
   Dim Pos1 As Long
@@ -931,6 +960,8 @@ fehler:
 End Function ' ProcessHandle(ByVal CollectionString AS String) AS Long
   
   
+' beendet den Prozess mit der ID pid; wahr bei Erfolg
+' Aufruf in: ComputerTools.rufauf, GetProcColl.GetProcessCollection
 Public Function KillProcessByPID(ByVal pid As Long) As Boolean
 ' Versucht auf Basis einer Prozess-ID, den zugehörigen
 ' Prozess zu terminieren. Im Erfolgsfall wird True zurückgegeben.
@@ -978,6 +1009,8 @@ End Function ' KillProcessByPID(ByVal pid AS Long) AS Boolean
   
 ' ----------------- PRIVATE FUNKTIONEN ----------------------------
 
+' kürzt s vor dem ersten Nullzeichen
+' Aufruf in: GetProcColl.GetProcessCollection
 Private Function TrimNullChar(ByVal s As String) As String
 ' Kürzt einen String s bis zum Zeichen vor einem vbNullChar
   Dim Pos1 As Long
@@ -1001,6 +1034,8 @@ fehler:
  End Select
 End Function ' TrimNullChar(ByVal s AS String) AS String
   
+' wahr unter Windows NT und Nachfolgern
+' Aufruf in: GetProcColl.GetProcessCollection
 Private Function IsWindowsNT() As Boolean
 ' Gibt True für Windows NT (und 2000, XP, 2003, Vista) zurück
 Dim OSInfo As OSVERSIONINFO
@@ -1022,6 +1057,8 @@ fehler:
  End Select
 End Function ' IsWindowsNT() AS Boolean
   
+' Prozess-ID zum Fenster hwnd
+' Aufruf in: GetProcColl.GetWinHandle
 Function ProcIDFromWnd(ByVal hwnd As Long) As Long
    Dim idProc As Long
    On Error GoTo fehler
@@ -1041,6 +1078,8 @@ fehler:
  End Select
 End Function ' ProcIDFromWnd(ByVal hwnd AS Long) AS Long
  
+' Handle des ersten Hauptfensters (ohne Elternfenster) des Prozesses mit der ID hInstance
+' Aufruf in: GetProcColl.GetProcessCollection
 Function GetWinHandle(hInstance As Long) As Long
    Dim tempHwnd As Long
    On Error GoTo fehler
@@ -1074,6 +1113,8 @@ fehler:
  End Select
 End Function ' GetWinHandle(hInstance AS Long) AS Long
 
+' schickt dem Fenster mit dem Titel lWindowTitle (genau oder als Teil, s. FensterHandle) WM_CLOSE
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Sub schließ_direkt(lWindowTitle$)
   Dim lHwnd As Long
   On Error GoTo fehler
@@ -1097,6 +1138,8 @@ fehler:
  End Select
 End Sub ' schließ_direkt
 
+' Handle des nr-ten Fensters, dessen Titel Titel enthält (keinGroßKlein: ohne Groß-/Kleinschreibung); erg = voller Titel
+' Aufruf in: GetProcColl.schließ_direkt, LabEintr.inTurbomedAnzeigen_Click, ZielDBFunktionen.inMOAnz
 Function FensterHandle(Titel As String, Optional nr As Integer, Optional keinGroßKlein As Boolean, Optional ByRef erg$) As Long
 Dim hwnd&, hW2&, gefunden%
 Dim ergstr As String * 255

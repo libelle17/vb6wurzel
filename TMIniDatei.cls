@@ -26,6 +26,10 @@ Public GlobalIniS$
 Public PraxDBV$
 
 ' FPos muß noch woanders definiert werden. klassenvariable habe ich nicht gefunden
+
+' Klasse TMIniDatei: liest und schreibt die Turbomed-Einstellungsdateien Local.ini und Global.ini
+' Class_Terminate: (Zurückschreiben beim Beenden ist abgeschaltet)
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Terminate()
  On Error GoTo fehler
 ' Call Schreiben
@@ -38,6 +42,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' Class_Terminate
 
+' schreibt Local.ini und Global.ini von Turbomed zurück, soweit sie sich gegenüber dem Ursprungszustand geändert haben
+' Aufruf in: TMIniDatei.Sichern
 Private Sub Schreiben()
  On Error GoTo fehler
  Call iniDateiSchreib(LocalIni, mvLoc, mvLocAlt, 4)
@@ -51,6 +57,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' Schreiben
 
+' schreibt geänderte Einstellungen zurück und merkt sich den neuen Stand als Ursprungszustand
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Sub Sichern()
  On Error GoTo fehler
  Call Schreiben
@@ -64,6 +72,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' Sichern
 
+' setzt die Eigenschaft Nam im Abschnitt Sec (erst in Local.ini, sonst in Global.ini) auf Wert;
+' gibt den bisherigen Inhalt bzw. eine Fehlermeldung zurück
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function SetProp$(Sec$, Nam$, Wert$)
  Dim AltProp$
  On Error GoTo fehler
@@ -92,6 +103,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' SetProp
 
+' ergänzt den Abschnittsnamen um "TurboMed Grundeinstellungen/" vorne und "/" hinten
+' Aufruf in: TMIniDatei.GetProp, TMIniDatei.SetProp
 Function ergSec(Sec$)
  On Error GoTo fehler
  If InStr(Sec, "TurboMed Grundeinstellungen/") <> 1 Then
@@ -107,6 +120,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' ergSec
 
+' liest die Eigenschaft Nam im Abschnitt Sec (erst aus Local.ini, sonst aus Global.ini)
+' Aufruf in: Haupt.getDokPfad, Lese.DokumenteInDatenbank_Click
 Public Function GetProp$(Sec$, Nam$)
  On Error GoTo fehler
  Call ergSec(Sec)
@@ -129,6 +144,10 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' GetProp
+
+' schreibt die Abschnitte mv in eine Temporärdatei und tauscht sie gegen Datei aus, wenn sie sich von mvalt unterscheiden;
+' hält dabei ResZahl alte Fassungen (Datei & "alt1" ...) vor
+' Aufruf in: TMIniDatei.Schreiben
 Private Sub iniDateiSchreib(Datei, mv As TMIniSectionColl, mvalt As TMIniSectionColl, ResZahl%)
  Dim tmpDat$, i&, j&
  On Error GoTo fehler
@@ -169,6 +188,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' iniDateiSchreib
 
+' liest eine Turbomed-ini-Datei (Zeilen "[Abschnitt]" und "Name={Inhalt}") in die Abschnittsliste mv
+' Aufruf in: TMIniDatei.Class_Initialize
 Private Sub DateiLes(Datei, mv As TMIniSectionColl)
  Dim Text$, sp$()
  Dim SPS$
@@ -206,6 +227,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Date
 End Select
 End Sub ' DateiLes
 
+' merkt sich Kopien der gelesenen Einstellungen, um später Änderungen zu erkennen
+' Aufruf in: TMIniDatei.Class_Initialize, TMIniDatei.Sichern
 Private Sub UrsprungsZustand()
  On Error GoTo fehler
  Set mvLocAlt = mvLoc.Kopiere
@@ -219,6 +242,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' UrsprungsZustand
 
+' ermittelt das Turbomed-Programmverzeichnis (Registry, sonst %Homedrive%\Turbomed\Programm), kopiert ggf. zu kleine
+' Local.ini/Global.ini aus dem Turbomed-Stammverzeichnis und liest beide ein
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Initialize()
  Dim AltEintr$
  Dim EintrZ
@@ -278,6 +304,8 @@ End Select
 End Sub ' Class_Initialize
 
 
+' Abschnittsliste (setzen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Set Werte(ByVal vData As TMIniSectionColl)
  On Error GoTo fehler
  Set mvarWerte = vData
@@ -291,6 +319,8 @@ End Select
 End Property ' Werte
 
 
+' Abschnittsliste (lesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Werte() As TMIniSectionColl
  On Error GoTo fehler
  Set Werte = mvarWerte

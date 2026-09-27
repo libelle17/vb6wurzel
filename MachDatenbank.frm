@@ -248,6 +248,10 @@ Enum Constr_Feld
 End Enum
 ' Dim ZielVerbindung$ ' wird nicht mehr verwendet 5.10.24
 
+' Formular MachDatenbank: kopiert Struktur (Tabellen, Indices, Relationen, Views) und ggf. Daten der Ausgangsdatenbank
+' in eine Zieldatenbank (MySQL oder Access) oder schreibt dafür VB-Code in eine Datei (nurSchreiben)
+' GetServr: Servername aus den erweiterten Eigenschaften (server=...) der Verbindung
+' 27.9.26: Aufruf in: MachDatenbank.doMachZielDatenbank, MachDatenbank.MachAlle_Click, MachDatenbank.SchreibF1
 Function GetServr$(DBCn As ADODB.Connection)
  Dim spos&, sp2&, CS$
  CS = DBCn.Properties("Extended Properties")
@@ -260,6 +264,8 @@ Function GetServr$(DBCn As ADODB.Connection)
 End Function ' GetServr
 
 ' in aktualisiercon
+' fragt das Passwort des MySQL-Benutzers mysql ab (einmal bzw. bei neu) und gibt es zurück
+' 27.9.26: Aufruf in: MachDatenbank.doMachZielDatenbank, MachDatenbank.sAusf, MachDatenbank.setzCStrs
 Public Function setzmpwd$(Optional neu%)
  If neu Or mpwd = "" Then
   mpwd = InputBox("Datenbankpasswort für Benutzer `mysql`:", "Passworteingabe", mpwd)
@@ -267,6 +273,9 @@ Public Function setzmpwd$(Optional neu%)
  setzmpwd = mpwd
 End Function ' setzmpwd(Optional neu%)
 
+' setzt die Verbindungszeichenfolgen zur Zieldatenbank (MySQL: Benutzer mysql mit abgefragtem Passwort; sonst Access-Datei)
+' und öffnet cnz
+' Aufruf in: MachDatenbank.aktualisiercon
 Function setzCStrs()
  Set cnz = Nothing
  If Me.obMySQL <> 0 Then
@@ -286,6 +295,8 @@ Function setzCStrs()
 End Function ' setzCStrs()
 
 ' in DateiSuchen_LostFocus, obAccess_Click, obMySQL_Click, machDatenbank.Start_Click
+' aktualisiert die Verbindung zur Zieldatenbank (legt sie ggf. an) und zeigt das Ergebnis an; falsch bei Fehler
+' 27.9.26: Aufruf in: MachDatenbank.DateiSuchen_LostFocus, MachDatenbank.obAccess_Click, MachDatenbank.obMySQL_Click, MachDatenbank.Start_Click
 Function aktualisiercon%(Optional obscharf%)
  Dim oCat As New ADOX.Catalog ' SET oCat = CreateObject("ADOX.Catalog")
  Dim erg, rAf&, ErrNr&
@@ -361,6 +372,8 @@ Function aktualisiercon%(Optional obscharf%)
  Me.DBn = DefDB(cnz)
 End Function ' aktualisiercon
 
+' Ausgangsdatenbank über den Verbindungsdialog (DBVerb) wählen und DBCn neu öffnen
+' Aufruf in: Ereignisprozedur
 Private Sub AusgangsdatenbankWählen_Click()
  DBVerb.Auswahl DBVerb.DaBa, vNS, "Kopierquelle auswählen"
  Me.Ausgangsdb = "Ausgangs-DB: " & IIf(DBVerb.DaBa = "", DBCn.DefaultDatabase, DBVerb.DaBa)
@@ -374,23 +387,33 @@ Private Sub AusgangsdatenbankWählen_Click()
  If Me.nurSchreiben Then Me.Zielstring = vNS
 End Sub ' AusgangsdatenbankWählen_Click
 
+' Zieldatei über den Dateidialog wählen
+' Aufruf in: Ereignisprozedur
 Private Sub DateiSuchen_Click()
  Me.DBn = GetFileToOpen(1)
 End Sub ' DateiSuchen_Click
 
+' nach Wahl der Zieldatei die Verbindung aktualisieren
+' Aufruf in: Ereignisprozedur
 Private Sub DateiSuchen_LostFocus()
  Call aktualisiercon
 End Sub ' DateiSuchen_LostFocus
 
+' markiert beim Betreten den Namen der Zieldatenbank
+' Aufruf in: Ereignisprozedur
 Private Sub DBn_GotFocus()
  Me.DBn.SelStart = 0
  Me.DBn.SelLength = Len(Me.DBn.Text)
 End Sub ' DBn_GotFocus
 
+' allgemeine Tastenbehandlung (Key)
+' Aufruf in: Ereignisprozedur
 Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
  Call Key(KeyCode, Shift, Me)
 End Sub ' Form_KeyDown
 
+' wechselt beim Umschalten Access/MySQL den Zielnamen zwischen den zuletzt je Art verwendeten
+' 27.9.26: Aufruf in: MachDatenbank.obAccess_Click, MachDatenbank.obMySQL_Click
 Function testDBN()
  Static accDBn$, myDBn$
  If Me.obAccess <> 0 Then
@@ -404,6 +427,8 @@ Function testDBN()
  End If
 End Function ' testDBN
 
+' Vorgaben: mit Tabellen, Indices und Relationen, Port 3306, Ziel MySQL
+' Aufruf in: Ereignisprozedur
 Private Sub Form_Load()
 ' Call aktualisier
  Me.MitTabellen = 1
@@ -422,28 +447,40 @@ Private Sub Form_Load()
  Me.Ausgangsdb = "Ausgangs-DB: " & IIf(DBVerb.DaBa = "", DBCn.DefaultDatabase, DBVerb.DaBa)
 End Sub ' Form_Load
 
+' setzt die Zusatzoptionen (Anamnese, LaborX) zurück
+' Aufruf in: MachDatenbank.alleDaten_Click, MachDatenbank.keineDaten_Click
 Function CheckInit()
  Me.auchAnamnese = 0
  Me.auchLaborX = 0
 End Function ' CheckInit
 
+' Option "keine Daten": Zusatzoptionen zurücksetzen
+' Aufruf in: Ereignisprozedur
 Private Sub keineDaten_Click()
  Call CheckInit
 End Sub ' keineDaten_Click
 
+' Option "alle Daten": Zusatzoptionen zurücksetzen
+' Aufruf in: Ereignisprozedur
 Private Sub alleDaten_Click()
  Call CheckInit
 End Sub ' alleDaten_Click
 
+' aktiviert das Feld für die Ausgabedatei nur bei "nur schreiben" (dann ist der Zielname gesperrt)
+' Aufruf in: MachDatenbank.Form_Load, MachDatenbank.nurSchreiben_Click
 Private Sub testSchreibenAuf()
  Me.SchreibenAuf.Enabled = (Me.nurSchreiben <> 0)
  Me.DBn.Enabled = (Me.nurSchreiben = 0)
 End Sub ' testSchreibenAuf
 
+' "nur schreiben" umgeschaltet: Felder anpassen
+' Aufruf in: Ereignisprozedur
 Private Sub nurSchreiben_Click()
  Call testSchreibenAuf
 End Sub ' nurSchreiben_Click
 
+' Ziel Access gewählt: Zielname tauschen, Verbindung aktualisieren
+' Aufruf in: Ereignisprozedur
 Private Sub obAccess_Click()
 ' IF Not obStart THEN
   testDBN
@@ -451,16 +488,21 @@ Private Sub obAccess_Click()
 ' END IF
 End Sub ' obAccess_Click
 
+' Ziel MySQL gewählt: Zielname tauschen, Verbindung aktualisieren
+' Aufruf in: Ereignisprozedur
 Private Sub obMySQL_Click()
  testDBN
  Call aktualisiercon
 End Sub ' obMySQL_Click
 
+' Ausgabedatei für "nur schreiben" über den Dateidialog wählen
+' Aufruf in: Ereignisprozedur
 Private Sub SchreibenAufCmd_Click()
  Me.SchreibenAuf = GetFileToOpen(3)
 End Sub ' SchreibenAufCmd_Click
 
 'SELECT COUNT(0) AS `ct` FROM `quelle`.`" & vorsil & "wert` GROUP BY `quelle`.`" & vorsil & "wert`.`RefNr`,`quelle`.`" & vorsil & "wert`.`Abkü`,`quelle`.`" & vorsil & "wert`.`Langname`,`quelle`.`" & vorsil & "wert`.`Quelle`,`quelle`.`" & vorsil & "wert`.`QSpez`,`quelle`.`" & vorsil & "wert`.`AbnDat`,`quelle`.`" & vorsil & "wert`.`Wert`,`quelle`.`" & vorsil & "wert`.`Einheit`,`quelle`.`" & vorsil & "wert`.`Grenzwerti`,`quelle`.`" & vorsil & "wert`.`Kommentar`,`quelle`.`" & vorsil & "wert`.`Teststatus`,`quelle`.`" & vorsil & "wert`.`Erklärung`,`quelle`.`" & vorsil & "wert`.`Normbereich`,`quelle`.`" & vorsil & "wert`.`NormU`,`quelle`.`" & vorsil & "wert`.`NormO`,`quelle`.`" & vorsil & "wert`.`AuftrHinw`
+' Aufruf in: Ereignisprozedur
 Private Sub Start_Click()
  If aktualisiercon(obscharf:=True) Then
   If Not IsNull(cnz) Or Me.nurSchreiben <> 0 Then
@@ -471,6 +513,8 @@ Private Sub Start_Click()
  End If ' aktualisiercon(obscharf:=True) Then
 End Sub ' Start_Click
 
+' bei "nur schreiben": schreibt für jede Datenbank des Servers eine Datei MachDB<Datenbank>.bas in den gewählten Ordner
+' Aufruf in: Ereignisprozedur
 Private Sub MachAlle_Click()
  Dim i&, pos&, buch$
 ' IF aktualisier(obscharf:=True) THEN
@@ -539,6 +583,8 @@ End Sub ' MachAlle_Click
 ' Call dbKopier(cnz, cnzCStr, DBn)
 'End Function ' doMachDB
 
+' Dateidialog; nr bestimmt Überschrift und Filter (1 = Zieldatei, 3 = Ausgabedatei ...); gibt den gewählten Pfad zurück
+' Aufruf in: MachDatenbank.DateiSuchen_Click, MachDatenbank.SchreibenAufCmd_Click
 Public Function GetFileToOpen(nr%)
  Dim Text2$
  Dim fileflags As FileOpenConstants, i
@@ -588,6 +634,8 @@ fehler:
 End Function ' GetFileToOpen
 
 ' in dbKopier, dbCopyAllMyMy
+' legt die Zieldatenbank an (MySQL: CREATE DATABASE mit Rechten, Access: neue Datei) bzw. schreibt den Code dafür
+' 27.9.26: Aufruf in: MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy
 Function doMachZielDatenbank(cnz As ADODB.Connection, DBCn As ADODB.Connection, DBn$, ByRef zCat As ADOX.Catalog, obZMySQL%)
  On Error GoTo fehler
  If False Then Call sAusf("DROP DATABASE " & IIf(obZMySQL, "IF EXISTS ", "") & "`" & DBn & "`;")
@@ -642,6 +690,8 @@ fehler:
  End Select
 End Function ' doMachZielDatenbank
 
+' kopiert die View QName aus der Ausgangsdatenbank qds als zTabName in die Zieldatenbank
+' Aufruf in: MachDatenbank.dbKopier
 Function doCopyView%(qds$, QName$, cnz As ADODB.Connection, zTabName$, obQMySQL%, qCat As ADOX.Catalog)
  Dim ViewText$
  Dim ars As New ADODB.Recordset
@@ -678,6 +728,9 @@ fehler:
  End Select
 End Function ' doCreateView(qds$, qName$, cnz AS ADODB.Connection, zTabName$, obQMySQL%)
 
+' MySQL -> MySQL: liest SHOW CREATE TABLE aller Tabellen und Views, zerlegt sie in Felder, Indices und Relationen und
+' legt sie über doGenMachDB_Direkt im Ziel an bzw. schreibt den Code dafür
+' Aufruf in: MachDatenbank.dbKopier
 Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As ADOX.Catalog)
  Dim qrs As New ADODB.Recordset
  Dim TbZ&, i&, j&, zl$(), zmax&, fmax&, Str() As New CString, cts$(), ctsz&(), TName$
@@ -983,6 +1036,8 @@ fehler:
  End Select
 End Function ' doCopyAllMyMy
 
+' führt sql auf der Zielverbindung aus und meldet Fehler (obtolerant: Fehler übergehen)
+' Aufruf in: MachDatenbank.doGenMachDB_Direkt
 Function doEx_Direkt%(sql$, obtolerant%) ' SQL-Befehl ausführen, Fehler anzeigen
  Dim rAf&, FMeld$
  Dim lErrNr&, fDesc$
@@ -1021,6 +1076,9 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "La
 End Select
 End Function ' doex_direkt
 
+' legt die in Str zerlegten Tabellen im Ziel an (ohne Fremdschlüsselprüfung) und ergänzt fehlende Felder, Indices,
+' Relationen und Views
+' Aufruf in: MachDatenbank.doCopyAllMyMy
 Function doGenMachDB_Direkt(TbZ&, Str() As CString, ArtZ&(), cnz As ADODB.Connection)
  Dim rsc As New ADODB.Recordset, sct$, Spli$(), tStr$, TMt As New CString, TabEig$, i&, p1&, p2&, p3&, CLen&, CLen1&
  Dim Index$()
@@ -1168,6 +1226,8 @@ fehler:
  End Select
 End Function ' doGenMachDB_Direkt
 
+' legt die Tabelle td im Ziel als zTabName an bzw. gleicht deren Felder (Typ, Länge, Autowert, Kommentar) an
+' Aufruf in: MachDatenbank.dbKopier
 Function doCopyTable%(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQMySQL%, obZMySQL%, qCat As ADOX.Catalog, zCat As ADOX.Catalog, runde%, aiFName$, obai%, obTabGanzKop%)
   Dim rs As New ADODB.Recordset, ars As New ADODB.Recordset
   Dim Fldnr&, i&, j&
@@ -1524,6 +1584,8 @@ fehler:
  End Select
 End Function ' doCopyTable
 
+' kopiert die Indices (einschließlich Primärschlüssel) der Tabelle td in die Zieltabelle zTabName
+' Aufruf in: MachDatenbank.dbKopier
 Function doCopyIndices(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, obQMySQL%, obZMySQL%, zCat As ADOX.Catalog, aiFName$, obai%, qds$, zds$)
    Dim ars As New ADODB.Recordset, arsz As New ADODB.Recordset
    Dim i&, sql$
@@ -1712,6 +1774,8 @@ fehler:
  End Select
 End Function ' doCopyIndices
 
+' kopiert die Datensätze der Tabelle td in die Zieltabelle zTabName (ohne Fremdschlüsselprüfung)
+' Aufruf in: MachDatenbank.dbKopier
 Function doCopyDaten(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, qCat As ADOX.Catalog, obZMySQL%, obQMySQL%)
  Dim rs As New ADODB.Recordset, rsq As New ADODB.Recordset
  Dim PrimFeld$, obdi%
@@ -1871,6 +1935,8 @@ fehler:
  End Select
 End Function ' doCopyDaten
 
+' füllt die Serverliste mit allen Rechnern (aktueller Eintrag bleibt)
+' Aufruf in: MachDatenbank.NurLauf_Click
 Private Sub CptListeGanz()
  Dim i
  On Error GoTo fehler
@@ -1904,6 +1970,8 @@ fehler:
  End Select
 End Sub ' CptListeGanz
 
+' schaltet die Serverliste zwischen allen Rechnern und nur denen mit erreichbarem MySQL um
+' Aufruf in: Ereignisprozedur
 Private Sub NurLauf_Click()
  Dim rTs As New ADODB.Connection
 ' dim rs As New ADODB.Recordset ' geht auch nicht schneller
@@ -1950,6 +2018,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Sub ' NurLauf_Click
 
+' füllt beim Aufklappen die Serverliste mit den Rechnern der Domänen
+' Aufruf in: Ereignisprozedur
 Private Sub ServerZ_DropDown()
 ' Call Verbind
   If Me.ServerZ.ListCount = 0 Then
@@ -1960,6 +2030,8 @@ Private Sub ServerZ_DropDown()
   End If
 End Sub ' ServerZ_DropDown()
 
+' füllt die Zielserverliste mit allen Rechnern (aktueller Eintrag bleibt)
+' Aufruf in: MachDatenbank.ServerZ_DropDown
 Private Sub ServerZListeGanz()
  Dim i&
  On Error GoTo fehler
@@ -1993,6 +2065,8 @@ fehler:
  End Select
 End Sub ' ServerZListeGanz
 
+' nimmt die Rechner aller Windows-Domänen in die Serverliste auf
+' Aufruf in: MachDatenbank.ServerZ_DropDown
 Sub ShowAllDomains()
   Dim oNameSpace  As Object
   Dim oDomain     As Object
@@ -2014,6 +2088,8 @@ fehler:
  End Select
 End Sub ' ShowAllDomains
 
+' nimmt die Rechner der Domäne strDomain mit IP-Adresse in die Serverliste auf
+' Aufruf in: MachDatenbank.ShowAllDomains
 Public Sub ShowAllComputers(ByVal strDomain As String)
   Dim PrimDomainContr     As Object
   Dim oComputer           As Object
@@ -2038,6 +2114,8 @@ fehler:
  End Select
 End Sub ' ShowAllComputers
 
+' kopiert die Fremdschlüssel-Beziehungen der Ausgangsdatenbank qds in die Zieldatenbank zds
+' Aufruf in: MachDatenbank.dbKopier
 Function doCopyRelations(obQMySQL%, obZMySQL%, qds$, zds$)
  Dim sql$, sql2$, sql3$
  Dim ars As New ADODB.Recordset, arsz As New ADODB.Recordset
@@ -2249,6 +2327,10 @@ fehler:
  End Select
 End Function ' doCopyRelations
 
+' führt sql auf der Zieldatenbank aus bzw. schreibt bei "nur schreiben" einen entsprechenden Aufruf doex(...) in die
+' Ausgabedatei (lange Anweisungen umgebrochen); obRückg: Recordset zurückgeben, rAf: betroffene Sätze
+' 27.9.26: Aufruf in: MachDatenbank.aktualisiercon, MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy, MachDatenbank.doCopyDaten, MachDatenbank.doCopyIndices,
+'   MachDatenbank.doCopyRelations, MachDatenbank.doCopyTable, MachDatenbank.doCopyView, MachDatenbank.doMachZielDatenbank
 Function sAusf(sql$, Optional obRückg%, Optional rAf&, Optional obtolerant%, Optional Einzug%) As ADODB.Recordset
  Dim FMeld$, FNr&, nsql As New CString, i&, nskurz$
  Static obüf%
@@ -2365,6 +2447,7 @@ End Function ' sAusf(sql$, obRückg%) As Adodb.Recordset
 
 ' schreibt Befehle auf für spätere Ausführung, im Gegensatz zu sAusf, das alternativ für sofortige Ausführung zur Verfügugn steht
 ' => alle Aufrufe für Ausf müßten die Alternative sofortige Ausführung anderweitig zur Verfügung stellen
+' 27.9.26: Aufruf in: MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy, MachDatenbank.doCopyTable, MachDatenbank.doMachZielDatenbank
 Function Ausf(ByRef Befehl$)
  Const Einzug& = 2
  Dim nbefehl As New CString, nskurz$
@@ -2422,6 +2505,8 @@ Function Ausf(ByRef Befehl$)
 End Function ' Ausf(befehl)
 
 ' in dbKopier, dbCopyAllMyMy
+' beginnt die Ausgabedatei für "nur schreiben" mit Kopfzeile und Deklarationen
+' 27.9.26: Aufruf in: MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy
 Function SchreibF1(obQMySQL%)
   Dim Server$, spos&, sp2&
   Open Me.SchreibenAuf For Output As #299
@@ -2436,6 +2521,8 @@ Function SchreibF1(obQMySQL%)
 End Function ' SchreibF1
 
 ' in dbKopier, dbCopyAllMyMy
+' schreibt in die Ausgabedatei die Hilfsfunktionen (doEx usw.), die der erzeugte Code braucht
+' 27.9.26: Aufruf in: MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy
 Function SchreibF2(DBn$)
   Open Me.SchreibenAuf For Append As #299
   Print #299, ""
@@ -2543,6 +2630,9 @@ Function SchreibF2(DBn$)
 End Function ' SchreibF2
 
 ' in Start_Click(MachDatenbank), Machalle_click(MachDatenbank), doMachDB(MachDatenbank)
+' kopiert die Ausgangsdatenbank (DBCn) in die Zieldatenbank DBn über cnz: Struktur je nach Optionen, bei obmitDaten
+' auch die Daten; MySQL -> MySQL über doCopyAllMyMy, sonst tabellenweise; Protokoll in uVerz\dbKopier.txt
+' 27.9.26: Aufruf in: MachDatenbank.MachAlle_Click, MachDatenbank.Start_Click
 Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%, Optional anschließendverknüpfen%, Optional obohnefertig%) ' Transferiert die nicht verknüpften Tabellen aus der aktuellen Accessdatenbank in eine neu zu erstellende MySQL-Datenbank
  Dim sql$, mft$, i&, obQMySQL%, obZMySQL%, obTabGanzKop%, erg%
 ' Dim CommentGleich%
@@ -2808,6 +2898,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' dbKopier
 
+' Datum als SQL-Literal für das Ziel (MySQL 'yyyy-mm-dd hh:mm:ss', Access #...#), Null als null
+' Aufruf in: MachDatenbank.doCopyDaten
 Function datformZ(DaT, obMySQL%) ' for vb-Datumsformat oder vb-double (#)
  On Error GoTo fehler
  Dim obkurz%
@@ -2846,6 +2938,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' datFormZ
 
+' Indexbezeichnung für CREATE/ALTER: "PRIMARY KEY" (MySQL) bzw. INDEX `Name`
+' Aufruf in: MachDatenbank.doCopyIndices
 Function schl$(keyname$, obZMySQL%)
  If obZMySQL And keyname = "PRIMARY" Then
   schl = keyname & " KEY "
@@ -2854,6 +2948,8 @@ Function schl$(keyname$, obZMySQL%)
  End If
 End Function ' schl
 
+' Access-(Jet-)Spaltentyp zum ADO-Datentyp Typ (Länge size, Autowert obauto)
+' Aufruf in: MachDatenbank.doCopyTable
 Function JetTyp$(Typ%, Optional size&, Optional obauto%)
  On Error GoTo fehler
  Select Case Typ
@@ -2904,6 +3000,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' JetTyp
 
+' MySQL-Spaltentyp zum ADO-Datentyp Typ (Länge size, Autowert obauto)
+' Aufruf in: MachDatenbank.doCopyTable
 Function MySqlTyp$(Typ%, Optional size&, Optional obauto%, Optional obQuNichtMySQL%)
  On Error GoTo fehler
  Select Case Typ

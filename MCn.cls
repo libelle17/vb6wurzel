@@ -21,10 +21,15 @@ Public ErrNr&
 Public ErrDs$
 Public FNr$
 
+' Klasse MCn: ADO-Verbindung mit Merkfeldern für Verbindungszeichenfolge, Fehler und betroffene Sätze
+' Class_Initialize: (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Initialize()
 ' Debug.Print "hier bin ich"
 End Sub ' Class_Initialize()
 
+' öffnet eine neue Verbindung mit der Verbindungszeichenfolge pCNs
+' Aufruf in: Lese.mdiForm_Load
 Public Sub init(pCNs$)
  On Error GoTo fehler
    Set Cn = Nothing
@@ -46,6 +51,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' init
 
+' führt Befehl aus und merkt sich Fehlernummer, Fehlertext und Zahl der betroffenen Sätze (prAf)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function führaus(Befehl$, Optional prAf&, Optional options& = -1) As ADODB.Recordset
  On Error GoTo fehler
  Set führaus = Cn.Execute(Befehl, prAf, options)
@@ -68,6 +75,7 @@ End Select
 End Function ' führaus
 
 #If zutesten Then
+' beginnt eine Transaktion (nur mit zutesten)
 Public Sub Begin()
  On Error GoTo fehler
  Cn.Execute "START TRANSACTION"
@@ -87,6 +95,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' Begin
 
+' schließt eine offene Transaktion ab
 Public Sub Commit()
  On Error GoTo fehler
  If tlev Then
@@ -108,6 +117,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' Commit
 
+' schließt beim Beenden die offene Transaktion ab und gibt die Verbindung frei
 Private Sub Class_Terminate() ' wird auch bei Neuzuweisung ohne explitzites set mcn=nothing aufgerufen
  Commit
  Set Cn = Nothing

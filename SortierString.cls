@@ -15,6 +15,9 @@ Option Explicit
 'lokale Variable(n) zum Zuweisen der Eigenschaft(en)
 Private mvStri$
 Private mvIndex& 'lokale Kopie
+' Klasse SortierString: Sortierelement für Zeichenfolgen (Stri), verwendet mit SortierListe
+' Index: Position des Elements (setzen)
+' 27.9.26: Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Let Index(ByVal vData As Long)
     On Error GoTo fehler
     mvIndex = vData
@@ -32,6 +35,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property
+
+' Index: Position des Elements (lesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Index() As Long
     On Error GoTo fehler
     Index = mvIndex
@@ -50,6 +56,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property
 
+' Sortiervergleich nach Zeichenfolge: wahr, wenn dieses Element vor E2 einzuordnen ist
+' Aufruf in: SortierListe.Eingrenz
 Public Function istKleinerAls(ByRef E2) As Boolean
  On Error GoTo fehler
  If mvStri < E2.Stri Then
@@ -71,6 +79,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function
+
+' wahr, wenn sich die Zeichenfolge von der in E2 unterscheidet
+' Aufruf in: SortierListe.GetItem, SortierListe.sCAdd, SortierListe.SuchItem
 Public Function unGleich(ByRef E2) As Boolean
  On Error GoTo fehler
  If mvStri <> E2.Stri Then unGleich = True
@@ -88,6 +99,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function
+
+' Zeichenfolge (setzen per Set)
+' Aufruf in: Haupt.ÜbertragFormulare, PatListe.Form_Load, SortierString.istKleinerAls, SortierString.unGleich, ZielDBFunktionen.dododoPorto
 Public Property Set Stri(ByVal vData)
     On Error GoTo fehler
     mvStri = vData
@@ -105,6 +119,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property
+
+' Zeichenfolge (lesen)
+' Aufruf in: Haupt.ÜbertragFormulare, PatListe.Form_Load, SortierString.istKleinerAls, SortierString.unGleich, ZielDBFunktionen.dododoPorto
 Public Property Get Stri()
     On Error GoTo fehler
     Stri = mvStri
@@ -123,6 +140,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property
 
+' Zeichenfolge (setzen)
+' Aufruf in: Haupt.ÜbertragFormulare, PatListe.Form_Load, SortierString.istKleinerAls, SortierString.unGleich, ZielDBFunktionen.dododoPorto
 Public Property Let Stri(ByVal vData)
     On Error GoTo fehler
    mvStri = vData

@@ -15,6 +15,9 @@ Attribute VB_Ext_KEY = "SavedWithClassBuilder6" ,"Yes"
 Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
 'Lokale Variable für eine Auflistung.
 Private mCol As Collection
+' Klasse TMIniSectionColl: Auflistung der Abschnitte (TMIniSection) einer Turbomed-ini-Datei
+' ElemAdd: fügt einen vorhandenen Abschnitt an (optional mit Schlüssel)
+' Aufruf in: TMIniSectionColl.Kopiere, TMIniSectionColl.UEAdd
 Public Function ElemAdd(Eig As TMIniSection, Optional skey$) As TMIniSection
  On Error GoTo fehler
     If Len(skey) = 0 Then
@@ -32,6 +35,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' ElemAdd
+
+' legt einen neuen Abschnitt mit der Bezeichnung an und fügt ihn an
+' Aufruf in: TMIniDatei.DateiLes
 Public Function Add(Bezeichnung$, Optional skey$) As TMIniSection
  On Error GoTo fehler
     'neues Objekt erstellen
@@ -54,6 +60,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' Add
+
+' fügt dem zuletzt angelegten Abschnitt die Eigenschaft Bezeichnung = Inhalt an
+' Aufruf in: TMIniDatei.DateiLes
 Public Function UEAdd(Bezeichnung$, Inhalt$)
  On Error GoTo fehler
     Dim objNewMember As New TMIniProp
@@ -74,6 +83,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' UEAdd
 
+' Abschnitt über Index oder (bei Text) über die Bezeichnung
+' Aufruf in: TMIniDatei.GetProp, TMIniDatei.iniDateiSchreib, TMIniDatei.SetProp, TMIniSectionColl.VergleicheMit
 Public Property Get Item(vntIndexKey As Variant) As TMIniSection
     'Wird verwendet, wenn auf ein Element der Auflistung zugegriffen
     'wird. vntIndexKey enthält entweder den Index oder den Schlüssel.
@@ -101,6 +112,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property ' Item[PropertyGet]
 
+' Zahl der Abschnitte
+' Aufruf in: TMIniDatei.iniDateiSchreib, TMIniSectionColl.VergleicheMit
 Public Property Get COUNT() As Long
  On Error GoTo fehler
  If Not mCol Is Nothing Then COUNT = mCol.COUNT
@@ -114,6 +127,8 @@ End Select
 End Property ' Count[PropertyGet]
 
 
+' entfernt einen Abschnitt über Index oder Schlüssel
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Sub Remove(vntIndexKey As Variant)
  On Error GoTo fehler
  mCol.Remove vntIndexKey
@@ -127,6 +142,8 @@ End Select
 End Sub ' Remove
 
 
+' Aufzähler für For Each
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get NewEnum() As IUnknown
  On Error GoTo fehler
  'Diese Eigenschaft ermöglicht, die Elemente der Auflistung mit For...Each zu durchlaufen.
@@ -141,6 +158,8 @@ End Select
 End Property ' NewEnum[PropertyGet]
 
 
+' legt beim Erzeugen die Auflistung an
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Initialize()
  On Error GoTo fehler
     'Erstellt die Auflistung, wenn die klasse erstellt wird.
@@ -155,6 +174,8 @@ End Select
 End Sub ' Class_Initialize
 
 
+' gibt die Auflistung beim Beenden frei
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Terminate()
  On Error GoTo fehler
     'Entfernt die Auflistung aus dem Speicher, wenn die klasse beendet wird.
@@ -168,6 +189,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Sub ' Class_terminate
 
+' liefert eine Kopie aller Abschnitte
+' Aufruf in: TMIniDatei.UrsprungsZustand
 Public Function Kopiere() As TMIniSectionColl
  On Error GoTo fehler
  Dim i&, tmpSC As New TMIniSectionColl
@@ -185,6 +208,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' Kopiere
 
+' wahr (-1), wenn Vg gleich viele gleiche Abschnitte in gleicher Reihenfolge hat
+' Aufruf in: TMIniDatei.iniDateiSchreib
 Public Function VergleicheMit(Vg As TMIniSectionColl)
  Dim i&, imax&
  On Error GoTo fehler

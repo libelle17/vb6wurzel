@@ -299,6 +299,7 @@ Private Const E_OUTOFMEMORY = &H8007000E
 '
 '   DateFromString("29.7.2011 9:27", fl_FI)
 '
+' Aufruf in: Lese.Übertragung_aus_MO_Click
 Public Function DateFromString(ByVal sDateIn As String, ByVal lcid As LocaleIDs) As Date
 
     Dim hResult As Long
@@ -337,6 +338,7 @@ End Function ' DateFromString
     
     
 #If mitGetSpecialFolder = 1 Then
+' Pfad eines Windows-Spezialordners (nur mit mitGetSpecialFolder; sonst s. InsKorrMod.GetSpecialFolder)
 Public Function GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As String
   Dim tIIDL   As ITEMIDLIST
   Dim strPath As String
@@ -349,6 +351,7 @@ Public Function GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As
   End If
 End Function
 #End If
+
 ' Einen besonderen Ordner, in diesem Beispiel "Eigene Dateien", können Sie dann wie folgt ermitteln:
 ' Dim strPath AS String
 ' strPath = GetSpecialFolder(ssfPERSONAL)
@@ -392,6 +395,8 @@ End Function
 'End SELECT
 'End FUNCTION ' environ
 
+' setzt die Umgebungsvariable name des eigenen Prozesses auf Wert
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function SetEnvir(name, Wert)
  On Error GoTo fehler
  Call SetEnvironmentVariable(name, Wert)
@@ -411,6 +416,7 @@ End Select
 End Function ' SetEnvir
 
 #If maxWin7 Then
+' ermittelt die Windows-Version (alte Fassung bis Windows 7, nur mit maxWin7)
 Public Function GetOSVersion() As WindowsVersion
 ' Konstanten
   Const VER_PLATFORM_WIN32s As Long = 0&
@@ -527,6 +533,7 @@ End Function ' GetOSVersion
 #Else
 
 ' nötig, da ab Windows 8 die Funktion GetVersionEx nur nach Manifest rausgibt
+' Aufruf in: ComputerTools.KopDat, ComputerTools.machOrdner, ComputerTools.SetProgV, Lese.mdiForm_Load
 Function GetOSVersion&()
 'Windows XP=5 (5.1.6300), Windows 7 = 6 (6.1.7601), 8.1 = 6 (6.3.9600), Windows 10=10 (10.0.10240)
 Dim strComputer$
@@ -558,6 +565,8 @@ End Function ' GetOSVersion
 
 #End If
 
+' liefert die x-te IP-Adresse des Rechners name (leer, wenn nicht auflösbar)
+' Aufruf in: ComputerTools.LokPfad, MachDatenbank.ShowAllComputers
 Public Function HostByName(name As String, Optional x As Integer = 0) As String
     Dim MemIp() As Byte
     Dim Y As Integer
@@ -609,6 +618,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Function ' HostByName
 
+' startet Winsock; beendet das Programm, wenn das nicht gelingt
+' Aufruf in: ComputerTools.HostByName
 Sub InitSockets()
     Dim Result As Integer
     Dim LoBy As Integer, HiBy As Integer
@@ -636,6 +647,8 @@ Dim AnwPfad$
  End Select
 End Sub 'InitSockets
 
+' beendet Winsock; beendet das Programm bei Fehler
+' Aufruf in: ComputerTools.HostByName
 Public Sub CleanSockets()
     Dim Result As Long
     On Error GoTo fehler
@@ -664,6 +677,7 @@ End Sub ' exit sub
 
 #If ohnewsh = 0 Then
 ' nirgends aufgerufen
+' 27.9.26: Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function VerzPrüfneu$(ByVal Verz$)
  Dim Bstd$(), i%, j%, k%, tStr$, FNr&
  Dim FSO As New FileSystemObject
@@ -708,6 +722,8 @@ Dim AnwPfad$
 End Function ' VerzPrüf(ByVal Verz$)
 
 ' aufgerufen in do_Datenbank_Aufruf_Click, Formular.do_Form_Open, VerzPrüfneu
+' wandelt einen UNC-Pfad auf eine Freigabe dieses Rechners in den lokalen Pfad um (sonst unverändert)
+' 27.9.26: Aufruf in: ComputerTools.VerzPrüfneu, Formular.do_Datenbank_Aufruf_Click
 Public Function LokPfad$(Pfad)
 Dim CName$(1), IP$, i%, j%, teststr$, neuPfad$
 On Error GoTo fehler
@@ -741,6 +757,8 @@ Dim AnwPfad$
 End Function ' LokPfad
 
 ' aufgerufen in LokPfad
+' liest die Freigaben dieses Rechners mit lokalem Pfad aus der Registry nach FNam/FInh (Zahl FZ)
+' 27.9.26: Aufruf in: ComputerTools.LokPfad
 Function ListFreigaben()
 ' Freigegebene Verzeichnisse des aktuellen PCs auflisten
 Dim nr&, erg$, Inhalt$
@@ -779,6 +797,10 @@ Dim AnwPfad$
 End Function ' ListFreigaben
 #End If
 
+' legt das Verzeichnis Verz samt aller fehlenden übergeordneten Ordner an (obaggr: auch vorhandene nochmals anlegen);
+' gibt den absoluten Pfad zurück
+' Aufruf in: AbrechFehler.Form_Load, Formular.ArBName, Formular.do_DokDown, QuelleDB.KVAccSuch, TMIniDatei.Class_Initialize,
+'   ZielDBFunktionen.ImportFolderHerricht, ZielDBFunktionen.rrEmpf
 Function VerzPrüf(ByVal Verz$, Optional obaggr%)
  Dim Bstd$(), i%, j%, k%, tStr$
  Dim FSO As New FileSystemObject
@@ -809,6 +831,8 @@ Dim AnwPfad$
  End Select
 End Function ' VerzPrüf(ByVal Verz$)
 
+' ältere Fassung von VerzPrüf: legt fehlende Ordner von Verz per FileSystemObject an
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function VerzPrüfAlt(Verz$)
  Dim Spli$(), i%, Zus$
  Dim FSO As New FileSystemObject
@@ -844,6 +868,8 @@ Dim AnwPfad$
 End Function ' VerzPrüfAlt
 
 ' in meld, Konstanten, doHAAAkt
+' setzt einmalig Programm-, Anwendungsdaten- und Benutzerverzeichnis (ProgVerz, ProgVerzO, AppVerz, uVerz)
+' 27.9.26: Aufruf in: ComputerTools.meld, HAAkt.doHAAkt, Lese.Konstanten
 Public Sub SetProgV()
  If LenB(ProgVerz) = 0 Then
   If WV = 0 Then WV = GetOSVersion
@@ -869,6 +895,8 @@ Public Sub SetProgV()
 End Sub ' SetProgV()
 
 ' in doVorhandene, tuBriefStandalone, GetVorDat, Epikrise
+' schreibt Text in eine Datei "meldung <Zeitstempel>" im Benutzerverzeichnis und zeigt sie an (außer obStumm)
+' 27.9.26: Aufruf in: Formular.doVorhandene, Formular.Epikrise, Formular.GetVorDat, Formular.tuBriefStandalone, Formular.VorbefundÖffnen
 Function meld(Text$, Optional obStumm%)
  Dim MeldDatei$
  On Error GoTo fehler
@@ -894,6 +922,14 @@ Dim AnwPfad$
  End Select
 End Function ' meld
 
+' maskiert Backslash, Hochkomma (MySQL \', sonst '') und Anführungszeichen in q für SQL und entfernt Nullzeichen
+' Aufruf in: HAEinlesen.proTeilnehmer, Haupt.anaIns, Haupt.anaUpd, Haupt.TIns, Haupt.TUpd, Importiere.doConAnal, Importiere.dolies, Importiere.EintragStart,
+'   Importiere.GesLies, ImportiereLabor.indIns, ImportiereLabor.LaborDirektImport, LabEintr.abhaken_Click, Lese.dVerz, Lese.FalschAbgehakteUngueltig_Click,
+'   Lese.Omnipod5Trägerliste_Click, Lese.PiDzuord_Click, QuelleDB.UmwfSQL, TabÜbertr.TIns, typen.auLaden, typen.briefeLaden, typen.desktopLaden,
+'   typen.diagnosenLaden, typen.dmpreiheLaden, typen.dokumenteLaden, typen.eintraegeLaden, typen.faelleLaden, typen.forminhkopfLaden, typen.fussLaden,
+'   typen.kheinweisLaden, typen.laborneuLaden, typen.lbanforderungenLaden, typen.leistungenLaden, typen.medplanLaden, typen.namenLaden,
+'   typen.rezepteintraegeLaden, typen.rrLaden, typen.swsLaden, typen.ulcusLaden, typen.usdmLaden, typen.vkgdLaden, typen.voplLaden, vonMo.callMODmp,
+'   vonMo.doPatvonMO, vonMo.holHAausMO, vonMo.MODiagnosen, vonMo.MODmpreihe, vonMo.MODmpreihe1, vonMo.TestDmpreiheNachimport
 Public Function doUmwfSQL$(q$, obmy As Boolean, Optional mittrim% = True)
  If mittrim Then doUmwfSQL = Trim$(q) Else doUmwfSQL = q
  If InStrB(doUmwfSQL, "\") <> 0 Then
@@ -915,6 +951,8 @@ Public Function doUmwfSQL$(q$, obmy As Boolean, Optional mittrim% = True)
  End If
 End Function ' doUmwfSQL
 
+' wahr, wenn die Textdateien D1 und D2 inhaltlich übereinstimmen (feldweise gelesen)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function DateiVergleichen%(D1$, D2$)
  Dim p1$, p2$
  On Error Resume Next
@@ -982,10 +1020,14 @@ End Function ' DateiVergleichen
 'End SELECT
 'End FUNCTION ' testAktiv
 
+' wartet Millisekunden (Sleep)
+' Aufruf in: LabEintr.inTurbomedAnzeigen_Click, PatListe.alleFS, PatListe.doFS, ZielDBFunktionen.inMOAnz
 Public Sub Pause(Millisekunden As Long)
  Sleep Millisekunden
 End Sub ' Pause
 
+' spielt über die Soundkarte "Windows Navigation Start.wav" aus %windir%\media ab
+' Aufruf in: Formular.do_Form_Current_AnBog
 Function TütSoundkarte()
 ' Const MB_ICONASTERISK = &H40& ' Warnung
 ' Const MB_ICONEXCLAMATION = &H30& ' Hinweis
@@ -1035,6 +1077,8 @@ Const SND_SYNC = &H0 ' die Funktion kehrt erst nach Beenden der Wiedergabe
 
 End Function ' TütSoundkarte
 
+' Testroutine: liest eine BDT-Datei zeilenweise in ein Feld
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function lesetest()
  Dim zln$(), zle$, zlnr&, maxnr&
  Open uVerz & "tmexport\20221230.BDT" For Input As #23
@@ -1050,6 +1094,7 @@ Public Function lesetest()
 End Function ' lesetest
 
 #If zutesten Then
+' Testroutine (nur mit zutesten): Zeilen einer BDT-Datei mit Dateiposition ausgeben
 Public Function lesetest2()
  Dim zln$(), zle$, zlnr&, maxnr&, pos&
  Open uVerz & "tmexport\20221230.BDT" For Input As #23
@@ -1086,6 +1131,8 @@ Public Function Lesetest3(ByVal sFilename As String)
 End Function ' lesetest3
 #End If
 
+' legt den Ordner tStr an, wenn es ihn nicht gibt (obaggr: auf jeden Fall); ab Vista über "cmd /c mkdir"
+' Aufruf in: ComputerTools.VerzPrüf
 Public Sub machOrdner(tStr$, Optional obaggr%)
  Dim gibts%, runde%
  On Error GoTo fehler
@@ -1128,6 +1175,9 @@ End Select
 End Sub ' machOrdner
 
 #If True Then
+' kopiert die Datei q nach z (Datei oder Verzeichnis mit "\"); gelingt das nicht, ab Vista über eine Kopie ins
+' Benutzerprofil und "cmd /c move" (vorher Prüfung, ob der Administrator aktiv ist)
+' Aufruf in: TMIniDatei.Class_Initialize
 Public Function KopDat%(q$, z$, Optional WV As WindowsVersion)
  Static iWV As WindowsVersion, ErrNr&
  Static pruefe%
@@ -1195,6 +1245,7 @@ fehler:
 End Function ' KopDat
 
 #Else
+' ältere Fassung von KopDat (abgeschaltet)
 Public Sub KopDat(q$, z$, Optional WV As WindowsVersion)
  Static userprof$
  If userprof = "" Then userprof = Environ("userprofile")
@@ -1290,6 +1341,8 @@ End Select
 End Sub ' KopDat
 #End If
 
+' Prozess-ID des (ersten) laufenden Programms mit dem Dateinamen pExename, sonst 0
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function FindProcessID(ByVal pExename As String) As Long
     Dim ProcessID As Long, hSnapShot As Long
     Dim uProcess As PROCESSENTRY32, rProcessFound As Long
@@ -1326,6 +1379,8 @@ End Function ' FindProcessID
 ' aus fuehraus in fürIcon
 ' millis: -1: warte ewig, 0: warte gar nicht, >0: Wartezeit in Millisekunden
 ' alsAdm: 0: nein, 1, -1: ja, mit Prompt, 2: mit psexec
+' 27.9.26: Aufruf in: ComputerTools.adminaktiv, ComputerTools.KopDat, ComputerTools.machOrdner, GetProcColl.GetProcessCollection,
+'   Laufzettel.doPatientenlaufzettel, Laufzettel.plzAnzeig, Lese.TherapieartenfürallePatientenzusammenfestlegen_Click, vonMo.tbtrans
 Public Function rufauf&(Datei$, Optional Para$, Optional alsAdm%, Optional vz$, Optional dwmillis& = 60000, Optional fengroe% = 1, Optional obkill&)
 'Public FUNCTION SuSh&(ByVal App$, Optional alsAdm&, Optional ByVal WorkDir$, Optional dwmillis& = 10000, _
     Optional ByVal start_size& = SW_HIDE, Optional ByVal Priority_Class& = NORMAL_PRIORITY_CLASS, _
@@ -1435,6 +1490,9 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' rufauf
 
+' prüft mit "net user administrator", ob das Administratorkonto aktiv ist, und aktiviert es sonst
+' (Passwort über holap aus der Registry bzw. per Abfrage)
+' Aufruf in: ComputerTools.KopDat
 Sub adminaktiv()
  Dim Text$, f1
  On Error GoTo 0

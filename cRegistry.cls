@@ -212,6 +212,8 @@ Private m_sSetValue As String
 Private m_vDefault As Variant
 Private m_eValueType As ERegistryValueTypes
 
+' wahr, wenn der Schlüssel SectionKey unter ClassKey existiert
+' Aufruf in: Registry.CreateAdditionalEXEAssociations
 Public Property Get KeyExists() As Boolean
     'KeyExists = bCheckKeyExists( _
     '                m_hClassKey, _
@@ -226,6 +228,8 @@ Dim hKey As Long
     End If
 End Property ' Get KeyExists
 
+' legt den Schlüssel SectionKey an (bzw. öffnet ihn); Fehler 26001 bei Misserfolg
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function CreateKey() As Boolean
 Dim tSA As SECURITY_ATTRIBUTES
 Dim hKey As Long
@@ -243,6 +247,8 @@ Dim e As Long
     End If
 End Function ' CreateKey
 
+' löscht den Schlüssel SectionKey; Fehler 26001 bei Misserfolg
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function DeleteKey() As Boolean
 Dim e As Long
     e = RegDeleteKey(m_hClassKey, m_sSectionKey)
@@ -253,6 +259,8 @@ Dim e As Long
     End If
 End Function ' DeleteKey
 
+' löscht den Wert ValueKey im Schlüssel SectionKey; Fehler 26001 bei Misserfolg
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function DeleteValue() As Boolean
 Dim e&, hKey&
     e = RegOpenKeyEx(m_hClassKey, m_sSectionKey, 0, KEY_ALL_Access, hKey)
@@ -268,6 +276,8 @@ Dim e&, hKey&
     End If
 End Function ' DeleteValue
 
+' liest einen Wert; übergebene ValueKey/SectionKey/ClassKey/DefaultVal gelten nur für diesen Aufruf
+' 27.9.26: Aufruf in: ComputerToolsFrei.RegInh, DBVerb.RegLaden, InternetZeit.holZeit, MOSuch.Form_Load, PatAuswahl.vorbeleg, PatListe.RegLaden
 Public Function ReadKey(Optional ValueKey As String = vNS, _
                         Optional SectionKey As String = vNS, _
                         Optional ClassKey As ERegistryClassConstants = 0, _
@@ -307,6 +317,8 @@ Public Function ReadKey(Optional ValueKey As String = vNS, _
     If Not IsMissing(DefaultVal) > 0 Then Me.Default = vDefaultVal
 End Function ' ReadKey
 
+' liest den Wert ValueKey (je nach Registry-Typ als Text, Zahl, Binärdaten oder Mehrfachtext), sonst Default
+' Aufruf in: Registry.pSetClassValue, Registry.ReadKey, Registry.WriteKey, System.EnumerateVariables, System.Environment
 Public Property Get Value() As Variant
 Dim vValue As Variant
 Dim cData As Long, sData As String, ordType As Long, e As Long
@@ -364,10 +376,14 @@ Dim hKey As Long
     
 End Property '  Get Value
 
+' größerer von zwei Werten
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Private Function MAX(v1, v2)
  If v1 > v2 Then MAX = v1 Else MAX = v2
 End Function ' MAX(v1, v2)
 
+' schreibt den Wert ValueKey im Typ ValueType (legt den Schlüssel bei Bedarf an)
+' Aufruf in: Registry.pSetClassValue, Registry.ReadKey, Registry.WriteKey, System.EnumerateVariables, System.Environment
 Public Property Let Value(ByVal vValue As Variant)
 Dim ordType As Long
 Dim c As Long
@@ -442,6 +458,8 @@ Dim tSA As SECURITY_ATTRIBUTES
     End If
 End Property ' Let Value
 
+' liefert die Namen (sKeyNames, iKeyCount) und ggf. Inhalte (sKeyV) aller Werte eines Schlüssels (Sc/CC oder SectionKey/ClassKey)
+' Aufruf in: DBVerb.listOdbc, System.EnumerateVariables
 Public Function EnumerateVALUES%(ByRef sKeyNames$(), ByRef iKeyCount&, Optional ByRef sKeyV, Optional Sc$, Optional CC As ERegistryClassConstants)
 'Sub regEnumVal(Schlüssel$, Sch, Inh)
 Dim Key As String, lCount As Byte, lResult As Long, hKey As Long, lValueLength&
@@ -487,6 +505,8 @@ End If
 End Function ' EnumerateVALUES
 
 
+' liefert die Namen aller Unterschlüssel von SectionKey (sSect, iSectCount)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function EnumerateSections( _
         ByRef sSect() As String, _
         ByRef iSectCount As Long _
@@ -544,6 +564,8 @@ EnumerateSectionsError:
    Exit Function
 End Function ' EnumerateSections
 
+' schreibt einen Wert sowohl unter HKEY_CLASSES_ROOT als auch unter HKLM\SOFTWARE\Classes
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation
 Private Sub pSetClassValue(ByVal sValue As String)
 Dim sSection As String
    ClassKey = HKEY_CLASSES_ROOT
@@ -555,6 +577,9 @@ Dim sSection As String
    SectionKey = sSection
 End Sub ' pSetClassValue
 
+' registriert eine Dateizuordnung (Endung sAssociation -> Klasse sClassName -> Programm sExePath) mit Öffnen-,
+' ggf. Drucken-, Neu- und Installieren-Befehl sowie Symbol
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Sub CreateEXEAssociation( _
         ByVal sExePath As String, _
         ByVal sClassName As String, _
@@ -635,6 +660,8 @@ Public Sub CreateEXEAssociation( _
    End If
 End Sub ' CreateEXEAssociation
 
+' ergänzt eine Dateiklasse um weitere Befehle (Tripel Name/Menütext/Befehlszeile in vItems)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Sub CreateAdditionalEXEAssociations( _
       ByVal sClassName As String, _
       ParamArray vItems() As Variant _
@@ -664,54 +691,80 @@ Dim iItem&
    End If
 End Sub ' CreateAdditionalEXEAssociations
 
+' Registry-Typ des Werts (lesen)
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation, Registry.WriteKey, System.Environment
 Public Property Get ValueType() As ERegistryValueTypes
     ValueType = m_eValueType
 End Property
 
+' Registry-Typ des Werts (setzen)
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation, Registry.WriteKey, System.Environment
 Public Property Let ValueType(ByVal eValueType As ERegistryValueTypes)
     m_eValueType = eValueType
 End Property
 
+' Hauptschlüssel, z.B. HKEY_LOCAL_MACHINE (lesen)
+' Aufruf in: Registry.EnumerateVALUES, Registry.pSetClassValue, Registry.ReadKey, Registry.WriteKey, System.Class_Initialize
 Public Property Get ClassKey() As ERegistryClassConstants
     ClassKey = m_hClassKey
 End Property
 
+' Hauptschlüssel (setzen)
+' Aufruf in: Registry.EnumerateVALUES, Registry.pSetClassValue, Registry.ReadKey, Registry.WriteKey, System.Class_Initialize
 Public Property Let ClassKey( _
         ByVal eKey As ERegistryClassConstants _
     )
     m_hClassKey = eKey
 End Property
 
+' Schlüsselpfad unter ClassKey (lesen)
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation, Registry.EnumerateVALUES, Registry.pSetClassValue, Registry.ReadKey,
+'   Registry.WriteKey, System.Class_Initialize
 Public Property Get SectionKey() As String
     SectionKey = m_sSectionKey
 End Property
 
+' Schlüsselpfad unter ClassKey (setzen)
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation, Registry.EnumerateVALUES, Registry.pSetClassValue, Registry.ReadKey,
+'   Registry.WriteKey, System.Class_Initialize
 Public Property Let SectionKey( _
         ByVal sSectionKey As String _
     )
     m_sSectionKey = sSectionKey
 End Property
 
+' Name des Werts (lesen)
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation, Registry.ReadKey, Registry.WriteKey, System.EnumerateVariables,
+'   System.Environment
 Public Property Get ValueKey() As String
     ValueKey = m_sValueKey
 End Property
 
+' Name des Werts (setzen)
+' Aufruf in: Registry.CreateAdditionalEXEAssociations, Registry.CreateEXEAssociation, Registry.ReadKey, Registry.WriteKey, System.EnumerateVariables,
+'   System.Environment
 Public Property Let ValueKey( _
         ByVal sValueKey As String _
     )
     m_sValueKey = sValueKey
 End Property
 
+' Vorgabe, wenn der Wert fehlt (lesen)
+' Aufruf in: Registry.ReadKey
 Public Property Get Default() As Variant
     Default = m_vDefault
 End Property
 
+' Vorgabe, wenn der Wert fehlt (setzen)
+' Aufruf in: Registry.ReadKey
 Public Property Let Default( _
         ByVal vDefault As Variant _
     )
     m_vDefault = vDefault
 End Property
 
+' kehrt die Bytereihenfolge eines Long um (für REG_DWORD_BIG_ENDIAN)
+' Aufruf in: Registry.Value
 Private Function SwapEndian(ByVal dw As Long) As Long
     CopyMemory ByVal VarPtr(SwapEndian) + 3, dw, 1
     CopyMemory ByVal VarPtr(SwapEndian) + 2, ByVal VarPtr(dw) + 1, 1
@@ -719,6 +772,8 @@ Private Function SwapEndian(ByVal dw As Long) As Long
     CopyMemory SwapEndian, ByVal VarPtr(dw) + 3, 1
 End Function
 
+' ersetzt Umgebungsvariablen (%...%) in sData (für REG_EXPAND_SZ)
+' Aufruf in: Registry.Value
 Private Function ExpandEnvStr(sData As String) As String
     Dim c As Long, s As String
     ' Get the length
@@ -730,6 +785,9 @@ Private Function ExpandEnvStr(sData As String) As String
     ExpandEnvStr = s
 End Function
 
+' schreibt einen Wert; übergebene ValueKey/SectionKey/ClassKey/ValueType gelten nur für diesen Aufruf
+' 27.9.26: Aufruf in: ComputerToolsFrei.RegSpeichern, DBVerb.cnVorb, DBVerb.RegSpeichern, InternetZeit.holZeit, Laufzettel.RegistriereOeffnePlz,
+'   MOSuch.Form_Unload, PatAuswahl.setzBriefReg, PatListe.RegSpeichern
 Public Sub WriteKey(Value As Variant, _
                     Optional ValueKey As String = vNS, _
                     Optional SectionKey As String = vNS, _

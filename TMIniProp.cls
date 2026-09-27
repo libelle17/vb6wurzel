@@ -20,6 +20,10 @@ Private mvarBezeichnung$ 'lokale Kopie
 Private mvarInhalt$ 'lokale Kopie
 
 'Private mvarUnterEig AS TMIniPropColl 'lokale Kopie
+
+' Klasse TMIniProp: eine Eigenschaft (Bezeichnung = Inhalt) eines Turbomed-ini-Abschnitts
+' Kopiere: liefert eine Kopie der Eigenschaft
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function Kopiere() As TMIniProp
  On Error GoTo fehler
  Dim tmpP As New TMIniProp
@@ -35,6 +39,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' Kopiere
+
+' wahr (-1), wenn Bezeichnung und Inhalt mit denen von Vg übereinstimmen
+' Aufruf in: TMIniPropColl.VergleicheMit
 Public Function VergleicheMit%(Vg As TMIniProp)
  On Error GoTo fehler
  If Vg.Bezeichnung = mvarBezeichnung Then
@@ -50,6 +57,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' VergleicheMit
+
+' Wert der Eigenschaft (setzen)
+' Aufruf in: TMIniProp.Kopiere, TMIniProp.VergleicheMit, TMIniPropColl.Add, TMIniPropColl.UEAdd, TMIniSectionColl.UEAdd
 Public Property Let Inhalt(ByVal vData$)
  On Error GoTo fehler
  mvarInhalt = vData
@@ -61,6 +71,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property ' Let
+
+' Wert der Eigenschaft (lesen)
+' Aufruf in: TMIniProp.Kopiere, TMIniProp.VergleicheMit, TMIniPropColl.Add, TMIniPropColl.UEAdd, TMIniSectionColl.UEAdd
 Public Property Get Inhalt$()
  On Error GoTo fehler
 'wird beim Ermitteln eines Eigenschaftswertes auf der rechten Seite einer Zuweisung verwendet.
@@ -78,6 +91,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property ' Inhalt
+
+' Name der Eigenschaft (setzen)
+' Aufruf in: TMIniProp.Kopiere, TMIniProp.VergleicheMit, TMIniPropColl.Add, TMIniPropColl.Item, TMIniPropColl.UEAdd, TMIniSectionColl.UEAdd
 Public Property Let Bezeichnung(ByVal vData$)
   On Error GoTo fehler
   mvarBezeichnung = vData
@@ -89,6 +105,9 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Property ' LetBezeichnung
+
+' Name der Eigenschaft (lesen)
+' Aufruf in: TMIniProp.Kopiere, TMIniProp.VergleicheMit, TMIniPropColl.Add, TMIniPropColl.Item, TMIniPropColl.UEAdd, TMIniSectionColl.UEAdd
 Public Property Get Bezeichnung$()
  On Error GoTo fehler
  Bezeichnung = mvarBezeichnung

@@ -11,6 +11,8 @@ Public SturmPwd$, AdminPwd$, AdminGes$ ' "-u administrator -p <AdminPwd>"
 Public Declare Function GetFileAttributes& Lib "kernel32.dll" Alias "GetFileAttributesA" (ByVal lpFileName$)
 
 ' in DMP_in_MO_importieren_1_Click() und in DMP_in_MO_importieren_2_Click()
+' führt Befehl über WScript.Shell aus und wartet auf das Ende; gibt den Rückgabewert zurück
+' 27.9.26: Aufruf in: Lese.DMP_in_MO_importieren_1_Click, Lese.DMP_in_MO_importieren_2_Click, PatListe.tmbrloe, PatListe.tmbrumb, PatListe.tmbrverschieb
 Public Function ausfsyn&(Befehl$, Focus As VbAppWinStyle)
  Dim RetVal&
  Dim wsh As IWshShell
@@ -36,6 +38,8 @@ fehler:
 End Function ' ausfsyn
 
 ' aufgerufen in holap
+' liest den Wert schl aus HKCU\<RegWurzel><Programm>
+' 27.9.26: Aufruf in: ComputerToolsFrei.holap
 Private Function RegInh$(schl$, Optional nuranfangs%)
  Static angefangen%, altSchl$
  Dim cR As New Registry
@@ -56,12 +60,17 @@ fehler:
 End Function ' regladen
 
 ' aufgerufen in holap
+' schreibt den Wert schl = Wert nach HKCU\<RegWurzel><Programm>
+' 27.9.26: Aufruf in: ComputerToolsFrei.holap
 Public Sub RegSpeichern(schl$, Wert$)
  Dim cR As New Registry
  cR.WriteKey Wert, schl, RegPos, HKEY_CURRENT_USER, REG_SZ
 End Sub ' RegSpeichern(Schl$, Wert$)
 
 ' aufgerufen in Haupt
+' Passwort des Windows-Benutzers user (für Aufrufe als Administrator): aus der Registry, sonst per doppelter Abfrage,
+' die dann dort gespeichert wird; ohne Eingabe Programmende
+' 27.9.26: Aufruf in: ComputerTools.adminaktiv, ComputerTools.rufauf, GetProcColl.SuSh, Laufzettel.dodoplz, Laufzettel.plzeintraege
 Public Function holap$(user$)
  Const schl$ = "admpwd"
  Dim prompt$
@@ -75,6 +84,8 @@ Public Function holap$(user$)
  End If ' holap = "" Then
 End Function ' Function holap()
 
+' Name des zu verwendenden MySQL-ODBC-Treibers (einmal über maxODBC ermittelt)
+' Aufruf in: DBVerb.getAllDB, HAAkt.doHAAkt, Lese.machODBCMy, MachDatenbank.NurLauf_Click, MachDatenbank.setzCStrs, WerteVerarbeiten.KommRep
 Public Function ODBCStr$()
  Static ergstr$
 ' SELECT CASE CptName
@@ -92,6 +103,8 @@ Public Function ODBCStr$()
 '  END SELECT
 End Function  ' ODBCStr
 
+' Name des neuesten installierten "MySQL ODBC x.y Unicode Driver" (aus der Registry)
+' Aufruf in: ComputerToolsFrei.ODBCStr
 Public Function maxODBC()
   Dim i%, arrValueNames, arrValueTypes
   Dim objRegistry As Object, strKeyPath$
@@ -128,6 +141,8 @@ fehler:
  End Select
 End Function ' maxODBC()
 
+' Computername in Großbuchstaben (einmal ermittelt)
+' Aufruf in: ComputerTools.LokPfad, Lese.Konstanten, Optionen.KReinCB_Click
 Function CptName$() ' Computername in Großbuchstaben
  Static Cpt$
  If Cpt <> "" Then
@@ -157,6 +172,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' CptName
 
+' Name des angemeldeten Windows-Benutzers
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function UserName$()
     Dim Cn$
     Dim ls&
@@ -186,6 +203,8 @@ End Select
 End Function ' Username
 
 
+' Verzeichnisanteil von Datei bis zum letzten GrenzBchst (einschließlich), den Rest in rest
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function getVerzAnteil(Datei$, Optional GrenzBchst$ = "\", Optional rest$)
  Dim i%, aktl%, lenge%
  lenge = Len(Datei)
@@ -199,6 +218,8 @@ Public Function getVerzAnteil(Datei$, Optional GrenzBchst$ = "\", Optional rest$
  rest = Right$(Datei, lenge - i + 1)
 End Function ' getVerzAnteil
 
+' korrigiert falsch dekodierte Umlaute in Dateinamen (z.B. "+Â" -> "ö"); Dwc erhält eine Fassung mit Platzhaltern
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function DirKorr$(Datei$, Optional Dwc$)
      Dim D2$, i%
      Dwc = Datei
@@ -237,6 +258,7 @@ Function DirKorr$(Datei$, Optional Dwc$)
        End If
      End If
 End Function ' DirKorr
+
 'Function SplitNeu&(ByVal q$, Sep$, erg$(), Optional nichtWenn$, Optional Bis$) ' da Split() Speicher fraß
 '' in einem Fragment darf nicht nichtWenn enthalten sein, ohne dass Bis enthalten ist
 ' Dim p1&, p2&, Slen&, lSlen&, obExit%, runde&, p3&, p4&, obgesprungen%
@@ -301,6 +323,8 @@ End Function ' DirKorr
 ' Stop
 'End Function
 
+' wie SplitNeu, aber mit mehreren Trennern (Feld Sep); obmitsep: Trenner bleiben im Teil enthalten
+' Aufruf in: HAEinlesen.proTeilnehmer
 Function SplitNeuArr&(ByRef q$, Sep, erg$(), Optional obmitsep%) ' da Split() Speicher fraß; sep = Array aus Trennstrings; ob SEPARATOR auch noch im Splitstring stehen soll
  Dim p1&, p2&, Slen&(), lSlen&, obExit%, runde&, aktSep%, p2min&, gew%
  On Error GoTo fehler
@@ -352,6 +376,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' SplitNeuArr, aus aufSplit
+
 'Function zztest()
 ' Dim sql$, rAF&
 ' sql = "INSERT INTO zz(v1,v2,i2) VALUES('bc','b',33)"
@@ -364,6 +389,8 @@ End Function ' SplitNeuArr, aus aufSplit
 ' Handelt es sich um einen singulären insert-Befehl und ist ein Tabellenfeld zu klein, so wird es vergrößert
 ' nur sinnvoll, falls vergrößerbare Felder enthalten sind
 
+' Text in ST zwischen dem ersten s1 und dem folgenden s2
+' Aufruf in: Importiere.dolies, Importiere.testzwi
 Public Function ZwischenStr$(ByRef ST$, ByRef s1$, ByRef s2$)
  Dim p1&, p2&
  p1 = InStr(ST, s1)
@@ -457,6 +484,7 @@ End Function ' ZwischenStr
 
 ' entfernt endständige Kommandozeilenparameter und Anführungszeichen
 ' kommt vor in getIViewPfad
+' 27.9.26: Aufruf in: ComputerToolsFrei.getIViewPfad
 Function GetExeF$(q$)
  Dim sp$(), i%, j%, TS$
  On Error GoTo fehler
@@ -484,6 +512,8 @@ End Select
 End Function ' GetExeF
 
 #If ohnewsh = 0 Then
+' Pfad von IrfanView (i_view64/i_view32) aus der Registry
+' Aufruf in: Formular.do_do_Aufruf, Formular.makeDatPfad, LabEintr.IrfanString, Lese.VerhunzteFotosEinfärben_Click
 Public Function getIViewPfad$()
  On Error GoTo fehler:
  If getIViewPfad = "" Then getIViewPfad = GetExeF(getReg(2, "Software\Classes\Applications\i_view64.exe\shell\open\command", ""))
@@ -499,6 +529,7 @@ End Function ' getIViewPfad
 #End If
 
 ' da Funktion dir( nicht "einttrittsinvariant")
+' Aufruf in: ComputerTools.machOrdner
 Public Function DirExists%(ByVal DirName$)
  Dim dwAtt&
  dwAtt = GetFileAttributes(DirName)
@@ -509,6 +540,7 @@ Public Function DirExists%(ByVal DirName$)
 End Function ' DirExists
 
 ' da Funktion dir( nicht "einttrittsinvariant")
+' Aufruf in: ComputerTools.adminaktiv, ComputerTools.KopDat, ComputerToolsFrei.GetExeF, TMIniDatei.Class_Initialize, TMIniDatei.DateiLes
 Public Function FileExists%(ByVal FName$)
  Dim dwAtt&
  dwAtt = GetFileAttributes(FName)
@@ -520,6 +552,17 @@ Public Function FileExists%(ByVal FName$)
 End Function ' DirExists
 
 ' in rrempf, doVerdächtigeÜberweiser, tuStart_Click (AbrechFehler) (2x)
+' zeigt die Datei in Notepad++ an (sonst mit dem zugeordneten Programm); gibt die Prozess-ID zurück
+' 27.9.26: Aufruf in: AbrechFehler.tuStart_click, ComputerTools.meld, GetProcColl.SchauObDa, Haupt.anaUpd, Haupt.doLdFD, Haupt.doWirt, Haupt.TUpd,
+'   Haupt.ÜbertragFormulare, InsKorrMod.TabAusgeb, Lese.Apothekenrezepte_Click, Lese.DMP_in_MO_importieren_1_Click, Lese.doCallDigSring, Lese.doCallDMP,
+'   Lese.DokumenteAbgehaktPrüfen_Click, Lese.DoppelteDiagnosen_Click, Lese.doppelteFaxe_Click, Lese.MedOffTabZahl_Click, Lese.Omnipod5Trägerliste_Click,
+'   Lese.Pumpenträgerliste_Click, Lese.SuchInSpaltenInMO_Click, Lese.VerhunzteFotosEinfärben_Click, Lese.Überweiserstatistik_Click, TabÜbertr.GetAutoFeld,
+'   typen.rAuDump, typen.rBrDump, typen.rDeDump, typen.rDiDump, typen.rDmDump, typen.rDoDump, typen.rEiDump, typen.rFaDump, typen.rFmDump, typen.rFoDump,
+'   typen.rFrDump, typen.rFuDump, typen.rKhDump, typen.rKvDump, typen.rLaDump, typen.rLbDump, typen.rLeDump, typen.rLgDump, typen.rLiDump, typen.rLLDump,
+'   typen.rLoDump, typen.rLsDump, typen.rLuDump, typen.rLwDump, typen.rMeDump, typen.rNaDump, typen.rReDump, typen.rRrDump, typen.rSwDump, typen.rUlDump,
+'   typen.rUnDump, typen.rUsDump, typen.rVkDump, typen.rVoDump, vonMo.suchal, vonMo.suchfi, vonMo.TestMemoZerlegen, vonMo.TestMOKatEintraege,
+'   WerteVerarbeiten.DMPAusgeb0, WerteVerarbeiten.do_GibwerteAus, WerteVerarbeiten.werteAnzeig, ZielDBFunktionen.dodoPorto,
+'   ZielDBFunktionen.doVerdächtigeÜberweiser, ZielDBFunktionen.rrEmpf
 Public Function zeigan&(Datei$, Optional modus% = vbMaximizedFocus)
  Static pdat$
  On Error GoTo fehler
@@ -555,6 +598,7 @@ End Function ' zeigan
 
 ' Beliebige Datei auslesen und
 ' Inhalt als String zurückgeben
+' Aufruf in: Formular.tuBriefStandalone
 Public Function ReadFile$(ByVal sFilename As String)
   Dim F%
   Dim sInhalt$
@@ -573,6 +617,28 @@ Public Function ReadFile$(ByVal sFilename As String)
   ReadFile = sInhalt
 End Function ' ReadFile
 
+' Statuszeile des Startformulars setzen (art 4) bzw. leeren (art 5), nachgebildet nach Access-SysCmd
+' Aufruf in: ComputerTools.rufauf, Dialog.doEinles, Formular.DiabetesDiagnose, Formular.do_Datenbank_Aufruf_Click, Formular.do_Form_Current2,
+'   Formular.do_Form_Current_AnBog, Formular.doDiagnosenexport, Formular.doForm_Load, Formular.doRückgängig, Formular.doViewsErstellen,
+'   Formular.DtbCreateQueryDef, Formular.getHausarzt1, Formular.LaborIns1, Formular.TheraErmitt, Formular.tuBriefStandalone, Haupt.DoKassenkategorienBestimmen,
+'   Haupt.doMacheTypen, Haupt.MacheTypen, Importiere.alleSpeichern, Importiere.doConAnal, Importiere.doTabVorb, Importiere.EintragStart, Importiere.Eintragszl,
+'   Importiere.EintragZusatz, Importiere.fctEintrHist, Importiere.GesLies, Importiere.kompakt, Importiere.laborparameterSpeichern, Importiere.laborparvorladen,
+'   Importiere.medartenhier, Importiere.MedArtenPruef, Importiere.medklass2, Importiere.rrParsen, Importiere.rrParseSpeichern, Importiere.rufThFestleg,
+'   ImportiereLabor.LaborDirektImport, InsKorrMod.DBCnOpen, InsKorrMod.InsKorr, InsKorrMod.TabAusgeb, Kompilierbarkeit.doFAnfFuell, Laufzettel.dodoplz,
+'   Laufzettel.doPatientenlaufzettel, Laufzettel.LaborInsPLZ, Lese.AlleDopPatLöschen_Click, Lese.DMP_in_MO_importieren_2_Click, Lese.DMPkorrigier,
+'   Lese.do_Medpläne_alt_für_MO_exportieren_Click, Lese.Doppelte_Labore_anzeigen_Click, Lese.Doppelte_Labore_herrichten_Click,
+'   Lese.Falsche_Benutzer_korrigieren_Click, Lese.Formulare_bereinigen_Click, Lese.Kontrolllisten_für_DMP_HA_Click, Lese.mdiForm_Resize,
+'   Lese.MedOffTabZahl_Click, Lese.MOSV, Lese.Notizen_übertragen_vorbereiten_Click, Lese.ProgStart, Lese.SuchInSpaltenInMO_Click, Lese.Übertragung_aus_MO_Click,
+'   PatAuswahl.AuswHA, PatAuswahl.AuswName, PatAuswahl.AuswPat_id, PatAuswahl.AuswVorlage, PatAuswahl.OKButton_Click, PatListe.doStart, PatListe.Form_Load,
+'   QuelleDB.acon, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern,
+'   typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.LöschePat, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern,
+'   typen.rrSpeichern, typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern,
+'   vonMo.callMODmp, vonMo.doMarkierungen, vonMo.doNotizen, vonMo.doPatvonMO, vonMo.HATrans, vonMo.LaborAusStaging, vonMo.laborges, vonMo.MOConInit,
+'   vonMo.MODmpreihe, vonMo.MODmpreihe1, vonMo.MOKatLaden, vonMo.MOLeistungen, vonMo.richtHA, vonMo.richtleist, vonMo.suchal, vonMo.suchfi, vonMo.tbtrans,
+'   WerteVerarbeiten.AnReparieren, WerteVerarbeiten.FormAufruf, WinWord.getAppl, ZielDBFunktionen.do_DMPAusgebStandAlone
 Public Function syscmd(art%, Optional Inhalt$)
  On Error Resume Next
  Select Case art

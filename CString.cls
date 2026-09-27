@@ -43,6 +43,8 @@ Public m_Len&
 ' the current UBound() of the array (accounts for ending null CHAR)
 Private m_MaxLength&
 
+' legt beim Erzeugen den Zeichenpuffer in Standardgröße an
+' Aufruf in: Ereignisprozedur
 Private Sub Class_Initialize()
     ' create the CHARs() array
     SetBufferSize DEFAULT_MAXLENGTH
@@ -50,6 +52,7 @@ End Sub ' Class_Initialize()
 
 ' SET the size of the internal buffer
 ' Use "mystr.SetBufferSize mystr.Length" to release unused memory
+' Aufruf in: CString.Append, CString.Class_Initialize, CString.CopyData, CString.Cut, CString.Length, CString.ReadFromFile, CString.REPLACE, CString.Value
 Sub SetBufferSize(ByVal newSize&, Optional clearIt As Boolean)
     m_MaxLength = newSize
     If m_Len Or clearIt = 0 Then
@@ -62,6 +65,16 @@ End Sub ' SetBufferSize
 ' the current value AS a Unicode string
 ' this is the default item of the class, so you can use
 ' the object variable AS IF it were a string variable
+' Aufruf in: AbrechFehler.AbrFausg, DBVerb.getAllDB, Formular.tuBriefStandalone, HAEinlesen.proTeilnehmer, Haupt.anaUpd, Haupt.dofallzahlstand, Haupt.fzsfuell,
+'   Importiere.alleSpeichern, Importiere.GesLies, Importiere.rrParseSpeichern, InsKorrMod.InsKorr, InsKorrMod.TabAusgeb, KassenEditieren.Anzeigen_Click,
+'   KassenEditieren.Start_Click, Laufzettel.BezuegeTeile, Laufzettel.dodoplz, Laufzettel.UrlEnc, Lese.Schulungsstatistik_Click,
+'   MachDatenbank.doGenMachDB_Direkt, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern,
+'   typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
+'   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern,
+'   ZielDBFunktionen.do_DMPAusgebStandAlone
 Property Get Value$()
 Attribute Value.VB_UserMemId = 0
     If m_Len > 0 Then
@@ -70,10 +83,23 @@ Attribute Value.VB_UserMemId = 0
     End If
 End Property ' Get Value$()
 
+' aktuelle Puffergröße
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Friend Property Get CurrentBuffer() As Long
     CurrentBuffer = m_MaxLength
 End Property ' Get CurrentBuffer()
 
+' setzt den Inhalt (vergrößert den Puffer bei Bedarf)
+' Aufruf in: AbrechFehler.AbrFausg, DBVerb.getAllDB, Formular.tuBriefStandalone, HAEinlesen.proTeilnehmer, Haupt.anaUpd, Haupt.dofallzahlstand, Haupt.fzsfuell,
+'   Importiere.alleSpeichern, Importiere.GesLies, Importiere.rrParseSpeichern, InsKorrMod.InsKorr, InsKorrMod.TabAusgeb, KassenEditieren.Anzeigen_Click,
+'   KassenEditieren.Start_Click, Laufzettel.BezuegeTeile, Laufzettel.dodoplz, Laufzettel.UrlEnc, Lese.Schulungsstatistik_Click,
+'   MachDatenbank.doGenMachDB_Direkt, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern,
+'   typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
+'   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern,
+'   ZielDBFunktionen.do_DMPAusgebStandAlone
 Property Let Value(NewValue$)
     ' check that the private array is large enough
     m_Len = Len(NewValue)
@@ -86,6 +112,9 @@ Property Let Value(NewValue$)
     End If
 End Property ' Let Value(
 
+' kürzt den Inhalt auf maxLen Zeichen
+' Aufruf in: DBVerb.Ausgeb, DBVerb.getAllDB, Haupt.anaUpd, Importiere.GetMed, InsKorrMod.Ausgeb, InsKorrMod.fUmwfSQL, KassenEditieren.Start_Click,
+'   Lese.Schulungsstatistik_Click, MachDatenbank.doCopyAllMyMy, MachDatenbank.doGenMachDB_Direkt, ZielDBFunktionen.DMPString
 Function Cut(maxLen&)
  If maxLen < m_Len Then
   SetBufferSize maxLen, False
@@ -94,6 +123,7 @@ Function Cut(maxLen&)
 End Function ' Cut
  
 ' the address of the first Character (read-only)
+' Aufruf in: CString.Append, CString.cMid, CString.Copy, CString.Instr, CString.left, CString.Right
 Function StrPtr&()
     StrPtr = VarPtr(chars(0))
     ' append a null Character to the internal string
@@ -102,6 +132,7 @@ Function StrPtr&()
 End Function ' StrPtr&()
 
 ' copy data FROM a memory address (Friend sub)
+' Aufruf in: CString.cMid, CString.Copy, CString.left, CString.Right
 Friend Sub CopyData(ByVal sourceAddr&, ByVal NumChars&)
     ' raise error IF new Length is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -118,10 +149,17 @@ End Sub ' CopyData
 
 ' the current Length (can also be written to)
 ' ("Len" can't be used because it is a reserved word)
+' Aufruf in: CString.Append, CString.cMid, CString.Instr, CString.left, CString.REPLACE, CString.Right, DBVerb.getAllDB, Haupt.anaUpd, Importiere.GesLies,
+'   Importiere.GetMed, InsKorrMod.fUmwfSQL, KassenEditieren.Start_Click, Lese.Schulungsstatistik_Click, MachDatenbank.Ausf, MachDatenbank.doCopyAllMyMy,
+'   MachDatenbank.doGenMachDB_Direkt, MachDatenbank.sAusf, ZielDBFunktionen.DMPString
 Property Get Length&()
     Length = m_Len
 End Property ' Get length&()
 
+' setzt die Länge (verlängert mit Leerzeichen bzw. kürzt)
+' Aufruf in: CString.Append, CString.cMid, CString.Instr, CString.left, CString.REPLACE, CString.Right, DBVerb.getAllDB, Haupt.anaUpd, Importiere.GesLies,
+'   Importiere.GetMed, InsKorrMod.fUmwfSQL, KassenEditieren.Start_Click, Lese.Schulungsstatistik_Click, MachDatenbank.Ausf, MachDatenbank.doCopyAllMyMy,
+'   MachDatenbank.doGenMachDB_Direkt, MachDatenbank.sAusf, ZielDBFunktionen.DMPString
 Property Let Length(ByVal NewValue&)
     ' raise error IF new Length is invalid
     If NewValue < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -138,17 +176,27 @@ Property Let Length(ByVal NewValue&)
 End Property ' Let length(ByVal NewValue&)
 
 ' clear the string
+' Aufruf in: AnAnpassen.AnTrennZeichen, Formular.Dzus, Formular.tuBriefStandalone, HAEinlesen.proTeilnehmer, Importiere.alleSpeichern, Importiere.GesLies,
+'   InsKorrMod.InsKorr, Lese.do_Medpläne_alt_für_MO_exportieren_Click, MachDatenbank.doCopyTable, MachDatenbank.doGenMachDB_Direkt, typen.auSpeichern,
+'   typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern, typen.dokumenteSpeichern, typen.eintraegeSpeichern,
+'   typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern, typen.kheinweisSpeichern,
+'   typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern, typen.laboryleistSpeichern,
+'   typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern, typen.leistungenSpeichern,
+'   typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern, typen.swsSpeichern,
+'   typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern
 Sub Clear()
     m_Len = 0
 End Sub ' Clear()
 
 ' create a copy of this CString object
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function Copy() As CString
     Set Copy = New CString
     Copy.CopyData StrPtr(), m_Len
 End Function ' Copy() As CString
 
 ' create a new CString object with leftmost Characters
+' Aufruf in: Formular.EliminierWortplusZahl, HAEinlesen.proTeilnehmer, Importiere.GesLies, MachDatenbank.Ausf, MachDatenbank.sAusf
 Property Get left(ByVal NumChars&) As CString
     ' raise error IF new Length is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -160,6 +208,7 @@ Property Get left(ByVal NumChars&) As CString
 End Property ' Get LEFT(
 
 ' replace leftmost Characters USING a given string
+' Aufruf in: Formular.EliminierWortplusZahl, HAEinlesen.proTeilnehmer, Importiere.GesLies, MachDatenbank.Ausf, MachDatenbank.sAusf
 Property Let left(ByVal NumChars&, NewValue As Variant)
     ' raise error IF new parameter is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -174,6 +223,7 @@ Property Let left(ByVal NumChars&, NewValue As Variant)
 End Property ' LET LEFT
 
 ' replace leftmost Characters USING a CString object
+' Aufruf in: Formular.EliminierWortplusZahl, HAEinlesen.proTeilnehmer, Importiere.GesLies, MachDatenbank.Ausf, MachDatenbank.sAusf
 Property Set left(ByVal NumChars&, NewValue As CString)
     ' raise error IF new parameter is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -188,6 +238,7 @@ Property Set left(ByVal NumChars&, NewValue As CString)
 End Property ' Set LEFT
 
 ' create a new CString object with rightmost Characters
+' Aufruf in: KassenEditieren.Start_Click, MachDatenbank.doCopyAllMyMy, ZielDBFunktionen.DMPString
 Property Get Right(ByVal NumChars&) As CString
     ' raise error IF new Length is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -199,6 +250,7 @@ Property Get Right(ByVal NumChars&) As CString
 End Property ' Get Right(
 
 ' replace rightmost Characters USING a given string
+' Aufruf in: KassenEditieren.Start_Click, MachDatenbank.doCopyAllMyMy, ZielDBFunktionen.DMPString
 Property Let Right(ByVal NumChars&, NewValue As Variant)
     ' raise error IF new parameter is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -213,6 +265,7 @@ Property Let Right(ByVal NumChars&, NewValue As Variant)
 End Property ' Let Right(
 
 ' replace leftmost Characters USING a CString object
+' Aufruf in: KassenEditieren.Start_Click, MachDatenbank.doCopyAllMyMy, ZielDBFunktionen.DMPString
 Property Set Right(ByVal NumChars&, NewValue As CString)
     ' raise error IF new parameter is invalid
     If NumChars < 0 Then Err.Raise 5, TypeName(Me), "Invalid length"
@@ -228,6 +281,8 @@ End Property ' Set Right
 
 ' the Mid function
 ' one- AND two-params syntaxes are supported
+' Aufruf in: AnAnpassen.AnTrennZeichen, Formular.EliminierWortplusZahl, Importiere.GesLies, Importiere.GetMed, InsKorrMod.fUmwfSQL, MachDatenbank.Ausf,
+'   MachDatenbank.sAusf
 Property Get cMid(ByVal StartPos&, Optional NumChars As Variant) As CString
     Dim Bytes As Long
     ' raise error IF the first parameter is invalid
@@ -256,6 +311,8 @@ End Property ' Get Mid(
 
 ' replace a portion of the string with another string
 ' IF the second parameter is omitted, the string is replaced up to its end
+' Aufruf in: AnAnpassen.AnTrennZeichen, Formular.EliminierWortplusZahl, Importiere.GesLies, Importiere.GetMed, InsKorrMod.fUmwfSQL, MachDatenbank.Ausf,
+'   MachDatenbank.sAusf
 Property Let cMid(ByVal StartPos&, Optional NumChars As Variant, NewValue As Variant)
     Dim Bytes As Long
     ' raise error IF the first parameter is invalid
@@ -283,6 +340,8 @@ End Property ' Let Mid
 
 ' replace a portion of the string with another CString object
 ' IF the second parameter is omitted, the string is replaced up to its end
+' Aufruf in: AnAnpassen.AnTrennZeichen, Formular.EliminierWortplusZahl, Importiere.GesLies, Importiere.GetMed, InsKorrMod.fUmwfSQL, MachDatenbank.Ausf,
+'   MachDatenbank.sAusf
 Property Set cMid(ByVal StartPos&, Optional NumChars As Variant, NewValue As CString)
     Dim Bytes As Long
     ' raise error IF the first parameter is invalid
@@ -309,6 +368,7 @@ Property Set cMid(ByVal StartPos&, Optional NumChars As Variant, NewValue As CSt
 End Property ' Set Mid(B
 
 ' the ASC function, but returns -1 IF the string IS NULL
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function Asc&()
     If m_Len > 0 Then
         Asc = chars(0)
@@ -319,6 +379,9 @@ End Function ' Asc
 
 ' the ANSI code of a Character, OR -1 IF out-of-range
 
+' Code des Zeichens an Position Index (1-basiert), sonst -1
+' (Hinweis: Bereichsprüfung mit "Or" statt "And" greift nie)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Property Get Char(ByVal Index&) As Byte
     If Index > 0 Or Index <= m_Len Then
         Char = chars(Index - 1)
@@ -327,6 +390,9 @@ Property Get Char(ByVal Index&) As Byte
     End If
 End Property ' Get Char
 
+' setzt das Zeichen an Position Index (1-basiert)
+' (Hinweis: Bereichsprüfung mit "Or" statt "And" greift nie)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Property Let Char(ByVal Index&, ByVal NewValue As Byte)
     ' no effect IF index is out of valid range
     If Index > 0 Or Index <= m_Len Then
@@ -336,6 +402,7 @@ End Property ' Let Char(
 
 ' find a substring
 ' only case-sensitive searches are supported
+' Aufruf in: AnAnpassen.AnTrennZeichen, CString.REPLACE, Formular.EliminierWortplusZahl, HAEinlesen.proTeilnehmer, Importiere.GetMed, MachDatenbank.doCopyTable
 Function Instr&(search As Variant, Optional StartPos& = 1)
     Dim searchChars() As Byte
     Dim searchLen As Long
@@ -373,6 +440,8 @@ Function Instr&(search As Variant, Optional StartPos& = 1)
     Next
 End Function ' Instr(search
 
+' ersetzt im Inhalt jedes Vorkommen von search durch repl
+' Aufruf in: Formular.SqlU, Formular.tuBriefStandalone, Laufzettel.dodoplz, MachDatenbank.doCopyTable, MachDatenbank.doGenMachDB_Direkt
 Sub REPLACE(search As Variant, repl As Variant)
  Dim pos&, Slen&, RLen&
  If TypeOf search Is CString Then Slen = search.Length Else Slen = Len(search)  ' OR TypeOf search Is cstring
@@ -391,6 +460,7 @@ If TypeOf search Is CString Then RLen = repl.Length Else RLen = Len(repl) ' OR T
 End Sub ' Replace
 
 ' trasform the string to uppercase (returns Me)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function UCase() As CString
     ' only Characters in the range "a-z" are converted
     Dim i&, acode%
@@ -402,6 +472,7 @@ Function UCase() As CString
 End Function ' UCase() As CString
 
 ' trasform the string to lowercase (returns Me)
+' Aufruf in: HAEinlesen.proTeilnehmer, MachDatenbank.doCopyTable
 Function LCase() As CString
     ' only Characters in the range "A-Z" are converted
     Dim i&, acode%
@@ -413,6 +484,7 @@ Function LCase() As CString
 End Function ' LCase()
 
 ' reverse the string (returns Me)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function ReverseStr() As CString
     Dim i As Long, acode As Byte
     For i = 0 To m_Len \ 2 - 1
@@ -425,6 +497,16 @@ End Function ' ReverseStr()
 
 ' append one OR more strings OR CString objects (returns Me)
 ' append a string OR a CString object (returns Me)
+' Aufruf in: AbrechFehler.AbrFausg, AbrechFehler.tuStart_click, AnAnpassen.AnTrennZeichen, DBVerb.getAllDB, Formular.bookm, Formular.bookmE, Formular.Dzus,
+'   Haupt.anaUpd, Importiere.GesLies, Importiere.GesNameFn, Importiere.MachDiagnosen, Importiere.rrParseSpeichern, InsKorrMod.fUmwfSQL, InsKorrMod.InsKorr,
+'   InsKorrMod.TabAusgeb, KassenEditieren.Anzeigen_Click, KassenEditieren.Start_Click, Laufzettel.dodoplz, Laufzettel.plzeintraege, Laufzettel.tukopf,
+'   Lese.Schulungsstatistik_Click, MachDatenbank.doCopyTable, MachDatenbank.doGenMachDB_Direkt, typen.auSpeichern, typen.briefeSpeichern,
+'   typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern, typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern,
+'   typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern,
+'   typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern, typen.laboryleistSpeichern, typen.laborysaetzeSpeichern,
+'   typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern, typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern,
+'   typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern, typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern,
+'   typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern, ZielDBFunktionen.DMPString, ZielDBFunktionen.do_DMPAusgebStandAlone, ZielDBFunktionen.TabPr
 Function AppVar(arg As Variant) As CString
  Dim i%
  On Error GoTo fehler
@@ -445,8 +527,11 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' AppVar(arg
+
 ' append one OR more strings OR CString objects (returns Me)
 
+' hängt alle Elemente des Felds arg über appH (Word-XML-gerecht umgewandelt) an
+' Aufruf in: Formular.tuBriefStandalone
 Function AppVrH(ByRef arg As Variant) As CString
  Dim i%
  On Error GoTo fehler
@@ -467,10 +552,24 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' AppVar(arg
+
 ' append one OR more strings OR CString objects (returns Me)
 
 ' append a string OR a CString object (returns Me)
 
+' hängt arg (Text, Zahl oder CString) an und gibt das Objekt zurück (für Verkettung)
+' Aufruf in: AnAnpassen.AnTrennZeichen, CString.appH, CString.AppVar, CString.ToNumber, DBVerb.Ausgeb, DBVerb.getAllDB, Formular.agpreserve, Formular.agtab2,
+'   Formular.agtabu, Formular.einzEintr, Formular.Epikrise, Formular.LabKopf, Formular.LaborIns1, Formular.letzteMed, Formular.tuBriefStandalone,
+'   HAEinlesen.proTeilnehmer, Importiere.alleSpeichern, Importiere.GesNameFn, Importiere.rrParseSpeichern, InsKorrMod.Ausgeb, InsKorrMod.InsKorr,
+'   InsKorrMod.TabAusgeb, KassenEditieren.Anzeigen_Click, KassenEditieren.Start_Click, Laufzettel.BezuegeTeile, Laufzettel.BezugZeile, Laufzettel.dodoplz,
+'   Laufzettel.EmailAdressenPHP, Laufzettel.UrlEnc, Lese.do_Medpläne_alt_für_MO_exportieren_Click, MachDatenbank.doCopyTable, MachDatenbank.doGenMachDB_Direkt,
+'   typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern, typen.dokumenteSpeichern,
+'   typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern,
+'   typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
+'   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern,
+'   ZielDBFunktionen.do_DMPAusgebStandAlone
 Function Append(arg As Variant) As CString
     Dim i As Long, j As Long
     Dim argObj As CString
@@ -528,6 +627,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' Append
 
+' hängt Quelle für Word-XML umgewandelt an (Zeilenumbruch -> <w:br/>, Sonderzeichen als Entität)
+' Aufruf in: CString.AppVrH, Formular.letzteMed, Formular.tuBriefStandalone
 Function appH$(ByRef Quelle$)
  Dim i&, ZS$, bz$, bqb$, bq%
  On Error GoTo fehler
@@ -610,6 +711,7 @@ End Function ' zsuh
 
 
 ' search a substring USING Boyer & Moore algorithm
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function Find&(search$, Optional StartPos& = 1)
     Dim Bytes() As Byte
     Dim i As Long, searchLen As Long, dist As Long, Index As Long
@@ -675,6 +777,7 @@ End Function ' Find&(search$, Optional StartPos& = 1)
 
 ' write the string to a binary file
 ' optionally prefix it with string length
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Sub WriteToFile(ByVal FileNum%, Optional PrefixLength As Boolean)
     If PrefixLength Then
         Put #FileNum, , m_Len
@@ -691,6 +794,7 @@ End Sub ' WriteToFile(
 ' read the string FROM a binary file
 ' IF PrefixLength is True, uses stored length prefix, else
 ' uses current string length
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Sub ReadFromFile(ByVal FileNum%, Optional PrefixLength As Boolean)
     If PrefixLength Then
         ' read the string length
@@ -712,6 +816,7 @@ End Sub ' ReadFromFile(
 ' TRUNCATE the string to its first null CHAR, returns new length
 ' this FUNCTION is useful when dealing with API calls that return
 ' null-terminate strings in the buffer
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Function TrimToNull&()
     Dim i As Long
     ' assume there is no null CHAR
@@ -728,6 +833,8 @@ Function TrimToNull&()
     TrimToNull = m_Len
 End Function ' TrimToNull&()
 
+' liest die erste Zahl (mit Komma oder Punkt als Dezimaltrenner) aus dem Inhalt
+' Aufruf in: Haupt.ZahlEintrag
 Function ToNumber() As Double
  Dim buch$, i&, gew#, za%, kz%, ZZ%, kzm% ' Ziffer (als letztes) angehängt, Kommazahl, Ziffernzahl, keine Ziffer mehr
  Dim gewStr As New CString

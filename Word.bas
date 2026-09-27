@@ -24,6 +24,8 @@ Public Const wdBorderDiagonalDown% = -7
 Public Const wdBorderDiagonalUp% = -8
 Public Declare Function sndPlaySound32& Lib "winmm.dll" Alias "sndPlaySoundA" (ByVal lpszSoundName$, ByVal uFlags&)
 
+' rechnet Zentimeter in Punkte (1/72 Zoll) um
+' Aufruf in: Formular.LaborIns1, Formular.LaborTabAnp, Formular.tuBriefStandalone
 Function CentimetersToPoints#(cm#)
  On Error GoTo fehler
  CentimetersToPoints = cm * 28.34646
@@ -42,6 +44,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' CentimetersToPoints
 
+' Hauptversionsnummer des laufenden Word (Wapp.Build)
+' Aufruf in: Formular.LaborIns1, Formular.tuBriefStandalone
 Function WappBuild&()
  Dim Spl$()
  Spl = Split(CStr(Wapp.Build), ".")
@@ -61,6 +65,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' WappBuild
 
+' wartet (aktiv) sek Sekunden
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function WarteSekunden(sek#)
  Dim T1#, T2#
  T1 = Now
@@ -70,6 +76,9 @@ Public Function WarteSekunden(sek#)
  Loop
 End Function
 
+' spielt die Wave-Datei Pfad asynchron ab
+' Aufruf in: AnBog.vCommandB_Click, Formular.do_Diagnosen_Reset, Formular.do_HAC, Formular.Epikrise, Formular.Piep, Formular.PiepKurz, Formular.snie,
+'   Formular.tuBriefStandalone
 Public Function Sound(Pfad$)
  On Error GoTo fehler
  Call sndPlaySound32(Pfad, 1)
@@ -89,6 +98,9 @@ End Select
 End Function
 
 ' aufgerufen in: do_anzeigen_click, do_PhotoImpact_Click, cmdPreview_Click, tuBriefStandalone, testWied
+' setzt Wapp auf das laufende oder ein neu gestartetes Word
+' 27.9.26: Aufruf in: Formular.cmdPreview_Click, Formular.do_anzeigen_click, Formular.do_PhotoImpact_Click, Formular.GetVorDat, Formular.testWied,
+'   Formular.tuBriefStandalone, Formular.WordDateiOeffnen, Formular.WordDateiSchlieﬂen
 Public Sub GetWord()
  On Error GoTo fehler
   Set Wapp = getAppl("OpusApp", "Word.Application")
@@ -108,6 +120,9 @@ End Select
 End Sub ' GetWord()
 
 ' in GetWord
+' liefert die laufende Instanz der Anwendung ObjName (z.B. Word.Application) oder startet eine neue;
+' merkt sich in WordWasNotRunning, ob sie schon lief
+' 27.9.26: Aufruf in: WinWord.GetWord
 Public Function getAppl(className, ObjName) As Object 'Word.Application
 
 ' Test to see IF there is a copy of Micr
@@ -179,6 +194,7 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' getAppl
+
 'Demo of how to call the above sub
 
 

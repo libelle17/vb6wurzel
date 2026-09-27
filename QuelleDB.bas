@@ -49,6 +49,14 @@ Public Enum ConDtb
  q2Dtb
 End Enum ' ConDtb
 
+' Ersatz für DBCn.OpenSchema: liefert die Spalten (information_schema.columns) der Tabelle aus Crit in der aktuellen Datenbank
+' Aufruf in: AnAnpassen.do_anImp, Haupt.doMacheTypen, Haupt.doMachSQL0, Haupt.doMachSQL2, Haupt.doMachSQL3, Haupt.MacheTypen, Importiere.alleSpeichern,
+'   Importiere.AnPack, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhfeldSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern,
+'   typen.fussSpeichern, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laboryleistSpeichern, typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern,
+'   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
+'   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern
 Public Function DBCnOSchema(adSc As SchemaEnum, Crit, Optional SchemaID) As ADODB.Recordset
  On Error GoTo fehler
 ' SET DBCnOSchema = DBCn.OpenSchema(adSc, Crit, SchemaID)
@@ -75,6 +83,7 @@ End Select
 End Function ' DBCnOSchema
 
 #If False Then
+' alte Fassung von syscmd (abgeschaltet, s. ComputerToolsFrei.syscmd)
 Public Function syscmd(art%, Optional Inhalt$)
  On Error Resume Next
  Select Case art
@@ -102,6 +111,8 @@ End Select
 End Function ' syscmd(art%, Optional Inhalt$)
 #End If
 
+' setzt die datenbankabhängigen SQL-Bausteine (sqlIGNORE, sqlDeletefrom, sqlText usw.) für MySQL bzw. Access
+' Aufruf in: Dialog.doobMyQuelle_Click, Formular.DtbCreateQueryDef, HAAkt.doHAAkt, ImportiereLabor.LaborErgPatId, ImportiereLabor.SpMod, QuelleDB.acon
 Function Zinit(obMySQL As Boolean)
  If obMySQL Then
 '  kla = "`"
@@ -144,6 +155,10 @@ Function Zinit(obMySQL As Boolean)
  End If ' forms(0).obmysql
 End Function ' Zinit
 
+' maskiert q für SQL je nach Datenbankart (s. doUmwfSQL)
+' Aufruf in: Formular.doDiagnosenexport, Formular.test_fdübertrag, Haupt.liesExcel, Lade.DateiBearbeiten_Click, Laufzettel.tabelleInplz,
+'   Lese.doGNR_Statistiken_einl_Click, PatAuswahl.getPat_id, PatAuswahl.PatName_Change, PatListe.csvLesen, PatListe.ExcelLesen, PatListe.LabordateiAnzeig,
+'   vonMo.doPatvonMO, ZielDBFunktionen.do_DMPAusgebStandAlone
 Function UmwfSQL(q$) ' umw$(q$)
 ' IF LVobMySQL THEN
 '  umw = replace$(replace$(Trim$(q), "\", "\\"), "'", "\'")
@@ -155,6 +170,7 @@ End Function ' umw
 
 ' Liefert einen Connection-String, vorbehaltlich des verfügbaren Servers (LiName) im Fall von MySQL;
 ' öffnet die Verbindung nicht
+' Aufruf in: QuelleDB.acon, WerteVerarbeiten.AnReparieren
 Public Function aCStr$(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccName$, Optional DBName$, Optional obregneu%)
    Dim TBName$, Ü$
    Ü = vNS
@@ -317,6 +333,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(ErrNumber) & vbCrLf & "Las
 End Select
 End Function ' aCStr()
 
+' Datenbankname zum Datentyp (quelle, kvaerzte, faxeinp, fotosinp, office)
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function DBNamS$(DtT As DatenTyp)
  On Error GoTo fehler
  Select Case DtT
@@ -347,6 +365,13 @@ End Select
 End Function ' DBName
 
 ' in Vergleiche
+' stellt die Verbindung zum Datentyp DtT her (quelle, Hausärzte, Fax, Fotos, Office), bestimmt dazu Datenbank bzw.
+' Access-Datei, setzt DBCn bzw. HAECn/FxCn/FtCn/OffCn und ggf. die SQL-Bausteine (obZinit); gibt die Verbindung zurück
+' 27.9.26: Aufruf in: Dialog.doEinles, Dialog.doobMyQuelle_Click, Dialog.Form_Load, Dialog.FrmLEinlesung, Formular.Datenbankkontrolle, Formular.do_haakt,
+'   Formular.doBriefeBerichtspflicht, Formular.fobHAimDMP, Haupt.adoxtest, Haupt.anaUpd, Haupt.BooleanFld, Haupt.dokpfadänder, Haupt.doWirt, Haupt.ergEBM,
+'   Haupt.HolReg, Haupt.Vergleiche, Haupt.VergleichTab, HausärzteHier.HAzählen, Importiere.EmailsImport, Importiere.kompakt, LabEintr.abhaken_Click,
+'   LabEintr.LadDaten, Laufzettel.dodoplz, Lese.doppelteFaxe_Click, Lese.ProgStart, PatAuswahl.AuswHA, PatAuswahl.do_Pat_ID_Change, PatAuswahl.HAAusw_Change,
+'   PatAuswahl.HAAusw_KeyDown, WerteVerarbeiten.bittest1
 Public Function acon(DtT As DatenTyp, Optional cdTB As ConDtb, Optional AccName$, Optional DBName$, Optional CnStr$, Optional obZinit%, Optional obregneu%, Optional ohneFallzeig%) As ADODB.Connection
  Static altcdTB As ConDtb
  Dim erg$
@@ -631,6 +656,23 @@ End Function ' acon
 'End FUNCTION 'doConstrFestleg(dlg AS dialog)
 '#END IF
 
+' Datum/Zeit als SQL-Literal: MySQL yyyymmddhhmmss, Access #mm/dd/yy hh:mm:ss#, Null als NULL
+' Aufruf in: AbrechFehler.ZeigSQL, DiagAnzeige.LadeZeilen, Dialog.doEinles, Formular.do_RRParse, Formular.doBriefeBerichtspflicht, Formular.doDiagnosenexport,
+'   Formular.dodo_u_Click, Formular.doDuplexkontrollieren, Formular.doVa_Click, Formular.doXtra_Click, Formular.doZn_Click, Formular.Epikrise,
+'   Formular.kkeintraege, Formular.SchulzBest, Formular.test_fdübertrag, Formular.tuBriefStandalone, HAEinlesen.proTeilnehmer, Haupt.anaIns, Haupt.anaUpd,
+'   Haupt.doHilfsmittelklassifikationen, Haupt.TabFuellSnSh, Haupt.TIns, Haupt.TUpd, Importiere.DiagString, Importiere.dolies, Importiere.EintragStart,
+'   Importiere.Eintragszl, Importiere.EintragZusatz, Importiere.laborparameterSpeichern, Importiere.MedArtenPruef, Importiere.medklass2,
+'   Importiere.rrParseSpeichern, ImportiereLabor.LaborDirektImport, ImportiereLabor.LaborErgPatId, ImportiereLabor.löschBezügeausLaboryus,
+'   Kompilierbarkeit.doFAnfFuell, LabEintr.abhaken_Click, Laufzettel.tabelleInplz, Lese.DMPForts_Click, Lese.doGNR_Statistiken_einl_Click, Lese.dVerz,
+'   Lese.MedOffTabZahl_Click, Lese.MedOffZpSetzen_Click, Lese.Pumpenträgerliste_Click, PatListe.domachDMPBogen, PatListe.LabordateiAnzeig, PatListe.MFG_MouseUp,
+'   TabÜbertr.TIns, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
+'   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern,
+'   typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
+'   typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenSpeichern, typen.leistungenSpeichern,
+'   typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern, typen.swsSpeichern,
+'   typen.tuSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern, vonMo.holHAausMO,
+'   WerteVerarbeiten.erbe, ZielDBFunktionen.alleDMPLeiDok, ZielDBFunktionen.diI, ZielDBFunktionen.diT, ZielDBFunktionen.DMPString, ZielDBFunktionen.dododoPorto,
+'   ZielDBFunktionen.doRestlicheBriefe, ZielDBFunktionen.FallExport, ZielDBFunktionen.MedPlanNr, ZielDBFunktionen.tuBriefeLeiDok
 Function DatFor_k$(DaT) ' for vb-Datumsformat oder vb-double (#)
  On Error GoTo fehler
  If IsNull(DaT) Then
@@ -656,6 +698,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' DatFor_k
 
+' Datum als SQL-Literal: MySQL yyyymmdd, Access #mm/dd/yy#, Null als null
+' Aufruf in: QuelleDB.SelDatum
 Function DatForD$(DaT) ' for vb-Datumsformat oder vb-double (#)
  On Error GoTo fehler
  If IsNull(DaT) Then
@@ -679,6 +723,9 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
 End Select
 End Function ' DatForD
+
+' SQL-Bedingung: Feld var liegt am Tag Datum
+' Aufruf in: Laufzettel.doPatientenlaufzettel, Lese.FalschAbgehakteUngueltig_Click, ZielDBFunktionen.dododoPorto
 Function SelDatum$(var$, Datum)
  Dim Beginn$
  Beginn = DatForD(Datum)
@@ -698,11 +745,15 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' SelDatum
 
+' öffnet ein Recordset mit sql auf der Access-Datei Pfad (nur lesen)
+' Aufruf in: QuelleDB.KVAccSuch
 Public Function AccOpen(ByRef accrs As ADODB.Recordset, ByRef sql$, ByRef Pfad$)
  Set accrs = Nothing
  accrs.Open sql, CStrAcc & Pfad, adOpenStatic, adLockReadOnly
 End Function ' AccOpen
 
+' öffnet die letzte Tabelle der Excel-Datei Pfad als Recordset
+' Aufruf in: Lade.DateiBearbeiten_Click
 Public Function xlsopen(ByRef accrs As ADODB.Recordset, ByRef Pfad$)
  Const XStrb = ";Extended Properties=""Excel 8.0;HDR=no;IMEX=1"""
  Static XlsCon As New ADODB.Connection
@@ -715,6 +766,8 @@ Public Function xlsopen(ByRef accrs As ADODB.Recordset, ByRef Pfad$)
  accrs.Open "`" & rX.Tables(rX.Tables.COUNT - 1).name & "`", XlsCon ' Hier Excel, nicht obmysql = 0!
 End Function ' xlsopen
 
+' sucht im Anamneseverzeichnis die aktuellste Access-Datei "KV*rzte*.mdb" mit vollständiger Hausärztetabelle (hae)
+' Aufruf in: PatAuswahl.Form_Load, QuelleDB.aCStr
 Public Function KVAccSuch$()
  Dim Fls As Files, Fl As File, lastDat#
  Dim FSO As New FileSystemObject
@@ -797,6 +850,7 @@ End Function ' KVAccSuch
 'End FUNCTION ' KVÄVorb
 
 #If False Then
+' stellt Tabellen und Spalten in quelle2 auf eine andere Sortierung um (abgeschaltet)
 Public Function doSortierungÄndern()
  Dim rs As New ADODB.Recordset, rdb As ADODB.Recordset, rt As ADODB.Recordset, rc As ADODB.Recordset
  Dim rAf&, altDefDB$
@@ -859,6 +913,8 @@ End Select
 End Function 'doSortierungÄndern
 #End If
 
+' stellt alle Datenbanken, Tabellen und Textspalten von latin1_german1_ci auf utf8mb4_german2_ci um
+' Aufruf in: Lese.SortierungÄndern_Click
 Public Function doSortierungÄndern0()
  Const altColl$ = "latin1_german1_ci", neuColl$ = "utf8mb4_german2_ci" 'neuColl$ = "latin1_german2_ci"
  Dim rs As New ADODB.Recordset, rdb As ADODB.Recordset, rt As ADODB.Recordset, rc As ADODB.Recordset
@@ -923,6 +979,9 @@ End Function ' doSortierungÄndern0
 
 
 ' in obAcc_Click, acon, wCnAendern, VergleichTab, fzsfuell
+' öffnet DBCn neu mit der Verbindungszeichenfolge CSStr (sonst mit der bisherigen); zeigt bei geänderter Verbindung
+' die Fälle neu an (außer ohneFallzeig)
+' 27.9.26: Aufruf in: Haupt.VergleichTab, Importiere.kompakt, QuelleDB.acon
 Public Function SetDBCn(CS As ADODB.Connection, CSStr$, Optional ohneFallzeig%)
   Dim altCS$
   On Error GoTo fehler
@@ -1033,6 +1092,9 @@ End Function ' DBCnSet(CS)
 'End SELECT
 'End FUNCTION ' testAktiv
 
+' Alter in vollen Jahren am Tag bei für das Geburtsdatum Geb
+' Aufruf in: Formular.do_Form_Current_AnBog, Formular.Epikrise, Formular.LabWert, Formular.LabwertA, Laufzettel.dodoplz, Laufzettel.UKPDS,
+'   PatListe.LabordateiAnzeig
 Public Function AlterBei!(bei As Date, Geb As Date)
   AlterBei = Year(bei) - Year(Geb)
   Select Case Month(Geb)
@@ -1046,6 +1108,117 @@ Public Function AlterBei!(bei As Date, Geb As Date)
   End Select
 End Function ' AlterBei!
 
+' beendet das Programm
+' Aufruf in: AbrechFehler.AbrFausg, AbrechFehler.DoDefs, AbrechFehler.Form_Load, AbrechFehler.ObenAusricht, AbrechFehler.QuartalFüll, AbrechFehler.SizeColumns,
+'   AbrechFehler.ZeigSQL, AnAnpassen.anal, AnAnpassen.AnAlle, AnAnpassen.AnDm2Fieseln, AnAnpassen.AnDmFieseln, AnAnpassen.dmpErg, AnAnpassen.do_anImp,
+'   AnAnpassen.gKw, AnAnpassen.Kusd, AnAnpassen.MachNumerisch, AnAnpassen.nächstes, AnAnpassen.obNein, AnAnpassen.obUnbek, AnAnpassen.usAl, AnAnpassen.usd,
+'   AnAnpassen.usdm0, AnAnpassen.usdm1, AnAnpassen.usdm2, AnAnpassen.usdmAlt, AnAnpassen.USfuss, AnAnpassen.USUlcus, AnAnpassen.USUlcusa, AnAnpassen.usVKGD,
+'   AnAnpassen.usVKGD2, AnBog.cmdAdd_Click, AnBog.cmdDelete_Click, AnBog.cmdEdit_Click, AnBog.cmdFirst_Click, AnBog.cmdLast_Click, AnBog.cmdNext_Click,
+'   AnBog.cmdPrevious_Click, AnBog.cmdRefresh_Click, AnBog.cmdUpdate_Click, AnBog.Form_MouseMove, AnBog.Suchen_Click, AnBog.vCheckb_MouseMove,
+'   AnBog.vCommandB_MouseMove, AnBog.vlab_MouseMove, AnBog.vOptionB_MouseMove, AnBog.vTextB_MouseMove, Arztwahl.Form_Load, BDTSchreib.callVerzPrüf,
+'   BDTSchreib.DAdd, BDTSchreib.ImportFolderHerricht, BDTSchreib.Start, BDTSchreib.VerzPrüf, BDTSchreib.ZSU, ComputerTools.CleanSockets,
+'   ComputerTools.DateiVergleichen, ComputerTools.GetOSVersion, ComputerTools.HostByName, ComputerTools.InitSockets, ComputerTools.KopDat,
+'   ComputerTools.ListFreigaben, ComputerTools.LokPfad, ComputerTools.machOrdner, ComputerTools.meld, ComputerTools.rufauf, ComputerTools.SetEnvir,
+'   ComputerTools.VerzPrüf, ComputerTools.VerzPrüfAlt, ComputerTools.VerzPrüfneu, ComputerToolsFrei.ausfsyn, ComputerToolsFrei.CptName,
+'   ComputerToolsFrei.GetExeF, ComputerToolsFrei.getIViewPfad, ComputerToolsFrei.holap, ComputerToolsFrei.maxODBC, ComputerToolsFrei.RegInh,
+'   ComputerToolsFrei.SplitNeuArr, ComputerToolsFrei.syscmd, ComputerToolsFrei.UserName, ComputerToolsFrei.zeigan, CString.Append, CString.appH, CString.AppVar,
+'   CString.AppVrH, DBVerb.Auswahl, DBVerb.cnVorb, DBVerb.CptListeGanz, DBVerb.Form_Activate, DBVerb.Form_KeyDown, DBVerb.Form_Load, DBVerb.Form_Unload,
+'   DBVerb.getAllDB, DBVerb.listOdbc, DBVerb.NurLauf_Click, DBVerb.Programmende_Click, DBVerb.RegLaden, DBVerb.RegSpeichern, DBVerb.ShowAllComputers,
+'   DBVerb.ShowAllDomains, DBVerb.Verbind, DBVerb.zeigdatenbanken, DBVerb.zeigtabellen, Dialog.doEinles, Dialog.FrmLEinlesung, FileTime.GetFileTime,
+'   FileTime.SetFileTime, FileTime.SetFileTimeByDate, Formular.Acti, Formular.AnpassForm, Formular.ArBName, Formular.BMRd, Formular.cmdPreview_Click,
+'   Formular.Datenbankkontrolle, Formular.ddsono, Formular.DetectExcel, Formular.Detectword, Formular.DiabetesDiagnose, Formular.diagexpHerricht,
+'   Formular.do_abgehakt_Click, Formular.do_An1Aufruf_click, Formular.do_An2Aufruf_click, Formular.do_AnAAufruf_click, Formular.do_anzeigen_click,
+'   Formular.do_AugenBefunde_Click, Formular.do_Ausgabe_Click, Formular.do_Briefe_Click, Formular.do_BZKurven_Click, Formular.do_CheckAufruf_click,
+'   Formular.do_Click_Vorbereit, Formular.do_Datenbank_Aufruf_Click, Formular.do_Datenquelle_Change, Formular.do_Diagnosen_Reset, Formular.do_do_Aufruf,
+'   Formular.do_DokDown, Formular.do_Dokumente_Click, Formular.do_FDatenquelle_Change, Formular.do_Form_AfterUpdate, Formular.do_form_beforeUpdate,
+'   Formular.do_Form_Close, Formular.do_Form_Current2, Formular.do_Form_Current_AnBog, Formular.do_Form_Open, Formular.do_gescannte_Datei_Click,
+'   Formular.do_haakt, Formular.do_Hirndurchblutungsstörung_Exit, Formular.do_Labor_Click, Formular.do_LaborDokumente_Form_Current,
+'   Formular.do_LaborDokumente_form_load, Formular.do_PhotoImpact_Click, Formular.do_RRParse, Formular.doBriefeBerichtspflicht, Formular.doDiagnosenexport,
+'   Formular.dodo_u_Click, Formular.dodoRRParse, Formular.doForm_Load, Formular.doGilb, Formular.doVa_Click, Formular.doViewsErstellen, Formular.doVorhandene,
+'   Formular.doXtra_Click, Formular.doZn_Click, Formular.DqC_A, Formular.DqC_U, Formular.DqC_UNZ, Formular.DtbCreateQueryDef, Formular.dynDiag,
+'   Formular.EinRueck, Formular.Epikrise, Formular.FaxSend, Formular.FlagInit, Formular.fobHAimDMP, Formular.GesDiagExp, Formular.GetExcel,
+'   Formular.getHausarzt, Formular.getHausarzt1, Formular.GetVorDat, Formular.hkGrund, Formular.inActi, Formular.kkeintraege, Formular.knöpfeanpassen,
+'   Formular.KRAdd, Formular.LaborIns1, Formular.LaborTabAnp, Formular.LaborTabAnp_alt, Formular.LabWert, Formular.LabWert0, Formular.LabwertA,
+'   Formular.LegNPFest, Formular.letzteMed, Formular.makeDatPfad, Formular.mdTest, Formular.obLH, Formular.OOOpen, Formular.PfadFestLeg, Formular.Piep,
+'   Formular.PiepKurz, Formular.PStatNeu, Formular.PStatus, Formular.ReadRegistryGetSubkey, Formular.RRParseF, Formular.SchulzBest, Formular.sensib,
+'   Formular.Taste, Formular.testWied, Formular.TheraErmitt, Formular.therinit, Formular.tuBriefStandalone, Formular.Urineintraege, Formular.WD,
+'   Formular.WiederHolungsBrief, Formular.zplschul, Formular.ZwischenSpeichern, Formular.Üw12, Formular.Üwrd, GetProcColl.EnumWindows,
+'   GetProcColl.FensterHandle, GetProcColl.GetProcessCollection, GetProcColl.GetWindowInfo, GetProcColl.GetWinHandle, GetProcColl.GFGW, GetProcColl.Ini,
+'   GetProcColl.IsWindowsNT, GetProcColl.KillProcessByPID, GetProcColl.ProcessHandle, GetProcColl.ProcessName, GetProcColl.ProcIDFromWnd, GetProcColl.SchauObDa,
+'   GetProcColl.schließ_direkt, GetProcColl.SwitchTo, GetProcColl.TrimNullChar, GetProcColl.WartAufProzeß, GetProcColl.WarteAuf, GetProcColl.WarteAufAlt,
+'   GetProcColl.WarteAufNicht, HAAkt.datformZ, HAEinlesen.getHAPDF, HAEinlesen.HAVerbinde, HAEinlesen.proTeilnehmer, HAEinlesen.ZiehDat, Haupt.adoxtest,
+'   Haupt.anaIns, Haupt.anaUpd, Haupt.BezHerstA, Haupt.BooleanFld, Haupt.dofallzahlstand, Haupt.doHilfsmittelklassifikationen, Haupt.dokpfadänder,
+'   Haupt.doMacheTypen, Haupt.doMachSQL0, Haupt.doMachSQL2, Haupt.doMachSQL3, Haupt.ergEBM, Haupt.fallzeig, Haupt.ForeignNo0, Haupt.fzsfuell, Haupt.getDokPfad,
+'   Haupt.getLDatei, Haupt.holFrist, Haupt.HolReg, Haupt.Key, Haupt.liesExcel, Haupt.machAbKü, Haupt.MacheTypen, Haupt.obAutoIncr, Haupt.SizeColumns,
+'   Haupt.TabFuellSnSh, Haupt.TIns, Haupt.TUpd, Haupt.Vergleiche, Haupt.VergleichTab, Haupt.Zeichensatz, Haupt.ZSU1, Haupt.ÜbertragFormulare,
+'   Importiere.alleSpeichern, Importiere.AnPack, Importiere.aufSplit, Importiere.AZEinfüg, Importiere.DiagString, Importiere.doDiag, Importiere.dolies,
+'   Importiere.doTabVorb, Importiere.EintragStart, Importiere.Eintragszl, Importiere.EintragZusatz, Importiere.EmailsImport, Importiere.fctEintrHist,
+'   Importiere.fctfDTyp, Importiere.fFanfFuell, Importiere.GesLies, Importiere.GesNameFn, Importiere.getAktByte, Importiere.GetDatumAusString,
+'   Importiere.getfeldinhvw, Importiere.kassenSpeichern, Importiere.KomEinfüg, Importiere.kompakt, Importiere.LaborEintr0, Importiere.laborparameterSpeichern,
+'   Importiere.laborparvorladen, Importiere.LeistEintr0, Importiere.LTEinfüg, Importiere.MachDiagnosen, Importiere.MacheDiagnosen, Importiere.medartenhier,
+'   Importiere.MedArtenPruef, Importiere.medklass2, Importiere.nbEinfüg, Importiere.neuQuartal, Importiere.obKeineNephropathie, Importiere.PatInit,
+'   Importiere.RezEintr, Importiere.RREintr, Importiere.rrParsen, Importiere.rrParseSpeichern, Importiere.rsAnamOpen, Importiere.Stutz, Importiere.VorstellSetz,
+'   ImportiereLabor.BDTtoDate, ImportiereLabor.BDTtoDateTime, ImportiereLabor.BDTtoTime, ImportiereLabor.indIns, ImportiereLabor.LaborDirektImport,
+'   ImportiereLabor.LaborErgPatId, ImportiereLabor.LöschRefNr, ImportiereLabor.ngfestleg, ImportiereLabor.RBDTtoDate, ImportiereLabor.SpMod,
+'   InsKorrMod.BegTrans, InsKorrMod.ComTrans, InsKorrMod.CurDB, InsKorrMod.DBCnOpen, InsKorrMod.DefDB, InsKorrMod.fUmwfSQL, InsKorrMod.GetSvr,
+'   InsKorrMod.InsKorr, InsKorrMod.myFrag, InsKorrMod.SplitNeu, InsKorrMod.TabAusgeb, InsKorrMod.wechsTrans, Kompilierbarkeit.doFAnfFuell,
+'   Kompilierbarkeit.FAnfFuell, LabEintr.abhaken_Click, LabEintr.FlexAusricht, LabEintr.Form_Load, LabEintr.Form_Resize, LabEintr.inTurbomedAnzeigen_Click,
+'   LabEintr.Irfan_Click, LabEintr.IrfanString, LabEintr.LadDaten, LabEintr.Photoimpact_Click, LabEintr.weiter_Click, LabEintr.zurück_Click,
+'   LaborregelDetail.cmdLoeschen_Click, LaborregelDetail.cmdSpeichern_Click, Lade.Auswahl_Click, Lade.DateiBearbeiten_Click, Lade.Form_Load, Lade.RegLaden,
+'   Lade.RegSpeichern, LANRauswahl.FuellListe, Laufzettel.dodoplz, Laufzettel.doPatientenlaufzettel, Laufzettel.getDiast, Laufzettel.LaborInsPLZ,
+'   Laufzettel.mplan, Laufzettel.plzeintraege, Laufzettel.tabelleInplz, Laufzettel.UKPDS, MachDatenbank.CptListeGanz, MachDatenbank.datformZ,
+'   MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy, MachDatenbank.doCopyDaten, MachDatenbank.doCopyIndices, MachDatenbank.doCopyRelations,
+'   MachDatenbank.doCopyTable, MachDatenbank.doCopyView, MachDatenbank.doEx_Direkt, MachDatenbank.doGenMachDB_Direkt, MachDatenbank.doMachZielDatenbank,
+'   MachDatenbank.GetFileToOpen, MachDatenbank.JetTyp, MachDatenbank.MySqlTyp, MachDatenbank.NurLauf_Click, MachDatenbank.sAusf, MachDatenbank.ServerZListeGanz,
+'   MachDatenbank.ShowAllComputers, MachDatenbank.ShowAllDomains, MCn.führaus, MCn.init, Medarten.cmdAdd_Click, Medarten.cmdDelete_Click,
+'   Medarten.cmdEdit_Click, Medarten.cmdFirst_Click, Medarten.cmdLast_Click, Medarten.cmdNext_Click, Medarten.cmdPrevious_Click, Medarten.cmdRefresh_Click,
+'   Medarten.cmdUpdate_Click, Medarten.Suchen_Click, modMemoScan.MemoScan, PatAuswahl.AuswHA, PatAuswahl.AuswName, PatAuswahl.AuswPat_id,
+'   PatAuswahl.AuswVorlage, PatAuswahl.do_Pat_ID_Change, PatAuswahl.Form_Load, PatAuswahl.getPat_id, PatAuswahl.HAAusw_Change, PatListe.AlleMark,
+'   PatListe.csvLesen, PatListe.DMPFüll, PatListe.doFS, PatListe.domachDMPBogen, PatListe.ExcelLesen, PatListe.FertigStellen, PatListe.Form_KeyDown,
+'   PatListe.Form_Load, PatListe.htmlb, PatListe.LabordateiAnzeig, PatListe.LaborregelAnzeig, PatListe.LaborTagAnzeig, PatListe.MFG_Click,
+'   PatListe.mfg_entercell, PatListe.MFG_MouseMove, PatListe.MFGrefresh, PatListe.RegLaden, PatListe.RegSpeichern, PatListe.tmbrieAnzeig, PatListe.tmbrloe,
+'   PatListe.tmbrverschieb, QuelleDB.acon, QuelleDB.aCStr, QuelleDB.DatFor_k, QuelleDB.DatForD, QuelleDB.DBCnOSchema, QuelleDB.DBNamS,
+'   QuelleDB.doSortierungÄndern0, QuelleDB.KVAccSuch, QuelleDB.SelDatum, QuelleDB.SetDBCn, RegComm.doHolReg, RegComm.doSetzReg, RegComm.fBeiSpei,
+'   RegComm.fBiSpei, RegComm.fDWSpei, RegComm.fRegAbfrageWert, RegComm.fStSpei, RegComm.fWerteLoeschen, RegComm.getReg, RegComm.ReadRegistryGetVALUES,
+'   RegComm.RegTrim, sFeld.Feld, sFeld.istKleinerAls, sFeld.unGleich, sFeldInh.FeldInh, sFeldInh.FeldInhVW, sFeldInh.istKleinerAls, sFeldInh.unGleich,
+'   sLpar.Abkü, sLpar.istKleinerAls, sLpar.Labor, sLpar.unGleich, SortierDatum.Datum, SortierDatum.Index, SortierDatum.istKleinerAls, SortierDatum.Text,
+'   SortierDatum.unGleich, SortierEintr.istKleinerAls, SortierEintr.unGleich, SortierFormularKopf.Foid, SortierFormularKopf.Index,
+'   SortierFormularKopf.istKleinerAls, SortierFormularKopf.unGleich, SortierHA.istKleinerAls, SortierHA.unGleich, SortierListe.Add,
+'   SortierListe.Class_Initialize, SortierListe.Class_Terminate, SortierListe.COUNT, SortierListe.Eingrenz, SortierListe.GetItem, SortierListe.Item,
+'   SortierListe.NewEnum, SortierListe.Remove, SortierListe.sCAdd, SortierListe.scinit, SortierListe.SuchItem, SortierMedi.Index, SortierMedi.istKleinerAls,
+'   SortierMedi.medi, SortierMedi.unGleich, SortierPatZuHA.istKleinerAls, SortierPatZuHA.unGleich, SortierString.Index, SortierString.istKleinerAls,
+'   SortierString.Stri, SortierString.unGleich, TabÜbertr.Form_KeyDown, TabÜbertr.GetAutoFeld, TabÜbertr.Start_Click, TabÜbertr.TIns, TabÜbertr.TZahl,
+'   TabÜbertr.zeigtabellen, TMIniDatei.Class_Initialize, TMIniDatei.Class_Terminate, TMIniDatei.DateiLes, TMIniDatei.ergSec, TMIniDatei.GetProp,
+'   TMIniDatei.iniDateiSchreib, TMIniDatei.Schreiben, TMIniDatei.SetProp, TMIniDatei.Sichern, TMIniDatei.UrsprungsZustand, TMIniDatei.Werte,
+'   TMIniProp.Bezeichnung, TMIniProp.Inhalt, TMIniProp.Kopiere, TMIniProp.VergleicheMit, TMIniPropColl.Add, TMIniPropColl.Class_Initialize,
+'   TMIniPropColl.Class_Terminate, TMIniPropColl.COUNT, TMIniPropColl.ElemAdd, TMIniPropColl.Item, TMIniPropColl.Kopiere, TMIniPropColl.NewEnum,
+'   TMIniPropColl.Remove, TMIniPropColl.UEAdd, TMIniPropColl.VergleicheMit, TMIniSection.Bezeichnung, TMIniSection.Item, TMIniSection.Kopiere,
+'   TMIniSection.UnterEig, TMIniSection.VergleicheMit, TMIniSectionColl.Add, TMIniSectionColl.Class_Initialize, TMIniSectionColl.Class_Terminate,
+'   TMIniSectionColl.COUNT, TMIniSectionColl.ElemAdd, TMIniSectionColl.Item, TMIniSectionColl.Kopiere, TMIniSectionColl.NewEnum, TMIniSectionColl.Remove,
+'   TMIniSectionColl.UEAdd, TMIniSectionColl.VergleicheMit, typen.AllesLösch, typen.auEinf, typen.auLaden, typen.auSpeichern, typen.briefeEinf,
+'   typen.briefeLaden, typen.briefeSpeichern, typen.desktopEinf, typen.desktopLaden, typen.desktopSpeichern, typen.diagnosenEinf, typen.diagnosenLaden,
+'   typen.diagnosenSpeichern, typen.dmpreiheEinf, typen.dmpreiheLaden, typen.dmpreiheSpeichern, typen.dokumenteEinf, typen.dokumenteLaden,
+'   typen.dokumenteSpeichern, typen.eintraegeEinf, typen.eintraegeLaden, typen.eintraegeSpeichern, typen.faelleEinf, typen.faelleLaden, typen.faelleSpeichern,
+'   typen.forminhfeldSpeichern, typen.forminhkopfEinf, typen.forminhkopfLaden, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussEinf,
+'   typen.fussLaden, typen.fussSpeichern, typen.kheinweisEinf, typen.kheinweisLaden, typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.LabLösch,
+'   typen.laborneuEinf, typen.laborneuLaden, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern, typen.laboryleistSpeichern,
+'   typen.laborysaetzeSpeichern, typen.laboryusSpeichern, typen.laborywertSpeichern, typen.lbanforderungenEinf, typen.lbanforderungenLaden,
+'   typen.lbanforderungenSpeichern, typen.leistungenEinf, typen.leistungenLaden, typen.leistungenSpeichern, typen.liuezSpeichern, typen.LöschePat,
+'   typen.medplanEinf, typen.medplanLaden, typen.medplanSpeichern, typen.namenEinf, typen.namenLaden, typen.namenSpeichern, typen.rezepteintraegeEinf,
+'   typen.rezepteintraegeLaden, typen.rezepteintraegeSpeichern, typen.rrEinf, typen.rrLaden, typen.rrSpeichern, typen.swsEinf, typen.swsLaden,
+'   typen.swsSpeichern, typen.tuSpeichern, typen.ulcusEinf, typen.ulcusLaden, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmEinf, typen.usdmLaden,
+'   typen.usdmSpeichern, typen.vkgdEinf, typen.vkgdLaden, typen.vkgdSpeichern, typen.voplEinf, typen.voplLaden, typen.voplSpeichern, vonMo.doPatvonMO,
+'   vonMo.explor, vonMo.HATrans, vonMo.holHAausMO, vonMo.moausgeb, vonMo.MOConInit, vonMo.MODiagnosen, vonMo.MODmpreihe, vonMo.MODmpreihe1, vonMo.MOKatLaden,
+'   vonMo.MOLeistungen, vonMo.ParseMemo, vonMo.richtHA, vonMo.richtleist, vonMo.tbtrans, vonMo.turichtdiag, vonMo.WechsMemo, WerteVerarbeiten.AnReparieren,
+'   WerteVerarbeiten.DMPAusgeb0, WerteVerarbeiten.erbe, WerteVerarbeiten.FormAufruf, WerteVerarbeiten.KommRep, WerteVerarbeiten.lebe,
+'   WerteVerarbeiten.machwertString, WinWord.CentimetersToPoints, WinWord.getAppl, WinWord.GetWord, WinWord.Sound, WinWord.WappBuild,
+'   ZielDBFunktionen.alleDMPLeiDok, ZielDBFunktionen.diI, ZielDBFunktionen.diT, ZielDBFunktionen.DMPString, ZielDBFunktionen.do_DMPAusgebStandAlone,
+'   ZielDBFunktionen.doAnwalt, ZielDBFunktionen.dododoPorto, ZielDBFunktionen.dodoFollowUp, ZielDBFunktionen.doRestlicheBriefe, ZielDBFunktionen.doTabakSt,
+'   ZielDBFunktionen.doTabakStAlt, ZielDBFunktionen.doUngeschriebeneBriefe, ZielDBFunktionen.DSeit, ZielDBFunktionen.einDMP, ZielDBFunktionen.FallExport,
+'   ZielDBFunktionen.FaxSend, ZielDBFunktionen.GesNamFn, ZielDBFunktionen.GetPrRR, ZielDBFunktionen.hollabor, ZielDBFunktionen.ImportFolderHerricht,
+'   ZielDBFunktionen.inMOAnz, ZielDBFunktionen.LabPat, ZielDBFunktionen.LeistungsExport1, ZielDBFunktionen.MedPlanAusAna, ZielDBFunktionen.MedPlanNr,
+'   ZielDBFunktionen.obhierdmpfn, ZielDBFunktionen.sonz, ZielDBFunktionen.TherAuskunft, ZielDBFunktionen.tuBriefeLeiDok, ZielDBFunktionen.ZSU,
+'   ZielDBFunktionen.zsuh
 Public Function ProgEnde()
  End
 End Function ' ProgEnde

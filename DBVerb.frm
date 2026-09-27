@@ -524,15 +524,23 @@ Dim zuRaisen%
 Dim altAusgabe As New CString
 Private obAbbruch%
 
+' Formular DBVerb: Dialog zum Auswählen und Herstellen einer Datenbankverbindung (ODBC-Treiber, Server, Benutzer,
+' Datenbank bzw. Access-Datei); Einstellungen je Überschrift in der Registry
+' rücksetzBedTbl: leert die Liste der Tabellen, die eine angezeigte Datenbank enthalten muss
+' Aufruf in: DBVerb.gemeinsam
 Public Sub rücksetzBedTbl()
  ReDim BedTbl(0)
 End Sub ' rücksetzBedTbl()
 
+' nimmt Wert in die Liste der Tabellen auf, die eine angezeigte Datenbank enthalten muss
+' Aufruf in: DBVerb.gemeinsam
 Public Sub setzBedTbl(Wert$)
  ReDim Preserve BedTbl(UBound(BedTbl) + 1)
  BedTbl(UBound(BedTbl)) = Wert
 End Sub ' setzBedTbl(Wert$)
 
+' liefert die x-te IP-Adresse des Rechners name (leer, wenn nicht auflösbar)
+' Aufruf in: DBVerb.ShowAllComputers
 Function HostByName$(name$, Optional x% = 0)
 Dim MemIp() As Byte
 Dim Y%
@@ -562,6 +570,8 @@ Next Y
 HostByName = left$(IpAddress, Len(IpAddress) - 1)
 End Function ' HostByName
 
+' liefert die Rechnernamen aller Windows-Domänen (einmal ermittelt, obneu: neu)
+' Aufruf in: DBVerb.Cpt_DropDown, DBVerb.getAllDB
 Function ShowAllDomains(Optional obneu%) As Collection
   Dim oNameSpace  As Object
   Dim oDomain     As Object
@@ -587,6 +597,8 @@ fehler:
  End Select
 End Function ' ShowAllDomains
 
+' nimmt die Rechner der Domäne strDomain mit IP-Adresse in die Listen Cpts/CptN auf
+' Aufruf in: DBVerb.ShowAllDomains
 Public Sub ShowAllComputers(ByVal strDomain$)
   Dim PrimDomainContr     As Object
   Dim oComputer           As Object
@@ -612,6 +624,8 @@ fehler:
  End Select
 End Sub ' ShowAllComputers(ByVal strDomain$)
 
+' Abbrechen: Einstellungen aus der Registry wiederherstellen, Formular ausblenden
+' Aufruf in: Ereignisprozedur
 Private Sub Abbruch_Click()
 ' Unload Me
  Call Form_Unload(Cancel:=True)
@@ -619,44 +633,64 @@ Private Sub Abbruch_Click()
  obAbbruch = True
 End Sub ' Abbruch_Click()
 
+' Verbindungsoption geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Check1_Click(Index%)
  If Not changeStill Then Call Verbind
 End Sub ' Check1_Click(index%)
 
+' Benutzer geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Benutzer_Change()
  If Not changeStill Then Call Verbind
 End Sub ' Benutzer_Change()
 
+' Benutzer ausgewählt: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Benutzer_Click()
  If Not changeStill Then Call Verbind
 End Sub ' Benutzer_Click()
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Datei_Change()
 ' Call doVerbind
 End Sub
 
+' Filter "nur Datenbanken mit Tabelle" umgeschaltet: Datenbankliste neu anzeigen
+' Aufruf in: Ereignisprozedur
 Private Sub obFilter_Click()
  Call zeigdatenbanken
 End Sub ' obFilter_Click()
 
+' Benutzerkennung geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub uid_Change()
  If Not changeStill Then Call Verbind
 End Sub ' uid_Change()
 
+' Benutzerkennung ausgewählt: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub uid_Click()
  If Not changeStill Then Call Verbind
 End Sub ' uid_Click()
 
+' Passwort geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub pwd_Change()
  If Not changeStill Then Call Verbind
 End Sub ' pwd_Change()
 
+' Passwort angeklickt: bei Änderung neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Pwd_Click()
  Static altPwd$
  If pwd <> altPwd Then If Not changeStill Then Call Verbind
  altPwd = pwd
 End Sub ' Pwd_Click()
 
+' Access-Datenbankdatei über den Dateidialog auswählen
+' Aufruf in: Ereignisprozedur
 Private Sub Datei_Click()
  Dim fileflags As FileOpenConstants
  Dim filefilter$
@@ -675,52 +709,74 @@ Private Sub Datei_Click()
  Call Me.Verbind
 End Sub ' Datei_Click()
 
+' Datenbankkennwort (Access) geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub DBKennw_Change()
   If Not changeStill Then Call Verbind
 End Sub ' DBKennw_Change()
 
+' Datenbankkennwort angeklickt: bei Änderung neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub DBKennw_Click()
  Static altDBKennw$
  If Me.DBKennw <> altDBKennw Then If Not changeStill Then Call Verbind
  altDBKennw = DBKennw
 End Sub ' DBKennw_Click
 
+' markiert beim Betreten das Datenbankkennwort
+' Aufruf in: Ereignisprozedur
 Private Sub DBKennw_GotFocus()
  Me.DBKennw.SelStart = 0
  Me.DBKennw.SelLength = Len(Me.DBKennw)
 End Sub ' DBKennw_GotFocus()
 
+' setzt beim Verlassen Überschriftzusatz und Tabellenbedingung zurück
+' Aufruf in: Ereignisprozedur
 Private Sub Form_Deactivate()
  Ü2 = vNS
  ReDim BedTbl(0)
 End Sub ' Form_Deactivate()
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Form_GotFocus()
 '
 End Sub
 
+' legt die Tabellenbedingung leer an
+' Aufruf in: Ereignisprozedur
 Private Sub Form_Initialize()
  ReDim BedTbl(0)
 End Sub ' Form_Initialize()
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Form_LinkOpen(Cancel As Integer)
 '
 End Sub
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Form_Paint()
 '
 End Sub
 
+' Passwort geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Paßwort_Change()
   If Not changeStill Then Call Verbind
 End Sub ' Paßwort_Change()
 
+' Passwort angeklickt: bei Änderung neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Paßwort_Click()
  Static altpaßwort$
  If Paßwort <> altpaßwort Then If Not changeStill Then Call Verbind
  altpaßwort = Paßwort
 End Sub ' Paßwort_Click
 
+' Datenbank geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub daba_Change()
  If Not changeStill Then
 '  Me.obQuelle = True
@@ -729,6 +785,8 @@ Private Sub daba_Change()
  End If
 End Sub ' daba_Change()
 
+' Datenbank ausgewählt: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub daba_Click()
  If Not changeStill Then
 '  Me.obQuelle = True
@@ -737,6 +795,8 @@ Private Sub daba_Click()
  End If
 End Sub ' daba_Click()
 
+' ODBC-Treiber geändert: Eingabefelder anpassen
+' Aufruf in: Ereignisprozedur
 Private Sub odbc_Change()
 ' IF Not changeStill THEN
 '  Call Verbind
@@ -746,6 +806,8 @@ Private Sub odbc_Change()
 ' END IF
 End Sub ' odbc_Change()
 
+' blendet die Felder je nach Treiber ein bzw. aus (Access: Datei und Datenbankkennwort, sonst Server, Datenbank, Optionen)
+' Aufruf in: DBVerb.odbc_Change, DBVerb.ODBC_Click
 Private Sub odbcAngl()
  Dim i%
  Dim altChangeStill%
@@ -800,6 +862,8 @@ Private Sub odbcAngl()
  If Not changeStill Then Call doVerbind
 End Sub ' odbcAngl
 
+' ODBC-Treiber ausgewählt: Felder anpassen und neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub ODBC_Click()
  If Not changeStill Then
   Call odbcAngl
@@ -807,24 +871,34 @@ Private Sub ODBC_Click()
  End If
 End Sub 'odbc_Click
 
+' füllt beim Aufklappen die Liste der ODBC-Treiber
+' Aufruf in: Ereignisprozedur
 Private Sub ODBC_DropDown()
   If Me.ODBC.ListCount = 0 Then
    Call listOdbc
   End If
 End Sub ' ODBC_DropDown()
 
+' Server geändert: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_Change()
   If Not changeStill Then Call Verbind
 End Sub ' Cpt_Change()
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_GotFocus()
 '
 End Sub
 
+' Server ausgewählt: neu verbinden
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_Click()
  If Not changeStill Then Call Verbind
 End Sub ' Cpt_Click()
 
+' füllt beim Aufklappen die Serverliste mit den Rechnern der Domänen
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_DropDown()
 ' Call Verbind
   If Me.Cpt.ListCount = 0 Then
@@ -835,20 +909,28 @@ Private Sub Cpt_DropDown()
   End If
 End Sub ' Cpt_DropDown()
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_KeyDown(KeyCode As Integer, Shift As Integer)
  If KeyCode = 115 And Shift = 0 Then ' F4
  End If
 '  Call Verbind
 End Sub ' Cpt_KeyDown(
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_LostFocus()
 ' Call Verbind
 End Sub ' Cpt_LostFocus
 
+' (ohne Aufgabe)
+' Aufruf in: Ereignisprozedur
 Private Sub Cpt_Scroll()
 ' Call Verbind
 End Sub ' Cpt_Scroll
 
+' Esc: abbrechen, Eingabetaste: übernehmen
+' Aufruf in: Ereignisprozedur
 Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
  On Error GoTo fehler
  Select Case KeyCode
@@ -869,6 +951,8 @@ fehler:
  End Select
 End Sub ' Form_KeyDown(
 
+' schaltet die Serverliste zwischen allen Rechnern und nur denen mit erreichbarem MySQL um
+' Aufruf in: Ereignisprozedur
 Private Sub NurLauf_Click()
  Dim rTs As New ADODB.Connection
 ' dim rs As New ADODB.Recordset ' geht auch nicht schneller
@@ -915,6 +999,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Sub ' NurLauf_Click
 
+' füllt die Serverliste mit allen Rechnern (aktueller Eintrag bleibt)
+' Aufruf in: DBVerb.Cpt_DropDown, DBVerb.NurLauf_Click
 Private Sub CptListeGanz()
  Dim i%
  On Error GoTo fehler
@@ -948,6 +1034,8 @@ fehler:
  End Select
 End Sub ' CptListeGanz()
 
+' blendet beim Laden die Access-Felder aus
+' Aufruf in: Ereignisprozedur
 Private Sub Form_Load()
  Dim i%
  On Error GoTo fehler
@@ -966,6 +1054,8 @@ fehler:
  End Select
 End Sub ' Form_Load
 
+' verbindet beim Aktivieren mit den eingestellten Werten
+' Aufruf in: Ereignisprozedur
 Private Sub Form_Activate()
  On Error GoTo fehler
  Screen.MousePointer = vbHourglass
@@ -981,6 +1071,7 @@ fehler:
 End Sub ' Form_Activate()
 
 ' liest Zugangsdaten (uid/pwd) aus der zentralen Freigabedatei statt aus der Registry
+' Aufruf in: DBVerb.RegLaden
 Private Function LiesZentraleDatei(schluessel$) As String
  Const ZentralPfad$ = "\\linux1\dbverbfreigabe\dbverb.cfg"
  Dim f%, ganz$, zeilen() As String, i&, p&, k$
@@ -1008,6 +1099,9 @@ Private Function LiesZentraleDatei(schluessel$) As String
 End Function ' LiesZentraleDatei
 
 ' aufgerufen in Form_Load
+' lädt ODBC-Treiber, Server, Benutzer, Passwort, Datenbank, Optionen usw. aus der Registry (bei Überschrift Ü in
+' deren Unterschlüssel); die Zugangsdaten uid/pwd kommen aus der zentralen Freigabedatei (LiesZentraleDatei)
+' 27.9.26: Aufruf in: DBVerb.Auswahl, DBVerb.cnVorb, DBVerb.Form_Unload
 Private Sub RegLaden(Ü$, Optional nuranfangs%)
  Dim neus$, neuB&
  Static angefangen%, altÜ$
@@ -1057,6 +1151,8 @@ fehler:
 End Sub ' regladen
 
 ' in Form_Unload
+' speichert Treiber, Server, Benutzer, Datenbank, Optionen, Passwort, Datei und Datenbankkennwort in der Registry
+' 27.9.26: Aufruf in: DBVerb.Form_Unload, Dialog.OKButton_Click
 Public Sub RegSpeichern()
  Dim cR As New Registry
  On Error GoTo fehler
@@ -1077,6 +1173,8 @@ fehler:
  End Select
 End Sub ' RegSpeichern
 
+' Abbrechen: Einstellungen neu laden, sonst in der Registry speichern
+' Aufruf in: Ereignisprozedur, DBVerb.Abbruch_Click, DBVerb.Form_KeyDown, DBVerb.OK_Click
 Private Sub Form_Unload(Cancel As Integer)
  On Error GoTo fehler
  If Cancel Then
@@ -1093,6 +1191,8 @@ fehler:
  End Select
 End Sub ' Form_Unload(Cancel As Integer)
 
+' setzt die Optionskästchen nach der Bitmaske opt
+' Aufruf in: DBVerb.RegLaden
 Sub setzeOpt()
  Dim i%, aktopt&
  aktopt = opt
@@ -1107,6 +1207,8 @@ Sub setzeOpt()
  changeStill = False
 End Sub ' setzeOpt()
 
+' berechnet die Bitmaske opt aus den Optionskästchen
+' Aufruf in: DBVerb.doVerbind
 Sub rechneOpt()
  Dim i%, lauf&
  opt = 0
@@ -1117,6 +1219,9 @@ Sub rechneOpt()
  Next i
 End Sub ' rechneOpt()
 
+' baut aus den Feldern die Verbindungszeichenfolgen (CnStr mit Datenbank, CoStr ohne, ConStr mit verdecktem Passwort) und
+' öffnet die Verbindung wCn; prüft ggf., ob die Tabelle Tabelle vorhanden ist; ErrDes erhält den Fehlertext
+' Aufruf in: DBVerb.Auswahl, DBVerb.cnVorb, DBVerb.odbcAngl, DBVerb.Verbind
 Function doVerbind%(Optional Tabelle$, Optional ErrDes$)
   Dim s1$, s2$
   Dim rX As New ADOX.Catalog, rxt As ADOX.Table
@@ -1229,6 +1334,8 @@ again:
    If zuRaisen Then RaiseEvent wCnAendern(Me.CnStr)
 End Function ' doVerbind
 
+' füllt die Datenbankliste des Servers (bei obFilter nur Datenbanken, die alle Tabellen aus BedTbl enthalten)
+' Aufruf in: DBVerb.obFilter_Click, DBVerb.Verbind
 Sub zeigdatenbanken()
  Dim rSch As New ADODB.Recordset, rs1 As New ADODB.Recordset, obMySQL%, i&, j&
  Dim tTbl%() ' teste Tabellen: wenn true, ist die jeweilige BedTbl enthalten
@@ -1339,6 +1446,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Sub ' zeigdatenbanken
 
+' zeigt die Tabellen der verbundenen Datenbank an
+' Aufruf in: DBVerb.Verbind
 Sub zeigtabellen()
  Dim rSch As New ADODB.Recordset, rs1 As New ADODB.Recordset, obMySQL%
  Me.Tabellen = vNS
@@ -1372,6 +1481,11 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Sub ' zeigTabellen
 
+' verbindet neu, wenn sich Server, Benutzer, Passwort, Treiber, Datenbank o.ä. gegenüber der letzten Verbindung geändert
+' haben, und zeigt Datenbanken und Tabellen an
+' Aufruf in: DBVerb.Benutzer_Change, DBVerb.Benutzer_Click, DBVerb.Check1_Click, DBVerb.Cpt_Change, DBVerb.Cpt_Click, DBVerb.daba_Change, DBVerb.daba_Click,
+'   DBVerb.Datei_Click, DBVerb.DBKennw_Change, DBVerb.DBKennw_Click, DBVerb.Form_Activate, DBVerb.ODBC_Click, DBVerb.Paßwort_Change, DBVerb.Paßwort_Click,
+'   DBVerb.pwd_Change, DBVerb.Pwd_Click, DBVerb.uid_Change, DBVerb.uid_Click
 Sub Verbind()
  Static DBChange%
  Dim i&, erg%, altUser$
@@ -1460,12 +1574,16 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Sub ' Verbind
 
+' übernehmen: Einstellungen speichern, Formular ausblenden
+' Aufruf in: Ereignisprozedur, DBVerb.Form_KeyDown
 Private Sub OK_Click()
 ' Unload Me
  Call Form_Unload(Cancel:=False)
  Me.Visible = False
 End Sub ' ok_click
 
+' füllt die Liste der installierten ODBC-Treiber (aus der Registry)
+' Aufruf in: DBVerb.ODBC_DropDown
 Public Sub listOdbc()
  Const strComputer$ = "."
  Dim objRegistry As Object, strKeyPath$, altChangeStill%
@@ -1542,21 +1660,29 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
  End Select
 End Sub ' listodbc
 
+' markiert beim Betreten das Passwort
+' Aufruf in: Ereignisprozedur
 Private Sub Paßwort_GotFocus()
  Me.Paßwort.SelStart = 0
  Me.Paßwort.SelLength = Len(Me.Paßwort)
 End Sub ' paßwort_gotfocus
 
+' beendet das Programm
+' Aufruf in: Ereignisprozedur
 Private Sub Programmende_Click()
  ProgEnde
 End Sub ' Programmende_Click
 
+' setzt den Überschriftzusatz Ü (Unterschlüssel der Registry-Einstellungen) und die Fensterüberschrift
+' Aufruf in: DBVerb.gemeinsam
 Private Function Überschrift(Ü$)
  Me.Ü2 = Ü
  Me.Caption = App.Title & IIf(LenB(Ü2) <> 0, " (" & Ü2 & ")", vNS) & ": " & Ü1
 ' Call Verbind
 End Function ' Überschrift
 
+' gemeinsamer Teil von cnVorb und Auswahl: Tabellenbedingung TBName und Filterknopf setzen, Überschrift Ü
+' Aufruf in: DBVerb.Auswahl, DBVerb.cnVorb
 Sub gemeinsam(TBName$, Ü$)
    If TBName <> "--multi" Then
     Call Me.rücksetzBedTbl
@@ -1570,6 +1696,9 @@ Sub gemeinsam(TBName$, Ü$)
    Call Überschrift(Ü)
 End Sub ' gemeinsam
 
+' bereitet ohne Anzeige die Verbindung zu DBName vor (Einstellungen aus der Registry, Tabelle TBName) und gibt die
+' Verbindungszeichenfolge zurück
+' Aufruf in: Lese.mdiForm_Load
 Function cnVorb$(DBName$, TBName$, Optional Ü$, Optional obregneu%, Optional RegNichtLaden%)
   Dim ErrNumber&, altChangeStill%
   Dim cR As New Registry
@@ -1622,6 +1751,9 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' cnVorb
 
+' zeigt den Dialog zur Auswahl der Verbindung (Vorgabe DBName, Tabelle TBName) und gibt die gewählte Verbindungszeichenfolge
+' zurück (bei Abbruch die bisherige)
+' Aufruf in: Dialog.DatenbankAuswahl_Click, Lade.Datenbankverbindung_Click, Lese.Datenbankverbindung_Click, MachDatenbank.AusgangsdatenbankWählen_Click
 Function Auswahl$(DBName$, TBName$, Optional Ü$)
  Dim altCn$
  On Error Resume Next
@@ -1679,6 +1811,8 @@ Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "La
 End Select
 End Function ' Auswahl
 
+' schreibt Text vorn in das Ausgabefeld (höchstens 3000 Zeichen), wenn das Formular sichtbar ist
+' Aufruf in: DBVerb.doVerbind
 Function Ausgeb(Text$, obDauer%)
  Dim aktText As New CString
  If Not Me.Visible Then
@@ -1719,6 +1853,7 @@ End Function ' Ausgeb
 
 ' 15.10.10: scheint nicht vorzukommen
 ' 28.6.24: nur in testgetAllDB
+' 27.9.26: Aufruf in: HAAkt.testgetalldb
 Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Optional pwd$ = "...", Optional obLeere%, Optional acSt)
  Dim Cpt, db$, eintragen%, Stri(1) As New CString, i%, runde%, ErrNr&
  Dim MyCn As ADODB.Connection, rdb As ADODB.Recordset, rHa As New ADODB.Recordset

@@ -17,6 +17,9 @@ Attribute VB_Ext_KEY = "Top_Level" ,"Yes"
 Private mvarBezeichnung$ 'lokale Kopie
 Private mvarUnterEig As TMIniPropColl 'lokale Kopie
 
+' Klasse TMIniSection: ein Abschnitt einer Turbomed-ini-Datei (Bezeichnung und Eigenschaften UnterEig)
+' UnterEig: Eigenschaften des Abschnitts (setzen)
+' Aufruf in: TMIniSection.Item, TMIniSection.Kopiere, TMIniSection.VergleicheMit
 Public Property Set UnterEig(ByVal vData As TMIniPropColl)
  On Error GoTo fehler
  Set mvarUnterEig = vData
@@ -29,6 +32,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property ' UnterEig[PropertySet]
 
+' Eigenschaften des Abschnitts (lesen)
+' Aufruf in: TMIniSection.Item, TMIniSection.Kopiere, TMIniSection.VergleicheMit
 Public Property Get UnterEig() As TMIniPropColl
  On Error GoTo fehler
  Set UnterEig = mvarUnterEig
@@ -41,6 +46,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property ' UnterEig[PropertyGet]
 
+' Name des Abschnitts (setzen)
+' Aufruf in: TMIniSection.Kopiere, TMIniSection.VergleicheMit, TMIniSectionColl.Add, TMIniSectionColl.Item
 Public Property Let Bezeichnung(ByVal vData$)
  On Error GoTo fehler
  mvarBezeichnung = vData
@@ -54,6 +61,8 @@ End Select
 End Property ' Bezeichnung[PropertyLet]
 
 
+' Name des Abschnitts (lesen)
+' Aufruf in: TMIniSection.Kopiere, TMIniSection.VergleicheMit, TMIniSectionColl.Add, TMIniSectionColl.Item
 Public Property Get Bezeichnung$()
 'wird beim Ermitteln eines Eigenschaftswertes auf der rechten Seite einer Zuweisung verwendet.
 'Syntax: Debug.Print X.Bezeichnung
@@ -68,6 +77,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property ' Bezeichnung[PropertyGet]
 
+' Eigenschaft des Abschnitts über Index oder Bezeichnung
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Property Get Item(vntIndexKey As Variant) As TMIniProp
  On Error GoTo fehler
  Set Item = UnterEig.Item(vntIndexKey)
@@ -80,6 +91,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Property ' Item[PropertyGet]
 
+' liefert eine Kopie des Abschnitts samt Eigenschaften
+' Aufruf in: (kein Aufruf in DateiLese.vbp gefunden)
 Public Function Kopiere() As TMIniSection
  On Error GoTo fehler
  Dim tmpS As New TMIniSection
@@ -96,6 +109,8 @@ Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "Last
 End Select
 End Function ' Kopiere
 
+' wahr (-1), wenn Vg gleich heißt und gleiche Eigenschaften hat
+' Aufruf in: TMIniSectionColl.VergleicheMit
 Public Function VergleicheMit(Vg As TMIniSection)
  On Error GoTo fehler
  If Vg.Bezeichnung = mvarBezeichnung Then
