@@ -37,18 +37,24 @@ Const $defAktivFarbe = 0xD2E2F7, $defToleranz = 12
 If $CmdLine[0] > 0 Then
 	Exit Reiter($CmdLine[1]) ? 0 : 1
 EndIf
-If _Singleton("MOReiter_resident", 1) = 0 Then Exit ; laeuft schon
+If _Singleton("MOReiter_resident", 1) = 0 Then ; laeuft schon
+	; sonst merkt man nicht, dass noch eine alte Version mit alten Hotkeys aktiv ist
+	MsgBox(64, "MOReiter", "MOReiter laeuft bereits." & @CRLF & "Fuer eine neue Version die alte zuerst ueber das Tray-Menue beenden.", 10)
+	Exit
+EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
 TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, Strg+Alt+L Krankenblatt, Strg+Alt+P ePA/ePAAbr")
-HotKeySet("^!k", "Wechsel")
-HotKeySet("^!l", "Krankenblatt")
-HotKeySet("^!p", "EpaWechsel")
-HotKeySet("^!+k", "KalibKartei")
-HotKeySet("^!+l", "KalibKrankenblatt")
-HotKeySet("^!+p", "KalibEpa")
-HotKeySet("^!+a", "KalibEpaAbr")
+Local $belegt = ""
+If Not HotKeySet("^!k", "Wechsel") Then $belegt &= @CRLF & "Strg+Alt+K"
+If Not HotKeySet("^!l", "Krankenblatt") Then $belegt &= @CRLF & "Strg+Alt+L"
+If Not HotKeySet("^!p", "EpaWechsel") Then $belegt &= @CRLF & "Strg+Alt+P"
+If Not HotKeySet("^!+k", "KalibKartei") Then $belegt &= @CRLF & "Strg+Alt+Umsch+K"
+If Not HotKeySet("^!+l", "KalibKrankenblatt") Then $belegt &= @CRLF & "Strg+Alt+Umsch+L"
+If Not HotKeySet("^!+p", "KalibEpa") Then $belegt &= @CRLF & "Strg+Alt+Umsch+P"
+If Not HotKeySet("^!+a", "KalibEpaAbr") Then $belegt &= @CRLF & "Strg+Alt+Umsch+A"
+If $belegt <> "" Then MsgBox(48, "MOReiter", "Von einem anderen Programm belegt, wirkungslos:" & $belegt, 10)
 While 1
 	Sleep(100)
 WEnd
@@ -166,7 +172,7 @@ Func Kalibrieren($name)
 	DirCreate(@AppDataDir & "\MOReiter")
 	IniWrite($Ini, $name, "X", $x)
 	IniWrite($Ini, $name, "Y", $y)
-	TrayTip("MOReiter", $name & " kalibriert: " & $x & ", " & $y, 3)
+	Hinweis($name & " kalibriert: " & $x & ", " & $y)
 	Return True
 EndFunc
 
@@ -174,7 +180,19 @@ Func Meldung($txt)
 	If $CmdLine[0] > 0 Then
 		ConsoleWriteError($txt & @CRLF)
 	Else
-		TrayTip("MOReiter", $txt, 3, 2)
+		Hinweis($txt)
 	EndIf
 	Return False
+EndFunc
+
+; ToolTip an der Maus, weil TrayTip unter Windows 10/11 eine Benachrichtigung ist,
+; die bei abgeschalteten Benachrichtigungen oder "Nicht stoeren" gar nicht erscheint
+Func Hinweis($txt)
+	ToolTip($txt, Default, Default, "MOReiter")
+	AdlibRegister("HinweisWeg", 3000)
+EndFunc
+
+Func HinweisWeg()
+	AdlibUnRegister("HinweisWeg")
+	ToolTip("")
 EndFunc
