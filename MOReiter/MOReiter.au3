@@ -5,6 +5,7 @@
 ; Kompilieren mit Icon: Aut2exe.exe /in MOReiter.au3 /out MOReiter.exe /icon MOReiter.ico
 ; MOReiter: waehlt in Medical Office den Reiter "Kartei", "Krankenblatt", "ePA" oder "ePAAbr" per Mausklick
 ; Aufruf:  MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr  -> einmal klicken und beenden (z.B. aus VB6 per Shell)
+;          MOReiter.exe LetztePatienten | Menue  -> Pfeil neben der Patientensuche bzw. drei Striche links oben
 ;          MOReiter.exe Filter 1..24             -> Kartei und dort den n-ten Filter waehlen
 ;          MOReiter.exe Wechsel                  -> Kartei, bzw. Krankenblatt, wenn Kartei schon aktiv ist
 ;          MOReiter.exe ePAWechsel               -> ePA, bzw. ePAAbr, wenn ePA schon aktiv ist
@@ -12,6 +13,14 @@
 ;            Strg+Alt+K        Kartei, ist Kartei schon aktiv: Krankenblatt
 ;            Strg+Alt+L        Krankenblatt
 ;            Strg+Alt+P        ePA, ist ePA schon aktiv: ePAAbr
+;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
+;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
+;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
+;                              oben anklicken (in die ePA hochladen), im folgenden Fenster "Hochladen" druecken
+;                              und einen danach erscheinenden Leistungsdialog mit "Uebernehmen" bestaetigen
+;            Strg+Alt+A        nur in der MO-Tagesuebersicht bei "Offene To-Dos": markierte Zeile als
+;                              erledigt abhaken und die nachrueckende Zeile markieren
+;            Strg+Alt+Umsch+A  in der Tagesuebersicht: Maus auf die Spalte "Bereich" halten und druecken
 ;            Strg+Alt+Umsch+K  Kalibrieren: Maus auf Reiter "Kartei" halten und druecken
 ;            Strg+Alt+Umsch+L  Kalibrieren: Maus auf Reiter "Krankenblatt" halten und druecken
 ;            Strg+Alt+Umsch+P  Kalibrieren: Maus auf Reiter "ePA" halten und druecken
@@ -21,16 +30,22 @@
 ;                              links ("Alle Eintraege", "Dateien", "RR Gewicht", ...)
 ;            Strg+Alt+Umsch+ dieselbe Taste  Kalibrieren: Maus auf diesen Filter halten und druecken;
 ;                              beim 1. Filter (^) wird die Position gemerkt, bei den anderen der Zeilenabstand
-;            Mit AltGr (statt linker Strg+Alt) gedrueckt, werden die Tasten durchgereicht, so dass
-;            AltGr+2 3 7 8 9 0 sz weiterhin hoch2 hoch3 { [ ] } \ liefern.
+;            Die Tasten werden per Tastatur-Hook abgefangen (nicht per HotKeySet), weil nur so linkes Alt
+;            von AltGr unterschieden werden kann: AltGr kommt als linke Strg + rechte Alt an und bleibt
+;            unberuehrt, so dass AltGr+2 3 7 8 9 0 sz weiterhin hoch2 hoch3 { [ ] } \ liefern.
+;            (Das fruehere Durchreichen per Send liess gelegentlich die Strg-Taste haengen.)
 ;            Beenden ueber das Tray-Menue (kein Strg+Alt+Q, das waere AltGr+Q = @)
 ; Laeuft Medical Office noch nicht, startet jeder Aufruf die Zentrale (medoff.exe) zum Anmelden.
 ; Die Reiterleiste ist ein Delphi-Control (TmoTabSet) ohne eigene Handles je Reiter,
 ; deshalb wird relativ zur linken oberen Ecke dieses Controls geklickt.
 #include <Misc.au3>
 #include <WinAPI.au3>
+#include <WindowsNotifsConstants.au3>
+#include <ScreenCapture.au3>
 Opt("MustDeclareVars", 1)
 Opt("WinTitleMatchMode", 4)
+; keine 250 ms Pause nach jedem Fensterbefehl; wo ein Fenster Zeit braucht, wird ausdruecklich gewartet
+Opt("WinWaitDelay", 0)
 
 Const $MOFenster = "[REGEXPTITLE:^Medical Office; CLASS:OWL_Window]"
 ; INI im Benutzerprofil, weil das Programmverzeichnis unter "Program Files" nicht beschreibbar ist
@@ -47,16 +62,33 @@ Const $defAktivFarbe = 0xD2E2F7, $defToleranz = 12
 ; (geschaetzt aus einem Bildschirmfoto, genauer per Strg+Alt+Umsch+^ und z.B. Strg+Alt+Umsch+F12)
 Const $defFilterReiter = "Kartei", $defFilterX = 46, $defFilterY = 83, $defFilterAbstand = 29
 Const $defFilterWarten = 400 ; ms nach dem Reiterwechsel, bis die Filterliste steht
-; Tasten fuer die Filter 1..24 in HotKeySet-Schreibweise und fuer Meldungen (sz und Akut als ChrW, Quelltext bleibt ASCII)
-Global $FilterTasten[24] = ["{^}", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
-		"{F2}", "{F3}", "{F4}", "{F5}", "{F6}", "{F7}", "{F8}", "{F9}", "{F10}", "{F11}", "{F12}"]
-Global $FilterNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
-		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
+; Tagesuebersicht (gemessen 28.9.26, Pixel relativ zur Liste): Spalten "Bereich" und "Name",
+; farbige Randspalte links, Kopfzeile, Zeilenhoehe, Farbe des eingedrueckten Knopfs "Offene To-Dos"
+Const $TagesKlasse = "TfrmTagesUebersicht"
+Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500
+Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7ABEE7
+; Krankenblatt-Liste (gemessen 28.9.26): Hintergrund der markierten Zeile, Kopfzeilenhoehe, Hoehe des
+; Pfeilschafts ab Zeilenoberkante; Pfeil nach oben hellblau = noch nicht in der ePA, dunkel = schon drin
+Const $KbMarkiertFarbe = 0xD3E3F7, $KbKopfHoehe = 18, $KbPfeilY = 11
+Const $KbPfeilHell = 0x6CC1EF, $KbPfeilDunkel = 0x233658, $KbPfeilArm = 0x809FBA
+; Fenster nach dem Pfeilklick, darin wird der Knopf "Hochladen" nach $defHochladenWarten ms gedrueckt
+; (100 ms reichten nur, solange nach jedem Fensterbefehl noch 250 ms WinWaitDelay dazukamen)
+Const $EpaDialog = "[REGEXPTITLE:^MEDICAL OFFICE - ePA; CLASS:TClientWindowForm]", $defHochladenWarten = 300
+; danach evtl. Dialog zur Leistungsdokumentation mit "Uebernehmen", wird bis zu $defLeistungWarten ms erwartet
+Const $LeistungDialog = "[TITLE:Medical Office; CLASS:TfrmDialogContainer]", $defLeistungWarten = 1500
+; virtuelle Tastencodes fuer die Filter 1..24 (deutsches Layout: ^ = OEM_5, sz = OEM_4, Akut = OEM_6)
+Global $FilterTasten[24] = [0xDC, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0xDB, 0xDD, _
+		0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B]
+; Tastatur-Hook: der Rueckruf merkt sich nur die Aufgabe, ausgefuehrt wird sie in der Hauptschleife,
+; weil Windows einen Hook, der zu lange braucht, stillschweigend abhaengt
+Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
+; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
+Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
 If $CmdLine[0] > 1 And $CmdLine[1] = "Filter" Then
 	Exit FilterWahl(Int($CmdLine[2]) - 1) ? 0 : 1
 ElseIf $CmdLine[0] > 0 Then
-	Exit Reiter($CmdLine[1]) ? 0 : 1
+	Exit Ausfuehren($CmdLine[1]) ? 0 : 1
 EndIf
 If _Singleton("MOReiter_resident", 1) = 0 Then ; laeuft schon
 	; sonst merkt man nicht, dass noch eine alte Version mit alten Hotkeys aktiv ist
@@ -66,90 +98,452 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, Strg+Alt+L Krankenblatt, Strg+Alt+P ePA/ePAAbr, Strg+Alt+^..F12 Filter")
-Local $belegt = ""
-If Not HotKeySet("^!k", "Wechsel") Then $belegt &= @CRLF & "Strg+Alt+K"
-If Not HotKeySet("^!l", "Krankenblatt") Then $belegt &= @CRLF & "Strg+Alt+L"
-If Not HotKeySet("^!p", "EpaWechsel") Then $belegt &= @CRLF & "Strg+Alt+P"
-If Not HotKeySet("^!+k", "KalibKartei") Then $belegt &= @CRLF & "Strg+Alt+Umsch+K"
-If Not HotKeySet("^!+l", "KalibKrankenblatt") Then $belegt &= @CRLF & "Strg+Alt+Umsch+L"
-If Not HotKeySet("^!+p", "KalibEpa") Then $belegt &= @CRLF & "Strg+Alt+Umsch+P"
-If Not HotKeySet("^!+a", "KalibEpaAbr") Then $belegt &= @CRLF & "Strg+Alt+Umsch+A"
-; Filter-Hotkeys; was sich nicht registrieren laesst, wird nur gemeldet und bleibt weg
-Local $fBelegt = "", $kBelegt = ""
-For $i = 0 To UBound($FilterTasten) - 1
-	If Not HotKeySet("^!" & $FilterTasten[$i], "Filter") Then $fBelegt &= " " & $FilterNamen[$i]
-	If Not HotKeySet("^!+" & $FilterTasten[$i], "KalibFilter") Then $kBelegt &= " " & $FilterNamen[$i]
-Next
-If $fBelegt <> "" Then $belegt &= @CRLF & "Strg+Alt+" & $fBelegt
-If $kBelegt <> "" Then $belegt &= @CRLF & "Strg+Alt+Umsch+" & $kBelegt
-If $belegt <> "" Then MsgBox(48, "MOReiter", "Von einem anderen Programm belegt, wirkungslos:" & $belegt, 10)
+TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, Z letzte Patienten, Leertaste Menue, ^..F12 Filter")
+; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
+Opt("TrayAutoPause", 0)
+Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
+If Not HookErneuern() Then
+	MsgBox(16, "MOReiter", "Tastatur-Hook konnte nicht eingerichtet werden.", 10)
+	Exit 1
+EndIf
+OnAutoItExitRegister("HookEntfernen")
+Local $erneuert = TimerInit()
+; kurzes Sleep, damit der Hook die Tastatur nicht spuerbar verzoegert
 While 1
-	Sleep(100)
+	Sleep(10)
+	If $gAufgabe <> "" Then
+		Local $aufgabe = $gAufgabe
+		$gAufgabe = ""
+		Ausfuehren($aufgabe)
+	EndIf
+	; Windows entfernt einen Hook stillschweigend, wenn er einmal zu langsam antwortet (z.B. bei hoher
+	; Last, Sperren, Aufwachen), das Programm liefe dann taub weiter; daher regelmaessig neu einhaengen
+	If TimerDiff($erneuert) > 5000 Then
+		HookErneuern()
+		$erneuert = TimerInit()
+	EndIf
 WEnd
 
-Func Wechsel()
-	Reiter("Wechsel")
+; haengt den neuen Hook ein, bevor der alte entfernt wird, damit keine Taste verloren geht
+Func HookErneuern()
+	Local $neu = _WinAPI_SetWindowsHookEx($WH_KEYBOARD_LL, DllCallbackGetPtr($gRueckruf), _WinAPI_GetModuleHandle(0))
+	If $neu = 0 Then Return False
+	Local $alt = $gHook
+	$gHook = $neu
+	If $alt Then _WinAPI_UnhookWindowsHookEx($alt)
+	Return True
 EndFunc
 
-Func Krankenblatt()
-	Reiter("Krankenblatt")
+Func HookEntfernen()
+	If $gHook Then _WinAPI_UnhookWindowsHookEx($gHook)
 EndFunc
 
-Func EpaWechsel()
-	Reiter("ePAWechsel")
+; faengt linke Alt + Strg [+ Umsch] + eigene Taste ab; alles andere, auch AltGr, geht unveraendert weiter
+Func TastenHook($nCode, $wParam, $lParam)
+	If $nCode >= 0 Then
+		Local $kb = DllStructCreate($tagKBDLLHOOKSTRUCT, $lParam)
+		Local $vk = $kb.vkCode
+		If $wParam = $WM_KEYUP Or $wParam = $WM_SYSKEYUP Then
+			; zum geschluckten Druecken auch das Loslassen schlucken
+			If $vk = $gGehalten Then
+				$gGehalten = 0
+				Return 1
+			EndIf
+		Else
+			; auch kuenstlich erzeugte Tasten (LLKHF_INJECTED) auswerten: RemotePC, TeamViewer u.ae.
+			; liefern alle Tasten so; MOReiter selbst sendet nie Strg+Alt+Taste
+			Local $aufgabe = HookAufgabe($vk)
+			If $aufgabe <> "" Then
+				; automatische Wiederholung beim Festhalten schlucken; nur innerhalb 1 s, weil
+				; Fernsteuerungen das Loslassen manchmal verschlucken und die Taste sonst taub bliebe
+				If $vk = $gGehalten And TimerDiff($gGehaltenZeit) < 1000 Then
+					$gGehaltenZeit = TimerInit()
+					Return 1
+				EndIf
+				$gGehalten = $vk
+				$gGehaltenZeit = TimerInit()
+				$gAufgabe = $aufgabe
+				Return 1
+			EndIf
+		EndIf
+	EndIf
+	Return _WinAPI_CallNextHookEx($gHook, $nCode, $wParam, $lParam)
 EndFunc
 
-Func KalibKartei()
-	Kalibrieren("Kartei")
-EndFunc
-
-Func KalibKrankenblatt()
-	Kalibrieren("Krankenblatt")
-EndFunc
-
-Func KalibEpa()
-	Kalibrieren("ePA")
-EndFunc
-
-Func KalibEpaAbr()
-	Kalibrieren("ePAAbr")
-EndFunc
-
-; Strg+Alt+Taste: Filter waehlen
-Func Filter()
-	If AltGr() Then Return Durchreichen("Filter")
-	FilterWahl(FilterIndex(@HotKeyPressed))
-EndFunc
-
-; Strg+Alt+Umsch+Taste: Filter kalibrieren
-Func KalibFilter()
-	If AltGr() Then Return Durchreichen("KalibFilter")
-	KalibrierFilter(FilterIndex(@HotKeyPressed))
-EndFunc
-
-; AltGr kommt bei Windows als linke Strg + rechte Alt an und loest daher dieselben Hotkeys aus
-Func AltGr()
-	Return _IsPressed("A5") ; rechte Alt-Taste
-EndFunc
-
-; schickt die Taste ohne den eigenen Hotkey weiter, damit z.B. AltGr+7 wieder { ergibt
-Func Durchreichen($func)
-	Local $hk = @HotKeyPressed
-	HotKeySet($hk)
-	Send($hk)
-	HotKeySet($hk, $func)
-EndFunc
-
-; 0-basierte Nummer des Filters zur gedrueckten Hotkey-Taste, -1 falls unbekannt
-Func FilterIndex($hk)
-	$hk = StringRegExpReplace($hk, "^[\^!+]+", "")
+; Aufgabe zur Taste $vk, falls gerade Strg + linke Alt (ohne AltGr) gehalten werden, sonst ""
+Func HookAufgabe($vk)
+	If Not (Gedrueckt(0xA2) Or Gedrueckt(0xA3)) Or Not Gedrueckt(0xA4) Or Gedrueckt(0xA5) Then Return ""
+	Local $kalib = Gedrueckt(0x10)
+	Switch $vk
+		Case 0x4B ; K
+			Return $kalib ? "Kalib:Kartei" : "Wechsel"
+		Case 0x4C ; L
+			Return $kalib ? "Kalib:Krankenblatt" : "Krankenblatt"
+		Case 0x50 ; P
+			Return $kalib ? "Kalib:ePA" : "ePAWechsel"
+		Case 0x41 ; A, in der Tagesuebersicht: abhaken bzw. Spalte "Bereich" kalibrieren
+			If TagesAktiv() Then Return $kalib ? "KalibBereich" : "Abhaken"
+			Return $kalib ? "Kalib:ePAAbr" : ""
+		Case 0x48 ; H, nur in Medical Office
+			Return ($kalib Or Not MOAktiv()) ? "" : "Hochladen"
+		Case 0x5A ; Z
+			Return $kalib ? "" : "LetztePatienten"
+		Case 0x20 ; Leertaste
+			Return $kalib ? "" : "Menue"
+	EndSwitch
 	For $i = 0 To UBound($FilterTasten) - 1
-		If $hk = $FilterTasten[$i] Then Return $i
+		If $vk = $FilterTasten[$i] Then Return ($kalib ? "KalibFilter:" : "Filter:") & $i
 	Next
-	; "{^}" wird von @HotKeyPressed evtl. ohne Klammern geliefert
-	If $hk = "" Or $hk = "^" Then Return 0
+	Return ""
+EndFunc
+
+Func Gedrueckt($vk)
+	Local $r = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $vk)
+	Return Not @error And BitAND($r[0], 0x8000) <> 0
+EndFunc
+
+Func Ausfuehren($aufgabe)
+	If $aufgabe = "LetztePatienten" Then Return LetztePatienten()
+	If $aufgabe = "Menue" Then Return Menue()
+	If $aufgabe = "Abhaken" Then Return Abhaken()
+	If $aufgabe = "Hochladen" Then Return Hochladen()
+	If $aufgabe = "KalibBereich" Then Return KalibBereich()
+	Local $teil = StringSplit($aufgabe, ":", 2)
+	If UBound($teil) = 1 Then Return Reiter($aufgabe)
+	Switch $teil[0]
+		Case "Kalib"
+			Kalibrieren($teil[1])
+		Case "Filter"
+			FilterWahl(Int($teil[1]))
+		Case "KalibFilter"
+			KalibrierFilter(Int($teil[1]))
+	EndSwitch
+EndFunc
+
+; ist das Hauptfenster von Medical Office aktiv? (im Hook, muss schnell sein)
+Func MOAktiv()
+	Local $h = _WinAPI_GetForegroundWindow()
+	Return _WinAPI_GetClassName($h) = "OWL_Window" And StringLeft(_WinAPI_GetWindowText($h), 14) = "Medical Office"
+EndFunc
+
+; Krankenblatt-Liste (Container in Kartei, Krankenblatt, ePA): in der markierten Zeile auf den Pfeil
+; nach oben klicken, der hellblau ist, solange der Eintrag noch nicht in die ePA hochgeladen ist.
+; Die Liste (TmoStringGrid) hat keine ansprechbaren Zeilen, daher per Bildschirm: markierte Zeile an
+; ihrem Hintergrund suchen, in ihrer ersten Textzeile nach einem hellblauen senkrechten Pfeilschaft
+; tasten und zur Sicherheit die beiden schraegen Arme der Pfeilspitze pruefen (Text kann durch
+; Kantenglaettung einzelne hellblaue Pixel haben, aber keine Pfeilspitze).
+Func Hochladen()
+	Local $hWnd = WinGetHandle($MOFenster)
+	If @error Or Not WinActive($hWnd) Then Return False
+	Local $hGrid = KarteiListe($hWnd)
+	If Not $hGrid Then Return Meldung("Keine Krankenblatt-Liste gefunden")
+	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return False
+	Opt("PixelCoordMode", 1)
+	Opt("MouseCoordMode", 1)
+	Local $p = PixelSearch($g[0] + 4, $g[1] + $KbKopfHoehe, $g[0] + 4, $g[1] + $g[3] - 3, $KbMarkiertFarbe, 6)
+	If @error Then Return Meldung("Keine markierte Zeile sichtbar")
+	Local $y = $p[1] + $KbPfeilY
+	; den Streifen um die Suchhoehe einmal einlesen, statt jedes Pixel einzeln (je ca. 15-20 ms) abzufragen
+	If Not BildLesen($g[0] + 2, $y - 24, $g[0] + $g[2] - 18, $y + 6) Then Return Meldung("Bildschirm nicht lesbar")
+	Local $x = PfeilSchaft($g[0] + 4, $g[0] + $g[2] - 20, $y, $KbPfeilHell, True)
+	Local $dunkel = ($x < 0) ? PfeilSchaft($g[0] + 4, $g[0] + $g[2] - 20, $y, $KbPfeilDunkel, False) : -1
+	$gBild = 0
+	If $x < 0 Then
+		If $dunkel >= 0 Then Return Meldung("Schon in der ePA (Pfeil ist schwarz)")
+		Return Meldung("Kein Pfeil zum Hochladen in der markierten Zeile")
+	EndIf
+	Local $alt = MouseGetPos()
+	MouseClick("left", $x, $y, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	; im Fenster "MEDICAL OFFICE - ePA3.0 - Datensatz" kurz nach dem Erscheinen "Hochladen" druecken
+	Local $hDlg = WinWait($EpaDialog, "", 15)
+	If Not $hDlg Then Return Meldung("Fenster ""MEDICAL OFFICE - ePA"" ist nicht erschienen")
+	Local $hKnopf = KnopfBereit($hDlg, "Hochladen", 5000)
+	If Not $hKnopf Then Return Meldung("Knopf ""Hochladen"" nicht bereit")
+	Sleep(Int(IniRead($Ini, "Hochladen", "Warten", $defHochladenWarten)))
+	; schon offene Dialoge merken, damit nur ein neu erscheinender Leistungsdialog bestaetigt wird
+	Local $vorher = WinList($LeistungDialog)
+	For $i = 1 To $vorher[0][0]
+		$vorher[$i][0] = BitAND(WinGetState($vorher[$i][1]), 2) ? "sichtbar" : ""
+	Next
+	If Not KnopfKlick($hDlg, $hKnopf) Then Return False
+	; manchmal folgt nach dem Hochladen ein Dialog zur Leistungsdokumentation: dort "Uebernehmen"
+	If Not WinWaitClose($hDlg, "", 30) Then Return True
+	Local $t = TimerInit(), $max = Int(IniRead($Ini, "Hochladen", "LeistungWarten", $defLeistungWarten))
+	While TimerDiff($t) < $max
+		Local $liste = WinList($LeistungDialog)
+		For $i = 1 To $liste[0][0]
+			If Not BitAND(WinGetState($liste[$i][1]), 2) Or InWinList($vorher, $liste[$i][1]) Then ContinueLoop
+			Local $hUeb = KnopfBereit($liste[$i][1], ChrW(220) & "bernehmen", 1000)
+			If $hUeb Then
+				Sleep(Int(IniRead($Ini, "Hochladen", "Warten", $defHochladenWarten)))
+				Return KnopfKlick($liste[$i][1], $hUeb)
+			EndIf
+		Next
+		Sleep(50)
+	WEnd
+	Return True
+EndFunc
+
+; wartet bis zu $ms, bis das Fenster $hDlg sichtbar und sein Knopf $text sichtbar und bedienbar ist
+; (Delphi legt Fenster erst unsichtbar an, ein Klick zu frueh geht ins Leere); liefert den Knopf oder 0
+Func KnopfBereit($hDlg, $text, $ms)
+	Local $t = TimerInit()
+	While TimerDiff($t) < $ms
+		Local $h = ControlGetHandle($hDlg, "", "[CLASS:TmoButtonFlat; TEXT:" & $text & "]")
+		If Not @error And BitAND(WinGetState($hDlg), 2) And BitAND(WinGetState($h), 2) _
+				And ControlCommand($hDlg, "", $h, "IsEnabled", "") Then Return $h
+		Sleep(20)
+	WEnd
+	Return 0
+EndFunc
+
+; nur sichtbare zaehlen: ein versteckt vorgehaltener Dialog, der spaeter erscheint, gilt als neu
+Func InWinList($liste, $h)
+	For $i = 1 To $liste[0][0]
+		If $liste[$i][1] = $h And $liste[$i][0] = "sichtbar" Then Return True
+	Next
+	Return False
+EndFunc
+
+; die Liste im Krankenblatt-Container: bevorzugt die mit dem Fokus, sonst die im TKarteikarteForm
+Func KarteiListe($hWnd)
+	Local $h = ControlGetHandle($hWnd, "", ControlGetFocus($hWnd))
+	If Not @error And _WinAPI_GetClassName($h) = "TmoStringGrid" _
+			And _WinAPI_GetClassName(_WinAPI_GetParent($h)) = "TfrmKarteikarteControl" Then Return $h
+	Local $hForm = ControlGetHandle($hWnd, "", "[CLASS:TKarteikarteForm; INSTANCE:1]")
+	If @error Or Not BitAND(WinGetState($hForm), 2) Then Return 0
+	Local $liste = _WinAPI_EnumChildWindows($hForm)
+	If @error Then Return 0
+	For $i = 1 To $liste[0][0]
+		If $liste[$i][1] = "TmoStringGrid" Then Return $liste[$i][0]
+	Next
+	Return 0
+EndFunc
+
+; liest das Bildschirmrechteck $x1,$y1 - $x2,$y2 in den Speicher ($gBild, 32 Bit je Pixel, zeilenweise
+; von oben); danach liefert BildFarbe() Pixel daraus
+Func BildLesen($x1, $y1, $x2, $y2)
+	Local $hBmp = _ScreenCapture_Capture("", $x1, $y1, $x2, $y2, False)
+	If @error Or Not $hBmp Then Return False
+	$gBildX = $x1
+	$gBildY = $y1
+	$gBildB = $x2 - $x1 + 1
+	Local $h = $y2 - $y1 + 1
+	$gBild = DllStructCreate("dword[" & $gBildB * $h & "]")
+	Local $bmi = DllStructCreate("dword biSize;long biWidth;long biHeight;word biPlanes;word biBitCount;dword biCompression;dword biSizeImage;long biXPelsPerMeter;long biYPelsPerMeter;dword biClrUsed;dword biClrImportant")
+	$bmi.biSize = DllStructGetSize($bmi)
+	$bmi.biWidth = $gBildB
+	$bmi.biHeight = -$h ; negativ: oberste Zeile zuerst
+	$bmi.biPlanes = 1
+	$bmi.biBitCount = 32
+	Local $hDC = _WinAPI_GetDC(0)
+	Local $r = DllCall("gdi32.dll", "int", "GetDIBits", "handle", $hDC, "handle", $hBmp, "uint", 0, "uint", $h, _
+			"struct*", $gBild, "struct*", $bmi, "uint", 0)
+	_WinAPI_ReleaseDC(0, $hDC)
+	_WinAPI_DeleteObject($hBmp)
+	If @error Or $r[0] <> $h Then
+		$gBild = 0
+		Return False
+	EndIf
+	Return True
+EndFunc
+
+; Farbe 0xRRGGBB am Bildschirmpunkt $x,$y aus dem eingelesenen Bild, -1 ausserhalb
+Func BildFarbe($x, $y)
+	Local $i = ($y - $gBildY) * $gBildB + ($x - $gBildX)
+	If Not IsDllStruct($gBild) Or $x < $gBildX Or $x >= $gBildX + $gBildB Or $i < 0 Or $i >= DllStructGetSize($gBild) / 4 Then Return -1
+	Return BitAND(DllStructGetData($gBild, 1, $i + 1), 0xFFFFFF)
+EndFunc
+
+; Bildschirm-X des ersten senkrechten Pfeilschafts der Farbe $farbe auf Hoehe $y zwischen $x1 und $x2,
+; mit $arme zusaetzlich gepruefte Pfeilspitze; -1 wenn keiner da ist (liest aus BildLesen)
+Func PfeilSchaft($x1, $x2, $y, $farbe, $arme)
+	For $x = $x1 To $x2
+		If Not FarbeNah($x, $y, $farbe, 10) Then ContinueLoop
+		; senkrechter Schaft: von den 4 Nachbarn darueber und darunter darf einer abweichen
+		; (der Schaft hat ein etwas dunkleres Pixel)
+		If FarbeNah($x, $y - 2, $farbe, 12) + FarbeNah($x, $y - 1, $farbe, 12) _
+				+ FarbeNah($x, $y + 1, $farbe, 12) + FarbeNah($x, $y + 2, $farbe, 12) >= 3 Then
+			If Not $arme Then Return $x
+			; oberes Ende des Schafts suchen, eine Zeile darunter liegen links und rechts die Arme
+			Local $o = $y
+			While $o > $y - 20 And (FarbeNah($x, $o - 1, $farbe, 12) Or FarbeNah($x, $o - 2, $farbe, 12))
+				$o -= 1
+			WEnd
+			If FarbeNah($x - 2, $o + 1, $KbPfeilArm, 25) And FarbeNah($x + 2, $o + 1, $KbPfeilArm, 25) Then Return $x
+		EndIf
+	Next
 	Return -1
+EndFunc
+
+Func FarbeNah($x, $y, $farbe, $tol)
+	Local $c = BildFarbe($x, $y)
+	If $c < 0 Then Return False
+	Return Abs(BitAND(BitShift($c, 16), 255) - BitAND(BitShift($farbe, 16), 255)) <= $tol _
+			And Abs(BitAND(BitShift($c, 8), 255) - BitAND(BitShift($farbe, 8), 255)) <= $tol _
+			And Abs(BitAND($c, 255) - BitAND($farbe, 255)) <= $tol
+EndFunc
+
+; ist die MO-Tagesuebersicht das aktive Fenster? (wird im Tastatur-Hook aufgerufen, muss schnell sein)
+Func TagesAktiv()
+	Return _WinAPI_GetClassName(_WinAPI_GetForegroundWindow()) = $TagesKlasse
+EndFunc
+
+; Tagesuebersicht, offene To-Dos: in der markierten Zeile "Bereich" anklicken, "e" (erledigt) waehlen
+; und danach die nachrueckende Zeile markieren. Die Liste (TNewStringGrid) hat keine ansprechbaren
+; Zeilen, daher wird die markierte Zeile am schwarzen Rahmen in der farbigen Randspalte erkannt.
+; Geklickt wird mit der echten Maus, weil das Menue an der Mausposition aufgeht.
+Func Abhaken()
+	Local $hWnd = WinGetHandle("[ACTIVE]")
+	If _WinAPI_GetClassName($hWnd) <> $TagesKlasse Then Return False
+	Local $hGrid = ControlGetHandle($hWnd, "", "[CLASS:TNewStringGrid; INSTANCE:1]")
+	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
+	If Not OffeneToDos($hWnd) Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich")
+	; erst loslassen lassen, sonst kaemen Klick und "e" mit gedrueckter Strg+Alt an
+	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return False
+	Opt("PixelCoordMode", 1)
+	Opt("MouseCoordMode", 1)
+	Local $mitte = MarkierteZeile($g)
+	If $mitte < 0 Then Return Meldung("Keine markierte Zeile sichtbar")
+	Local $alt = MouseGetPos()
+	MouseClick("left", $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "BereichX", $defBereichX)), $mitte, 1, 0)
+	; Kontextmenue (Offen / In Arbeit / erledigt) abwarten
+	If Not MenueWarten(True) Then
+		MouseMove($alt[0], $alt[1], 0)
+		Return Meldung("Menue Offen/In Arbeit/erledigt ist nicht erschienen")
+	EndIf
+	Send("e")
+	MenueWarten(False)
+	Sleep(Int(IniRead($Ini, "Tagesuebersicht", "Warten", $defAbhakenWarten)))
+	; nachrueckende Zeile markieren; war es die letzte Zeile, ist dort jetzt leere (weisse) Flaeche,
+	; dann die daruber
+	Local $nameX = $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "NameX", $defNameX))
+	If PixelGetColor($nameX, $mitte) = 0xFFFFFF And $mitte - $ZeilenHoehe > $g[1] + $KopfHoehe Then $mitte -= $ZeilenHoehe
+	If PixelGetColor($nameX, $mitte) <> 0xFFFFFF Then MouseClick("left", $nameX, $mitte, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Return True
+EndFunc
+
+; wartet bis zu 2 s, bis ein Kontextmenue sichtbar ($offen = True) bzw. keins mehr sichtbar ist;
+; unsichtbare Menuefenster haelt Windows oft vorraetig, die zaehlen nicht
+Func MenueWarten($offen)
+	Local $t = TimerInit()
+	While TimerDiff($t) < 2000
+		Local $sichtbar = False, $liste = WinList("[CLASS:#32768]")
+		For $i = 1 To $liste[0][0]
+			If BitAND(WinGetState($liste[$i][1]), 2) Then $sichtbar = True
+		Next
+		If $sichtbar = $offen Then Return True
+		Sleep(20)
+	WEnd
+	Return False
+EndFunc
+
+; Bildschirm-Y der Mitte der markierten Zeile, -1 wenn keine zu sehen ist
+Func MarkierteZeile($g)
+	Local $x = $g[0] + $RandSpalteX
+	Local $p = PixelSearch($x, $g[1] + $KopfHoehe, $x, $g[1] + $g[3] - 3, 0x000000, 16)
+	If @error Then Return -1
+	; Treffer ist die obere Rahmenlinie, die Zeile ist 20 Pixel hoch
+	Return $p[1] + Int($ZeilenHoehe / 2)
+EndFunc
+
+; der Knopf "Offene To-Dos" ist eingedrueckt hellblau hinterlegt
+Func OffeneToDos($hWnd)
+	Local $hKnopf = ControlGetHandle($hWnd, "", "[CLASS:TAdvGlowButton; TEXT:Offene To-Dos]")
+	If @error Then Return False
+	Local $p = WinGetPos($hKnopf)
+	If @error Then Return False
+	Opt("PixelCoordMode", 1)
+	PixelSearch($p[0] + 3, $p[1] + 3, $p[0] + 5, $p[1] + 5, $OffenFarbe, 30)
+	Return Not @error
+EndFunc
+
+; wartet bis zu 3 s, bis Strg, Alt, AltGr und Umschalt losgelassen sind
+Func ModifierLos()
+	Local $t = TimerInit()
+	While TimerDiff($t) < 3000
+		If Not (Gedrueckt(0x10) Or Gedrueckt(0x11) Or Gedrueckt(0x12)) Then Return True
+		Sleep(20)
+	WEnd
+	Return False
+EndFunc
+
+; Strg+Alt+Umsch+A in der Tagesuebersicht: Maus auf die Spalte "Bereich" halten
+Func KalibBereich()
+	Local $hGrid = ControlGetHandle(WinGetHandle("[ACTIVE]"), "", "[CLASS:TNewStringGrid; INSTANCE:1]")
+	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
+	Opt("MouseCoordMode", 1)
+	Local $m = MouseGetPos(), $g = WinGetPos($hGrid)
+	Local $x = $m[0] - $g[0]
+	If $x < 0 Or $x >= $g[2] Then Return Meldung("Maus steht nicht auf der Liste")
+	DirCreate(@AppDataDir & "\MOReiter")
+	IniWrite($Ini, "Tagesuebersicht", "BereichX", $x)
+	Hinweis("Spalte Bereich kalibriert: " & $x)
+	Return True
+EndFunc
+
+; Pfeil rechts neben der Patientensuche: der Knopf ganz rechts im Panel des Suchfelds
+; (die Knoepfe sind TAdvSmoothButton ohne Text, daher Auswahl ueber die Lage)
+Func LetztePatienten()
+	Local $hWnd = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	Local $hSuche = ControlGetHandle($hWnd, "", "[CLASS:TAlnumEdit; INSTANCE:1]")
+	If @error Then Return Meldung("Patientensuche nicht gefunden")
+	Local $hKnopf = RandKnopf(_WinAPI_GetParent($hSuche), "rechts")
+	If Not $hKnopf Then Return Meldung("Pfeil neben der Patientensuche nicht gefunden")
+	Return KnopfKlick($hWnd, $hKnopf)
+EndFunc
+
+; drei Striche links oben: der oberste, linkeste Knopf im Kopfbereich
+Func Menue()
+	Local $hWnd = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	Local $hKopf = ControlGetHandle($hWnd, "", "[CLASS:THeaderForm; INSTANCE:1]")
+	If @error Then Return Meldung("Kopfbereich nicht gefunden")
+	Local $hKnopf = RandKnopf($hKopf, "linksoben")
+	If Not $hKnopf Then Return Meldung("Menueknopf nicht gefunden")
+	Return KnopfKlick($hWnd, $hKnopf)
+EndFunc
+
+; sichtbarer TAdvSmoothButton unterhalb von $hEltern, der am weitesten rechts bzw. links oben liegt
+Func RandKnopf($hEltern, $wo)
+	Local $liste = _WinAPI_EnumChildWindows($hEltern)
+	If @error Then Return 0
+	Local $best = 0, $bestWert = 0
+	For $i = 1 To $liste[0][0]
+		If $liste[$i][1] <> "TAdvSmoothButton" Then ContinueLoop
+		Local $p = WinGetPos($liste[$i][0])
+		If @error Then ContinueLoop
+		Local $wert = ($wo = "rechts") ? $p[0] : -($p[1] * 100000 + $p[0])
+		If $best = 0 Or $wert > $bestWert Then
+			$best = $liste[$i][0]
+			$bestWert = $wert
+		EndIf
+	Next
+	Return $best
+EndFunc
+
+; klickt in die Mitte des Knopfs $hKnopf
+Func KnopfKlick($hWnd, $hKnopf)
+	Local $p = WinGetPos($hKnopf)
+	If @error Then Return Meldung("Knopf nicht gefunden")
+	WinActivate($hWnd)
+	WinWaitActive($hWnd, "", 2)
+	If IniRead($Ini, "Allgemein", "EchteMaus", "0") = "1" Then
+		Local $alt = MouseGetPos()
+		Opt("MouseCoordMode", 1)
+		MouseClick("left", $p[0] + Int($p[2] / 2), $p[1] + Int($p[3] / 2), 1, 0)
+		MouseMove($alt[0], $alt[1], 0)
+		Return True
+	EndIf
+	If Not ControlClick($hWnd, "", $hKnopf, "left", 1, Int($p[2] / 2), Int($p[3] / 2)) Then Return Meldung("Klick fehlgeschlagen")
+	Return True
 EndFunc
 
 ; wechselt bei Bedarf zur Kartei und klickt dort auf den Filter Nr. $i (0-basiert)
