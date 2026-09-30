@@ -37,10 +37,19 @@
 ;                              Knoepfe werden bei jedem Druck am Bildschirm gesucht
 ;            Strg+Alt halten und auf dem Ziffernblock eine Nummer tippen (bis 3 Stellen, mit und ohne
 ;                              NumLock): beim Loslassen von Strg bzw. Alt wird der Filter bzw. in der
-;                              Diagnoseerfassung die Kurzwahl mit dieser Nummer gewaehlt, auch jenseits von 24
+;                              Diagnoseerfassung die Kurzwahl mit dieser Nummer gewaehlt, auch jenseits von 24;
+;                              gezaehlt ab 0 wie die Tasten ^ 1 2 ..., so dass Ziffernblock 1-9 dasselbe waehlt
+;                              wie die Tasten 1-9 (0 = ^, 10 = Taste 0, 11 = sz, 12 = Akut, 13 = F2 ...)
+;            ohne Ziffernblock: Strg+Alt halten und mehrere Ziffern der oberen Reihe tippen, z.B. 1 7:
+;                              in der Kartei wird sofort Filter 1 gewaehlt und mit der 7 dann Filter 17
+;                              (wie Ziffernblock 17); in der Diagnoseerfassung wird erst beim Loslassen
+;                              gewaehlt, damit nicht nebenbei Kurzwahl 1 angeklickt wird (eine einzelne 0
+;                              bleibt dort die Taste 0, also Nr. 10). Die Folge endet mit dem Loslassen
+;                              von Strg oder Alt, nach 3 Ziffern oder nach [Allgemein] FolgeZeit ms Pause
 ;            Strg+Alt eine halbe Sekunde halten ([Allgemein] Einblendung=ms, 0 = nie): an den Filtern
 ;                              der Kartei bzw. den Diagnose-Kurzwahlen erscheinen gelbe Schildchen mit
-;                              Nummer und direkter Taste (z.B. "12 sz"), bis Strg oder Alt losgelassen wird
+;                              Ziffernblock-Nummer, dahinter die direkte Taste, wenn sie anders heisst
+;                              (z.B. "0 ^", "5", "11 sz"), bis Strg oder Alt losgelassen wird
 ;            Die Tasten werden per Tastatur-Hook abgefangen (nicht per HotKeySet), weil nur so linkes Alt
 ;            von AltGr unterschieden werden kann: AltGr kommt als linke Strg + rechte Alt an und bleibt
 ;            unberuehrt, so dass AltGr+2 3 7 8 9 0 sz weiterhin hoch2 hoch3 { [ ] } \ liefern.
@@ -104,6 +113,11 @@ Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet w
 ; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
 ; gedrueckte Ziffertasten als ",vk,", und die gerade angezeigte Nummer
 Global $gNummer = "", $gNummerZiel = "", $gUnten = "", $gNummerAngezeigt = ""
+; die Nummer stammt von der oberen Ziffernreihe (dann heisst eine einzelne 0 Nr. 10, wie die Taste 0)
+Global $gNummerOben = False
+; Kartei: bei gehaltenem Strg+Alt bisher getippte Ziffern der oberen Reihe und Zeit der letzten
+Global $gFolge = "", $gFolgeZeit = 0
+Const $defFolgeZeit = 2000 ; ms, eine laengere Pause zwischen zwei Ziffern beginnt eine neue Folge
 ; Einblendung: Fenster mit den Schildchen, zugehoeriges Fenster und dessen Kurzwahl-Knoepfe,
 ; Beginn des Haltens von Strg+Alt (0 = nicht gehalten), schon versucht
 Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHaltStart = 0, $gEinblendungVersucht = False
@@ -183,6 +197,8 @@ Func TastenHook($nCode, $wParam, $lParam)
 				$gUnten = StringReplace($gUnten, "," & $vk & ",", "", 1)
 				Return 1
 			EndIf
+			; Strg bzw. linke Alt losgelassen: Ziffernfolge der oberen Reihe ist zu Ende
+			If $vk = 0xA2 Or $vk = 0xA3 Or $vk = 0xA4 Then $gFolge = ""
 			If $vk = $gGehalten Then
 				$gGehalten = 0
 				Return 1
@@ -190,12 +206,20 @@ Func TastenHook($nCode, $wParam, $lParam)
 		Else
 			; Ziffernblock bei Strg+Alt: Ziffer an die Nummer haengen, gewaehlt wird beim Loslassen
 			; (NummerPruefen); geschluckt, damit auch keine Alt+Ziffernblock-Zeichencodes entstehen
-			Local $z = ZifferVon($vk, $kb.flags)
+			; in der Diagnoseerfassung ebenso die obere Ziffernreihe (ohne Umschalt, das ist dort frei)
+			Local $z = ZifferVon($vk, $kb.flags), $oben = False
+			If $z < 0 And $vk >= 0x30 And $vk <= 0x39 And StrgAlt() And DiagAktiv() And Not Gedrueckt(0x10) Then
+				$z = $vk - 0x30
+				$oben = True
+			EndIf
 			If $z >= 0 And StrgAlt() Then
 				; schon gedrueckt: automatische Wiederholung
 				If Not StringInStr($gUnten, "," & $vk & ",") Then
 					$gUnten &= "," & $vk & ","
-					If $gNummer = "" Then $gNummerZiel = DiagAktiv() ? "Diagnose" : "Filter"
+					If $gNummer = "" Then
+						$gNummerZiel = DiagAktiv() ? "Diagnose" : "Filter"
+						$gNummerOben = $oben
+					EndIf
 					If StringLen($gNummer) < 3 Then $gNummer &= $z
 				EndIf
 				Return 1
@@ -212,7 +236,7 @@ Func TastenHook($nCode, $wParam, $lParam)
 				EndIf
 				$gGehalten = $vk
 				$gGehaltenZeit = TimerInit()
-				$gAufgabe = $aufgabe
+				$gAufgabe = FolgeAufgabe($vk, $aufgabe)
 				Return 1
 			EndIf
 		EndIf
@@ -286,6 +310,26 @@ Func ZifferVon($vk, $flags)
 	Return -1
 EndFunc
 
+; Kartei, obere Ziffernreihe: die erste Ziffer waehlt wie gewohnt sofort (Taste 1 = Filter 1), jede
+; weitere bei durchgehend gehaltenem Strg+Alt haengt sich an und waehlt den Filter mit der ganzen
+; Nummer (1, 7 = Filter 17 wie Ziffernblock 17); liefert die auszufuehrende Aufgabe
+Func FolgeAufgabe($vk, $aufgabe)
+	If $vk < 0x30 Or $vk > 0x39 Or StringLeft($aufgabe, 7) <> "Filter:" Then
+		$gFolge = ""
+		Return $aufgabe
+	EndIf
+	Local $d = String($vk - 0x30)
+	If $gFolge <> "" And StringLen($gFolge) < 3 _
+			And TimerDiff($gFolgeZeit) < Int(IniRead($Ini, "Allgemein", "FolgeZeit", $defFolgeZeit)) Then
+		$gFolge &= $d
+		$aufgabe = "Filter:" & Int($gFolge)
+	Else
+		$gFolge = $d
+	EndIf
+	$gFolgeZeit = TimerInit()
+	Return $aufgabe
+EndFunc
+
 ; zeigt die getippte Nummer an und waehlt sie, sobald Strg oder Alt losgelassen ist
 Func NummerPruefen()
 	If $gNummer = "" Then Return
@@ -298,13 +342,15 @@ Func NummerPruefen()
 		Return
 	EndIf
 	Local $n = Int($gNummer), $ziel = $gNummerZiel
+	; einzelne 0 der oberen Reihe: wie die Taste 0 die 11. Kurzwahl
+	If $gNummerOben And $gNummer = "0" Then $n = 10
 	$gNummer = ""
 	$gNummerAngezeigt = ""
 	$gUnten = ""
 	ToolTip("")
-	If $n < 1 Then Return Meldung("Nummer 0 gibt es nicht")
-	If $ziel = "Diagnose" Then Return DiagnoseWahl($n - 1)
-	Return FilterWahl($n - 1)
+	; ab 0 gezaehlt wie die Tasten ^ 1 2 ...
+	If $ziel = "Diagnose" Then Return DiagnoseWahl($n)
+	Return FilterWahl($n)
 EndFunc
 
 ; blendet nach $defEinblendung ms Halten von Strg+Alt (ohne Umschalt) die Nummern ein, beim
@@ -349,7 +395,9 @@ Func EinblendungZeigen()
 	; 1 = LWA_COLORKEY: Magenta ist durchsichtig
 	DllCall("user32.dll", "bool", "SetLayeredWindowAttributes", "hwnd", $g, "dword", 0xFF00FF, "byte", 255, "dword", 1)
 	For $i = 0 To $n - 1
-		Local $t = ($i < UBound($TastenNamen)) ? ($i + 1) & " " & $TastenNamen[$i] : String($i + 1)
+		; Ziffernblock-Nummer (ab 0), dahinter die direkte Taste, falls sie nicht gleich heisst
+		Local $t = String($i)
+		If $i < UBound($TastenNamen) And $TastenNamen[$i] <> $t Then $t &= " " & $TastenNamen[$i]
 		GUICtrlCreateLabel($t, $pos[$i][0] - $f[0], $pos[$i][1] - $f[1] - 8, 7 * StringLen($t) + 8, 16, BitOR($SS_CENTER, $SS_CENTERIMAGE))
 		GUICtrlSetBkColor(-1, 0xFFE45C)
 		GUICtrlSetColor(-1, 0x000000)
