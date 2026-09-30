@@ -53,11 +53,20 @@
 ;            Strg+Alt eine halbe Sekunde halten ([Allgemein] Einblendung=ms, 0 = nie): an den Filtern
 ;                              der Kartei bzw. den Diagnose-Kurzwahlen erscheinen gelbe Schildchen mit
 ;                              Ziffernblock-Nummer, dahinter die direkte Taste, wenn sie anders heisst
-;                              (z.B. "0 ^", "5", "11 sz"), bis Strg oder Alt losgelassen wird
+;                              (z.B. "0 ^", "5", "11 sz"), im Briefversand mit dem Buchstaben der Taste an
+;                              der Klickstelle, bis Strg oder Alt losgelassen wird
 ;            Die Tasten werden per Tastatur-Hook abgefangen (nicht per HotKeySet), weil nur so linkes Alt
 ;            von AltGr unterschieden werden kann: AltGr kommt als linke Strg + rechte Alt an und bleibt
 ;            unberuehrt, so dass AltGr+2 3 7 8 9 0 sz weiterhin hoch2 hoch3 { [ ] } \ liefern.
 ;            (Das fruehere Durchreichen per Send liess gelegentlich die Strg-Taste haengen.)
+;            im Fenster "MEDICAL OFFICE - Briefversand" statt der obigen Belegung:
+;            Strg+Alt+K Kontaktverzeichnis, I KIM-Verzeichnis, R Krankenblatt, O Ordner (Anhaenge),
+;                              E Kaestchen "Empfangsbestaetigung anfordern", B Betreff-Zeile, M oberster
+;                              Empfaenger, F Brief-Vorschau, V Versenden/Drucken; Esc allein: Abbrechen
+;                              (geklickt wird mit der echten Maus, nach dem Loslassen von Strg und Alt);
+;                              beim Halten von Strg+Alt erscheinen die Buchstaben gelb an den Klickstellen
+;            Strg+Alt+Umsch+D  Liste der Controls im aktiven Fenster (Klasse, Nummer, Text, Lage) in die
+;                              Zwischenablage und nach %APPDATA%\MOReiter\Fenster.txt, zum Einrichten neuer Tasten
 ;            Beenden ueber das Tray-Menue (kein Strg+Alt+Q, das waere AltGr+Q = @)
 ; Laeuft Medical Office noch nicht, startet jeder Aufruf die Zentrale (medoff.exe) zum Anmelden.
 ; Die Reiterleiste ist ein Delphi-Control (TmoTabSet) ohne eigene Handles je Reiter,
@@ -98,6 +107,10 @@ Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7AB
 ; Rahmen (8F8F1E, innen E2E178); die blaue Hervorhebung unter der Maus kann auf jedem Eintrag liegen und
 ; auch den gewaehlten bis auf einen gelben Rand links und rechts ueberdecken, deshalb zaehlt nur der Rahmen.
 ; Die Eintraege haben einen grauen Rand (C1C6CF) und 1 Pixel Abstand; der Trennstrich ist innen weiss.
+; Briefversand: Titel des Fensters; Betreff, Empfaengerliste und Vorschau werden nach der Klasse
+; vermutet, falls in [Briefversand] kein Control angegeben ist; erste Empfaengerzeile relativ zur Liste
+Const $BriefTitel = "MEDICAL OFFICE - Briefversand"
+Const $defEmpfaengerX = 150, $defEmpfaengerY = 33
 Const $defBereichRahmen = 0x8F8F1E, $BereichRand = 0xC1C6CF, $defBereichWarten = 1500
 ; Krankenblatt-Liste (gemessen 28.9.26): Hintergrund der markierten Zeile, Kopfzeilenhoehe, Hoehe des
 ; Pfeilschafts ab Zeilenoberkante; Pfeil nach oben hellblau = noch nicht in der ePA, dunkel = schon drin
@@ -258,8 +271,16 @@ Func HookAufgabe($vk)
 	; Alt+Pfeil hoch/runter (ohne Strg und Umschalt) nur in der Tagesuebersicht
 	If ($vk = 0x26 Or $vk = 0x28) And Gedrueckt(0x12) And Not Gedrueckt(0x11) And Not Gedrueckt(0x10) _
 			And TagesAktiv() Then Return ($vk = 0x26) ? "BereichHoch" : "BereichRunter"
+	; Esc allein im Briefversand: Abbrechen
+	If $vk = 0x1B And Not (Gedrueckt(0x10) Or Gedrueckt(0x11) Or Gedrueckt(0x12) Or Gedrueckt(0x5B) Or Gedrueckt(0x5C)) _
+			And BriefAktiv() Then Return "Brief:Abbrechen"
 	If Not StrgAlt() Then Return ""
 	Local $kalib = Gedrueckt(0x10)
+	If $vk = 0x44 And $kalib Then Return "Fensterliste" ; D
+	If BriefAktiv() Then
+		Local $brief = BriefTaste($vk)
+		If $brief <> "" Then Return $kalib ? "" : "Brief:" & $brief
+	EndIf
 	Switch $vk
 		Case 0x4B ; K
 			Return $kalib ? "Kalib:Kartei" : "Wechsel"
@@ -384,12 +405,15 @@ EndFunc
 ; Schildchen "Nummer Taste" links an jeder Diagnose-Kurzwahl bzw. an jedem Filter der Kartei; ein
 ; einziges durchsichtiges, nicht anklickbares Fenster (Farbschluessel Magenta) ueber dem Zielfenster
 Func EinblendungZeigen()
-	Local $hWnd = _WinAPI_GetForegroundWindow(), $pos[0][2], $n = 0
-	If DiagAktiv() Then
+	; $pos: linker Rand des Schildchens, Mitte y, Text ("" = Nummer und Taste aus der Stelle)
+	Local $hWnd = _WinAPI_GetForegroundWindow(), $pos[0][3], $n = 0
+	If BriefAktiv() Then
+		$n = BriefPositionen($hWnd, $pos)
+	ElseIf DiagAktiv() Then
 		Local $k = DiagKnoepfe($hWnd)
 		If Not IsArray($k) Then Return
 		$gEinblendungKnoepfe = $k
-		ReDim $pos[UBound($k)][2]
+		ReDim $pos[UBound($k)][3]
 		For $i = 0 To UBound($k) - 1
 			$pos[$i][0] = $k[$i][3] + 2
 			$pos[$i][1] = $k[$i][1]
@@ -408,8 +432,11 @@ Func EinblendungZeigen()
 	DllCall("user32.dll", "bool", "SetLayeredWindowAttributes", "hwnd", $g, "dword", 0xFF00FF, "byte", 255, "dword", 1)
 	For $i = 0 To $n - 1
 		; Ziffernblock-Nummer (ab 0), dahinter die direkte Taste, falls sie nicht gleich heisst
-		Local $t = String($i)
-		If $i < UBound($TastenNamen) And $TastenNamen[$i] <> $t Then $t &= " " & $TastenNamen[$i]
+		Local $t = $pos[$i][2]
+		If $t = "" Then
+			$t = String($i)
+			If $i < UBound($TastenNamen) And $TastenNamen[$i] <> $t Then $t &= " " & $TastenNamen[$i]
+		EndIf
 		GUICtrlCreateLabel($t, $pos[$i][0] - $f[0], $pos[$i][1] - $f[1] - 8, 7 * StringLen($t) + 8, 16, BitOR($SS_CENTER, $SS_CENTERIMAGE))
 		GUICtrlSetBkColor(-1, 0xFFE45C)
 		GUICtrlSetColor(-1, 0x000000)
@@ -457,7 +484,7 @@ Func FilterPositionen($hWnd, ByRef $pos)
 		ElseIf $h <> $hListe Or $y > $unten Then
 			ExitLoop
 		EndIf
-		ReDim $pos[$n + 1][2]
+		ReDim $pos[$n + 1][3]
 		$pos[$n][0] = $links
 		$pos[$n][1] = $y
 		$n += 1
@@ -479,6 +506,7 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
 	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
 	If $aufgabe = "Hochladen" Then Return Hochladen()
+	If $aufgabe = "Fensterliste" Then Return FensterListe()
 	If $aufgabe = "KalibBereich" Then Return KalibBereich()
 	Local $teil = StringSplit($aufgabe, ":", 2)
 	If UBound($teil) = 1 Then Return Reiter($aufgabe)
@@ -491,7 +519,203 @@ Func Ausfuehren($aufgabe)
 			KalibrierFilter(Int($teil[1]))
 		Case "Diagnose"
 			DiagnoseWahl(Int($teil[1]))
+		Case "Brief"
+			BriefKlick($teil[1])
 	EndSwitch
+EndFunc
+
+; ist der Briefversand das aktive Fenster? (im Hook, muss schnell sein)
+Func BriefAktiv()
+	Return StringLeft(_WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()), StringLen($BriefTitel)) = $BriefTitel
+EndFunc
+
+; Aufgabe zur Taste im Briefversand, "" wenn die Taste dort nicht belegt ist
+Func BriefTaste($vk)
+	Switch $vk
+		Case 0x4B ; K
+			Return "Kontakt"
+		Case 0x49 ; I
+			Return "KIM"
+		Case 0x52 ; R
+			Return "Krankenblatt"
+		Case 0x4F ; O
+			Return "Ordner"
+		Case 0x45 ; E
+			Return "Empfang"
+		Case 0x42 ; B
+			Return "Betreff"
+		Case 0x4D ; M
+			Return "Empfaenger"
+		Case 0x46 ; F
+			Return "Vorschau"
+		Case 0x56 ; V
+			Return "Versenden"
+	EndSwitch
+	Return ""
+EndFunc
+
+; Briefversand: klickt mit der echten Maus auf das zu $was gehoerende Control, erst nach dem
+; Loslassen von Strg und Alt (sonst kaeme ein Strg+Alt+Klick an)
+Func BriefKlick($was)
+	Local $hWnd = _WinAPI_GetForegroundWindow()
+	If StringLeft(_WinAPI_GetWindowText($hWnd), StringLen($BriefTitel)) <> $BriefTitel Then Return False
+	Local $x, $y
+	If Not BriefZiel($hWnd, $was, $x, $y) Then Return Meldung($was & " im Briefversand nicht gefunden (Strg+Alt+Umsch+D listet die Controls)")
+	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Opt("MouseCoordMode", 1)
+	Local $alt = MouseGetPos()
+	MouseClick("left", $x, $y, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Return True
+EndFunc
+
+; Schildchen fuer die Einblendung im Briefversand: Buchstabe der Taste an der Klickstelle
+Func BriefPositionen($hWnd, ByRef $pos)
+	Local $tasten[10][2] = [["Kontakt", "K"], ["KIM", "I"], ["Krankenblatt", "R"], ["Ordner", "O"], _
+			["Empfang", "E"], ["Betreff", "B"], ["Empfaenger", "M"], ["Vorschau", "F"], ["Versenden", "V"], _
+			["Abbrechen", "Esc"]]
+	Local $n = 0, $x, $y
+	For $i = 0 To UBound($tasten) - 1
+		If Not BriefZiel($hWnd, $tasten[$i][0], $x, $y) Then ContinueLoop
+		ReDim $pos[$n + 1][3]
+		; Schildchen mittig ueber der Klickstelle
+		$pos[$n][0] = $x - Int((7 * StringLen($tasten[$i][1]) + 8) / 2)
+		$pos[$n][1] = $y
+		$pos[$n][2] = $tasten[$i][1]
+		$n += 1
+	Next
+	Return $n
+EndFunc
+
+; Bildschirmpunkt $x,$y, auf den fuer $was im Briefversand geklickt wird; False, wenn nicht gefunden
+Func BriefZiel($hWnd, $was, ByRef $x, ByRef $y)
+	Local $h = 0, $p
+	$x = -1
+	$y = -1
+	Switch $was
+		Case "Kontakt"
+			$h = TextControl($hWnd, "Kontaktverzeichnis")
+		Case "KIM"
+			$h = TextControl($hWnd, "KIM-Verzeichnis")
+		Case "Krankenblatt"
+			$h = TextControl($hWnd, "Krankenblatt")
+		Case "Ordner"
+			$h = TextControl($hWnd, "Ordner")
+		Case "Versenden"
+			$h = TextControl($hWnd, "Versenden/Drucken")
+		Case "Abbrechen"
+			$h = TextControl($hWnd, "Abbrechen")
+		Case "Empfang"
+			; das Kaestchen sitzt am linken Rand des Controls
+			$h = TextControl($hWnd, "Empfangsbest" & ChrW(228) & "tigung anfordern")
+			If $h Then
+				$p = WinGetPos($h)
+				$x = $p[0] + 7
+				$y = $p[1] + Int($p[3] / 2)
+			EndIf
+		Case "Betreff", "Empfaenger", "Vorschau"
+			$h = BriefControl($hWnd, $was)
+			If $h And $was = "Empfaenger" Then
+				; in die erste Zeile, rechts vom Kaestchen, damit es nicht umgeschaltet wird
+				$p = WinGetPos($h)
+				$x = $p[0] + Int(IniRead($Ini, "Briefversand", "EmpfaengerX", $defEmpfaengerX))
+				$y = $p[1] + Int(IniRead($Ini, "Briefversand", "EmpfaengerY", $defEmpfaengerY))
+			EndIf
+	EndSwitch
+	If Not $h Then Return False
+	If $x < 0 Then
+		$p = WinGetPos($h)
+		If @error Then Return False
+		$x = $p[0] + Int($p[2] / 2)
+		$y = $p[1] + Int($p[3] / 2)
+	EndIf
+	Return True
+EndFunc
+
+; sichtbares Control mit genau diesem Text, 0 wenn keins
+Func TextControl($hWnd, $text)
+	Local $h = ControlGetHandle($hWnd, "", "[TEXT:" & $text & "]")
+	If @error Or Not BitAND(WinGetState($h), 2) Then Return 0
+	Return $h
+EndFunc
+
+; Betreff-Zeile, Empfaengerliste bzw. Vorschau: aus [Briefversand] $was=<Control in AutoIt-Schreibweise>,
+; sonst vermutet: Betreff das oberste einzeilige Eingabefeld, Empfaenger die oberste Liste,
+; Vorschau das groesste Control ohne Unterfenster unterhalb des Betreffs in der linken Haelfte
+Func BriefControl($hWnd, $was)
+	Local $ctl = IniRead($Ini, "Briefversand", $was, "")
+	If $ctl <> "" Then
+		Local $hc = ControlGetHandle($hWnd, "", $ctl)
+		If @error Or Not BitAND(WinGetState($hc), 2) Then Return 0
+		Return $hc
+	EndIf
+	Local $liste = _WinAPI_EnumChildWindows($hWnd)
+	If @error Then Return 0
+	Local $f = WinGetPos($hWnd), $best = 0, $bestWert = 0, $betreffY = -1
+	If $was = "Vorschau" Then
+		Local $hb = BriefControl($hWnd, "Betreff")
+		If $hb Then
+			Local $pb = WinGetPos($hb)
+			$betreffY = $pb[1] + $pb[3]
+		EndIf
+	EndIf
+	For $i = 1 To $liste[0][0]
+		Local $h = $liste[$i][0], $kl = $liste[$i][1]
+		If Not BitAND(WinGetState($h), 2) Then ContinueLoop
+		Local $p = WinGetPos($h)
+		If @error Then ContinueLoop
+		Local $wert = 0
+		Switch $was
+			Case "Betreff"
+				If StringRegExp($kl, "(?i)edit") And Not StringRegExp($kl, "(?i)memo|rich|inner") _
+						And $p[2] >= 150 And $p[3] <= 40 Then $wert = 100000 - $p[1]
+			Case "Empfaenger"
+				If StringRegExp($kl, "(?i)grid|list|tree") And $p[3] >= 40 Then $wert = 100000 - $p[1]
+			Case "Vorschau"
+				; 5 = GW_CHILD: nur Controls ohne Unterfenster
+				If _WinAPI_GetWindow($h, 5) = 0 And $p[1] > $betreffY _
+						And $p[0] + $p[2] / 2 < $f[0] + $f[2] / 2 Then $wert = $p[2] * $p[3]
+		EndSwitch
+		If $wert > $bestWert Then
+			$best = $h
+			$bestWert = $wert
+		EndIf
+	Next
+	Return $best
+EndFunc
+
+; Strg+Alt+Umsch+D: alle Controls des aktiven Fensters mit Klasse, AutoIt-Nummer (INSTANCE), sichtbar,
+; Lage relativ zum Fenster und Text in die Zwischenablage und nach Fenster.txt
+Func FensterListe()
+	Local $hWnd = _WinAPI_GetForegroundWindow()
+	Local $f = WinGetPos($hWnd)
+	If @error Then Return False
+	Local $txt = "Fenster: """ & _WinAPI_GetWindowText($hWnd) & """  Klasse " & _WinAPI_GetClassName($hWnd) _
+			& "  Lage " & $f[0] & "," & $f[1] & " " & $f[2] & "x" & $f[3] & @CRLF
+	Local $liste = _WinAPI_EnumChildWindows($hWnd, False)
+	If Not @error Then
+		; INSTANCE zaehlt je Klasse in der Reihenfolge dieser Aufzaehlung
+		Local $nr = ObjCreate("Scripting.Dictionary")
+		For $i = 1 To $liste[0][0]
+			Local $h = $liste[$i][0], $kl = $liste[$i][1]
+			$nr.Item($kl) = $nr.Item($kl) + 1
+			Local $p = WinGetPos($h)
+			If @error Then ContinueLoop
+			$txt &= "[CLASS:" & $kl & "; INSTANCE:" & $nr.Item($kl) & "]" _
+					& (BitAND(WinGetState($h), 2) ? "" : " (unsichtbar)") _
+					& "  " & ($p[0] - $f[0]) & "," & ($p[1] - $f[1]) & " " & $p[2] & "x" & $p[3] _
+					& "  """ & StringLeft(_WinAPI_GetWindowText($h), 60) & """" & @CRLF
+		Next
+	EndIf
+	DirCreate(@AppDataDir & "\MOReiter")
+	Local $datei = @AppDataDir & "\MOReiter\Fenster.txt"
+	; 2 = ueberschreiben, 128 = UTF-8 mit BOM
+	Local $fh = FileOpen($datei, 2 + 128)
+	FileWrite($fh, $txt)
+	FileClose($fh)
+	ClipPut($txt)
+	Hinweis("Controls in der Zwischenablage und in " & $datei)
+	Return True
 EndFunc
 
 ; ist die Diagnoseerfassung das aktive Fenster? (im Hook, muss schnell sein)
