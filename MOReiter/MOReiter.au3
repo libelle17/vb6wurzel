@@ -6,7 +6,8 @@
 ; MOReiter: waehlt in Medical Office den Reiter "Kartei", "Krankenblatt", "ePA" oder "ePAAbr" per Mausklick
 ; Aufruf:  MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr  -> einmal klicken und beenden (z.B. aus VB6 per Shell)
 ;          MOReiter.exe LetztePatienten | Menue  -> Pfeil neben der Patientensuche bzw. drei Striche links oben
-;          MOReiter.exe Filter 1..24             -> Kartei und dort den n-ten Filter waehlen
+;          MOReiter.exe Filter n                 -> Kartei und dort den n-ten Filter waehlen
+;          MOReiter.exe Diagnose n               -> in der Diagnoseerfassung die n-te Kurzwahl rechts anklicken
 ;          MOReiter.exe Wechsel                  -> Kartei, bzw. Krankenblatt, wenn Kartei schon aktiv ist
 ;          MOReiter.exe ePAWechsel               -> ePA, bzw. ePAAbr, wenn ePA schon aktiv ist
 ;          MOReiter.exe                          -> bleibt resident mit Hotkeys:
@@ -30,6 +31,16 @@
 ;                              links ("Alle Eintraege", "Dateien", "RR Gewicht", ...)
 ;            Strg+Alt+Umsch+ dieselbe Taste  Kalibrieren: Maus auf diesen Filter halten und druecken;
 ;                              beim 1. Filter (^) wird die Position gemerkt, bei den anderen der Zeilenabstand
+;            Strg+Alt+ ^ 1 2 ... F12 in der Diagnoseerfassung: stattdessen die 1., 2., ... 24. Diagnose-
+;                              Kurzwahl rechts (erst die linke Spalte von oben nach unten, dann die naechste;
+;                              [Diagnosen] Reihenfolge=Zeilen zaehlt zeilenweise); ohne Kalibrieren, die
+;                              Knoepfe werden bei jedem Druck am Bildschirm gesucht
+;            Strg+Alt halten und auf dem Ziffernblock eine Nummer tippen (bis 3 Stellen, mit und ohne
+;                              NumLock): beim Loslassen von Strg bzw. Alt wird der Filter bzw. in der
+;                              Diagnoseerfassung die Kurzwahl mit dieser Nummer gewaehlt, auch jenseits von 24
+;            Strg+Alt eine halbe Sekunde halten ([Allgemein] Einblendung=ms, 0 = nie): an den Filtern
+;                              der Kartei bzw. den Diagnose-Kurzwahlen erscheinen gelbe Schildchen mit
+;                              Nummer und direkter Taste (z.B. "12 sz"), bis Strg oder Alt losgelassen wird
 ;            Die Tasten werden per Tastatur-Hook abgefangen (nicht per HotKeySet), weil nur so linkes Alt
 ;            von AltGr unterschieden werden kann: AltGr kommt als linke Strg + rechte Alt an und bleibt
 ;            unberuehrt, so dass AltGr+2 3 7 8 9 0 sz weiterhin hoch2 hoch3 { [ ] } \ liefern.
@@ -42,6 +53,9 @@
 #include <WinAPI.au3>
 #include <WindowsNotifsConstants.au3>
 #include <ScreenCapture.au3>
+#include <GUIConstantsEx.au3>
+#include <WindowsConstants.au3>
+#include <StaticConstants.au3>
 Opt("MustDeclareVars", 1)
 Opt("WinTitleMatchMode", 4)
 ; keine 250 ms Pause nach jedem Fensterbefehl; wo ein Fenster Zeit braucht, wird ausdruecklich gewartet
@@ -76,9 +90,23 @@ Const $KbPfeilHell = 0x6CC1EF, $KbPfeilDunkel = 0x233658, $KbPfeilArm = 0x809FBA
 Const $EpaDialog = "[REGEXPTITLE:^MEDICAL OFFICE - ePA; CLASS:TClientWindowForm]", $defHochladenWarten = 300
 ; danach evtl. Dialog zur Leistungsdokumentation mit "Uebernehmen", wird bis zu $defLeistungWarten ms erwartet
 Const $LeistungDialog = "[TITLE:Medical Office; CLASS:TfrmDialogContainer]", $defLeistungWarten = 1500
+; Diagnoseerfassung (gemessen 30.9.26): Kurzwahl-Knoepfe rechts grau (182) auf etwas hellerem Grau (192),
+; Toleranz je Farbanteil; der Knopf mit dem Fokus ist dunkler und blau umrandet
+Const $DiagFenster = "[REGEXPTITLE:^Diagnoseerfassung]", $DiagTitel = "Diagnoseerfassung"
+Const $defDiagKnopfFarbe = 0xB6B6B6, $defDiagToleranz = 6, $defDiagReihenfolge = "Spalten"
 ; virtuelle Tastencodes fuer die Filter 1..24 (deutsches Layout: ^ = OEM_5, sz = OEM_4, Akut = OEM_6)
 Global $FilterTasten[24] = [0xDC, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0xDB, 0xDD, _
 		0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B]
+; Beschriftung dieser Tasten fuer die Einblendung
+Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
+		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
+Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet werden
+; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
+; gedrueckte Ziffertasten als ",vk,", und die gerade angezeigte Nummer
+Global $gNummer = "", $gNummerZiel = "", $gUnten = "", $gNummerAngezeigt = ""
+; Einblendung: Fenster mit den Schildchen, zugehoeriges Fenster und dessen Kurzwahl-Knoepfe,
+; Beginn des Haltens von Strg+Alt (0 = nicht gehalten), schon versucht
+Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHaltStart = 0, $gEinblendungVersucht = False
 ; Tastatur-Hook: der Rueckruf merkt sich nur die Aufgabe, ausgefuehrt wird sie in der Hauptschleife,
 ; weil Windows einen Hook, der zu lange braucht, stillschweigend abhaengt
 Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
@@ -87,6 +115,8 @@ Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
 If $CmdLine[0] > 1 And $CmdLine[1] = "Filter" Then
 	Exit FilterWahl(Int($CmdLine[2]) - 1) ? 0 : 1
+ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Diagnose" Then
+	Exit DiagnoseWahl(Int($CmdLine[2]) - 1) ? 0 : 1
 ElseIf $CmdLine[0] > 0 Then
 	Exit Ausfuehren($CmdLine[1]) ? 0 : 1
 EndIf
@@ -98,7 +128,7 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, Z letzte Patienten, Leertaste Menue, ^..F12 Filter")
+TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
@@ -115,7 +145,11 @@ While 1
 		Local $aufgabe = $gAufgabe
 		$gAufgabe = ""
 		Ausfuehren($aufgabe)
+		$gHaltStart = 0
+		$gEinblendungVersucht = False
 	EndIf
+	NummerPruefen()
+	EinblendungPruefen()
 	; Windows entfernt einen Hook stillschweigend, wenn er einmal zu langsam antwortet (z.B. bei hoher
 	; Last, Sperren, Aufwachen), das Programm liefe dann taub weiter; daher regelmaessig neu einhaengen
 	If TimerDiff($erneuert) > 5000 Then
@@ -145,11 +179,27 @@ Func TastenHook($nCode, $wParam, $lParam)
 		Local $vk = $kb.vkCode
 		If $wParam = $WM_KEYUP Or $wParam = $WM_SYSKEYUP Then
 			; zum geschluckten Druecken auch das Loslassen schlucken
+			If StringInStr($gUnten, "," & $vk & ",") Then
+				$gUnten = StringReplace($gUnten, "," & $vk & ",", "", 1)
+				Return 1
+			EndIf
 			If $vk = $gGehalten Then
 				$gGehalten = 0
 				Return 1
 			EndIf
 		Else
+			; Ziffernblock bei Strg+Alt: Ziffer an die Nummer haengen, gewaehlt wird beim Loslassen
+			; (NummerPruefen); geschluckt, damit auch keine Alt+Ziffernblock-Zeichencodes entstehen
+			Local $z = ZifferVon($vk, $kb.flags)
+			If $z >= 0 And StrgAlt() Then
+				; schon gedrueckt: automatische Wiederholung
+				If Not StringInStr($gUnten, "," & $vk & ",") Then
+					$gUnten &= "," & $vk & ","
+					If $gNummer = "" Then $gNummerZiel = DiagAktiv() ? "Diagnose" : "Filter"
+					If StringLen($gNummer) < 3 Then $gNummer &= $z
+				EndIf
+				Return 1
+			EndIf
 			; auch kuenstlich erzeugte Tasten (LLKHF_INJECTED) auswerten: RemotePC, TeamViewer u.ae.
 			; liefern alle Tasten so; MOReiter selbst sendet nie Strg+Alt+Taste
 			Local $aufgabe = HookAufgabe($vk)
@@ -172,7 +222,7 @@ EndFunc
 
 ; Aufgabe zur Taste $vk, falls gerade Strg + linke Alt (ohne AltGr) gehalten werden, sonst ""
 Func HookAufgabe($vk)
-	If Not (Gedrueckt(0xA2) Or Gedrueckt(0xA3)) Or Not Gedrueckt(0xA4) Or Gedrueckt(0xA5) Then Return ""
+	If Not StrgAlt() Then Return ""
 	Local $kalib = Gedrueckt(0x10)
 	Switch $vk
 		Case 0x4B ; K
@@ -192,9 +242,167 @@ Func HookAufgabe($vk)
 			Return $kalib ? "" : "Menue"
 	EndSwitch
 	For $i = 0 To UBound($FilterTasten) - 1
-		If $vk = $FilterTasten[$i] Then Return ($kalib ? "KalibFilter:" : "Filter:") & $i
+		If $vk <> $FilterTasten[$i] Then ContinueLoop
+		; in der Diagnoseerfassung waehlen dieselben Tasten die Diagnose-Kurzwahl (nichts zu kalibrieren)
+		If DiagAktiv() Then Return $kalib ? "" : "Diagnose:" & $i
+		Return ($kalib ? "KalibFilter:" : "Filter:") & $i
 	Next
 	Return ""
+EndFunc
+
+; Strg + linke Alt gehalten, aber nicht AltGr (kommt als linke Strg + rechte Alt)
+Func StrgAlt()
+	Return (Gedrueckt(0xA2) Or Gedrueckt(0xA3)) And Gedrueckt(0xA4) And Not Gedrueckt(0xA5)
+EndFunc
+
+; Ziffer 0-9 einer Ziffernblocktaste, -1 fuer andere Tasten; ohne NumLock liefert der Ziffernblock
+; Pfeil- und Blaettertasten, die sich vom eigenen Pfeilblock nur durch das fehlende Extended-Bit
+; (LLKHF_EXTENDED = 1) unterscheiden
+Func ZifferVon($vk, $flags)
+	If $vk >= 0x60 And $vk <= 0x69 Then Return $vk - 0x60
+	If BitAND($flags, 1) Then Return -1
+	Switch $vk
+		Case 0x2D ; Einfg
+			Return 0
+		Case 0x23 ; Ende
+			Return 1
+		Case 0x28 ; Pfeil runter
+			Return 2
+		Case 0x22 ; Bild runter
+			Return 3
+		Case 0x25 ; Pfeil links
+			Return 4
+		Case 0x0C ; Clear
+			Return 5
+		Case 0x27 ; Pfeil rechts
+			Return 6
+		Case 0x24 ; Pos1
+			Return 7
+		Case 0x26 ; Pfeil hoch
+			Return 8
+		Case 0x21 ; Bild hoch
+			Return 9
+	EndSwitch
+	Return -1
+EndFunc
+
+; zeigt die getippte Nummer an und waehlt sie, sobald Strg oder Alt losgelassen ist
+Func NummerPruefen()
+	If $gNummer = "" Then Return
+	If StrgAlt() Then
+		If $gNummer <> $gNummerAngezeigt Then
+			$gNummerAngezeigt = $gNummer
+			AdlibUnRegister("HinweisWeg")
+			ToolTip("Nr. " & $gNummer, Default, Default, "MOReiter")
+		EndIf
+		Return
+	EndIf
+	Local $n = Int($gNummer), $ziel = $gNummerZiel
+	$gNummer = ""
+	$gNummerAngezeigt = ""
+	$gUnten = ""
+	ToolTip("")
+	If $n < 1 Then Return Meldung("Nummer 0 gibt es nicht")
+	If $ziel = "Diagnose" Then Return DiagnoseWahl($n - 1)
+	Return FilterWahl($n - 1)
+EndFunc
+
+; blendet nach $defEinblendung ms Halten von Strg+Alt (ohne Umschalt) die Nummern ein, beim
+; Loslassen wieder aus; je Halten nur ein Versuch, weil die Knopfsuche Zeit kostet
+Func EinblendungPruefen()
+	If Not StrgAlt() Or Gedrueckt(0x10) Then
+		$gHaltStart = 0
+		$gEinblendungVersucht = False
+		If $gEinblendung Then EinblendungWeg()
+		Return
+	EndIf
+	If $gHaltStart = 0 Then $gHaltStart = TimerInit()
+	Local $ms = Int(IniRead($Ini, "Allgemein", "Einblendung", $defEinblendung))
+	If $ms <= 0 Or $gEinblendungVersucht Or TimerDiff($gHaltStart) < $ms Then Return
+	$gEinblendungVersucht = True
+	EinblendungZeigen()
+EndFunc
+
+; Schildchen "Nummer Taste" links an jeder Diagnose-Kurzwahl bzw. an jedem Filter der Kartei; ein
+; einziges durchsichtiges, nicht anklickbares Fenster (Farbschluessel Magenta) ueber dem Zielfenster
+Func EinblendungZeigen()
+	Local $hWnd = _WinAPI_GetForegroundWindow(), $pos[0][2], $n = 0
+	If DiagAktiv() Then
+		Local $k = DiagKnoepfe($hWnd)
+		If Not IsArray($k) Then Return
+		$gEinblendungKnoepfe = $k
+		ReDim $pos[UBound($k)][2]
+		For $i = 0 To UBound($k) - 1
+			$pos[$i][0] = $k[$i][3] + 2
+			$pos[$i][1] = $k[$i][1]
+		Next
+		$n = UBound($k)
+	ElseIf MOAktiv() Then
+		$n = FilterPositionen($hWnd, $pos)
+	EndIf
+	If $n = 0 Then Return
+	Local $f = WinGetPos($hWnd)
+	If @error Then Return
+	Local $g = GUICreate("MOReiter-Einblendung", $f[2], $f[3], $f[0], $f[1], $WS_POPUP, _
+			BitOR($WS_EX_LAYERED, $WS_EX_TRANSPARENT, $WS_EX_TOOLWINDOW, $WS_EX_TOPMOST, $WS_EX_NOACTIVATE))
+	GUISetBkColor(0xFF00FF, $g)
+	; 1 = LWA_COLORKEY: Magenta ist durchsichtig
+	DllCall("user32.dll", "bool", "SetLayeredWindowAttributes", "hwnd", $g, "dword", 0xFF00FF, "byte", 255, "dword", 1)
+	For $i = 0 To $n - 1
+		Local $t = ($i < UBound($TastenNamen)) ? ($i + 1) & " " & $TastenNamen[$i] : String($i + 1)
+		GUICtrlCreateLabel($t, $pos[$i][0] - $f[0], $pos[$i][1] - $f[1] - 8, 7 * StringLen($t) + 8, 16, BitOR($SS_CENTER, $SS_CENTERIMAGE))
+		GUICtrlSetBkColor(-1, 0xFFE45C)
+		GUICtrlSetColor(-1, 0x000000)
+		GUICtrlSetFont(-1, 8.5, 700, 0, "Segoe UI")
+	Next
+	GUISetState(@SW_SHOWNOACTIVATE, $g)
+	$gEinblendung = $g
+	$gEinblendungWnd = $hWnd
+EndFunc
+
+Func EinblendungWeg()
+	If $gEinblendung Then GUIDelete($gEinblendung)
+	$gEinblendung = 0
+	$gEinblendungWnd = 0
+	$gEinblendungKnoepfe = 0
+EndFunc
+
+; Bildschirmpunkte (linker Rand der Filterliste, Mitte des Filters) aller sichtbaren Filter in $pos,
+; liefert ihre Anzahl; nur wenn die Kartei (bzw. [Filter] Reiter) schon aktiv ist
+Func FilterPositionen($hWnd, ByRef $pos)
+	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
+	If @error Or Not BitAND(WinGetState($hCtrl), 2) Then Return 0
+	If Not ReiterAktiv(IniRead($Ini, "Filter", "Reiter", $defFilterReiter), $hWnd, $hCtrl) Then Return 0
+	Local $p = WinGetPos($hCtrl)
+	If @error Then Return 0
+	Local $x = $p[0] + Int(IniRead($Ini, "Filter", "X", $defFilterX))
+	Local $y0 = $p[1] + Int(IniRead($Ini, "Filter", "Y", $defFilterY))
+	Local $abst = Number(IniRead($Ini, "Filter", "Abstand", $defFilterAbstand))
+	If $abst < 5 Then Return 0
+	Local $pt = DllStructCreate("int X;int Y"), $hListe = 0, $links = 0, $unten = 0, $n = 0
+	; so lange, wie der Punkt noch auf derselben Filterliste liegt
+	While $n < 200
+		Local $y = Round($y0 + $n * $abst)
+		$pt.X = $x
+		$pt.Y = $y
+		Local $h = _WinAPI_WindowFromPoint($pt)
+		If $n = 0 Then
+			If $h = 0 Or _WinAPI_GetAncestor($h, 2) <> $hWnd Then Return 0
+			$hListe = $h
+			Local $r = WinGetPos($h)
+			If @error Then Return 0
+			$links = $r[0] + 2
+			; bis zum unteren Rand der Liste, abzueglich einer halben Zeile
+			$unten = $r[1] + $r[3] - $abst / 2
+		ElseIf $h <> $hListe Or $y > $unten Then
+			ExitLoop
+		EndIf
+		ReDim $pos[$n + 1][2]
+		$pos[$n][0] = $links
+		$pos[$n][1] = $y
+		$n += 1
+	WEnd
+	Return $n
 EndFunc
 
 Func Gedrueckt($vk)
@@ -203,6 +411,8 @@ Func Gedrueckt($vk)
 EndFunc
 
 Func Ausfuehren($aufgabe)
+	; die Schildchen stoeren sonst Bildschirmpruefungen; Diagnose/Filter nehmen sie selbst weg
+	If StringLeft($aufgabe, 9) <> "Diagnose:" And StringLeft($aufgabe, 7) <> "Filter:" Then EinblendungWeg()
 	If $aufgabe = "LetztePatienten" Then Return LetztePatienten()
 	If $aufgabe = "Menue" Then Return Menue()
 	If $aufgabe = "Abhaken" Then Return Abhaken()
@@ -217,7 +427,178 @@ Func Ausfuehren($aufgabe)
 			FilterWahl(Int($teil[1]))
 		Case "KalibFilter"
 			KalibrierFilter(Int($teil[1]))
+		Case "Diagnose"
+			DiagnoseWahl(Int($teil[1]))
 	EndSwitch
+EndFunc
+
+; ist die Diagnoseerfassung das aktive Fenster? (im Hook, muss schnell sein)
+Func DiagAktiv()
+	Return StringLeft(_WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()), StringLen($DiagTitel)) = $DiagTitel
+EndFunc
+
+; Diagnoseerfassung: klickt die Kurzwahl Nr. $i (0-basiert) in der rechten Fensterhaelfte an
+Func DiagnoseWahl($i)
+	If $i < 0 Then Return Meldung("Unbekannte Diagnose-Kurzwahl")
+	Local $hWnd = WinGetHandle($DiagFenster)
+	If @error Then Return Meldung("Diagnoseerfassung nicht geoeffnet")
+	If Not WinActive($hWnd) Then
+		WinActivate($hWnd)
+		If Not WinWaitActive($hWnd, "", 2) Then Return False
+		Sleep(100) ; bis das Fenster neu gezeichnet ist
+	EndIf
+	; bei eingeblendeten Nummern deren Knoepfe nehmen, die Schildchen verdecken sonst die Suche
+	Local $k = ($gEinblendung And $gEinblendungWnd = $hWnd) ? $gEinblendungKnoepfe : 0
+	EinblendungWeg()
+	If Not IsArray($k) Then $k = DiagKnoepfe($hWnd)
+	If Not IsArray($k) Then Return Meldung("Keine Diagnose-Kurzwahl gefunden")
+	If $i >= UBound($k) Then Return Meldung("Nur " & UBound($k) & " Diagnose-Kurzwahlen sichtbar")
+	Return KlickPunkt($hWnd, $k[$i][0], $k[$i][1], "Diagnose-Kurzwahl verdeckt oder nicht sichtbar")
+EndFunc
+
+; sucht die Kurzwahl-Knoepfe am Bildschirm und liefert [n][4] in Bildschirmkoordinaten (Mitte x, y,
+; Sortierschluessel, linker Rand), geordnet nach [Diagnosen] Reihenfolge, oder 0.
+; Die Knoepfe stehen in Spalten dicht untereinander:
+; zuerst werden in den ersten Knopfzeilen lange knopfgraue Strecken gesucht (textfreie Pixelzeilen
+; eines Knopfs), deren Enden die Spalten ergeben; dann wird je Spalte kurz vor dem rechten Rand
+; senkrecht nach den Luecken in der Hintergrundfarbe getastet. Der blaue Fokusrahmen fuellt die
+; Luecken um seinen Knopf, solche zusammenhaengenden Stuecke werden nach dem Zeilenabstand geteilt.
+Func DiagKnoepfe($hWnd)
+	Local $pt = DllStructCreate("int X;int Y")
+	_WinAPI_ClientToScreen($hWnd, $pt)
+	Local $gr = WinGetClientSize($hWnd)
+	If @error Then Return 0
+	Local $farbe = Int(IniRead($Ini, "Diagnosen", "KnopfFarbe", $defDiagKnopfFarbe))
+	Local $tol = Int(IniRead($Ini, "Diagnosen", "Toleranz", $defDiagToleranz))
+	Local $x1 = $pt.X + Int($gr[0] / 2), $x2 = $pt.X + $gr[0] - 1, $y1 = $pt.Y, $y2 = $pt.Y + $gr[1] - 1
+	If Not BildLesen($x1, $y1, $x2, $y2) Then Return 0
+	; Spalten [n][2]: linker und rechter Rand; nur Strecken ab ca. 100 Pixel, so lang ist in der Mitte
+	; zentrierter Text nie auf einer Seite frei
+	Local $spalten[0][2], $oben = -1
+	For $y = $y1 To $y2 Step 2
+		If $oben >= 0 And $y > $oben + 60 Then ExitLoop
+		Local $n = 0
+		For $x = $x1 To $x2 + 5 Step 5
+			If FarbeNah($x, $y, $farbe, $tol) Then
+				$n += 1
+				ContinueLoop
+			EndIf
+			If $n >= 20 Then
+				Local $e = $x - 5
+				While FarbeNah($e + 1, $y, $farbe, $tol)
+					$e += 1
+				WEnd
+				SpalteMerken($spalten, $x - 5 * $n, $e)
+				If $oben < 0 Then $oben = $y
+			EndIf
+			$n = 0
+		Next
+	Next
+	If UBound($spalten) = 0 Then
+		$gBild = 0
+		Return 0
+	EndIf
+	Local $zeilen = (IniRead($Ini, "Diagnosen", "Reihenfolge", $defDiagReihenfolge) = "Zeilen")
+	Local $k[0][4], $m = 0
+	For $c = 0 To UBound($spalten) - 1
+		Local $li = $spalten[$c][0], $re = $spalten[$c][1], $mx = Int(($li + $re) / 2)
+		; Hintergrund rechts neben der Spalte
+		Local $hg = BildFarbe($re + 2, $oben)
+		If $hg < 0 Then ContinueLoop
+		Local $st[0], $lg[0], $start = -1
+		For $y = $oben To $y2 + 1
+			Local $luecke = ($y > $y2) Or (FarbeNah($re - 1, $y, $hg, $tol) And FarbeNah($re - 3, $y, $hg, $tol))
+			If Not $luecke And $start < 0 Then $start = $y
+			If $luecke And $start >= 0 Then
+				If $y - $start >= 8 Then
+					ReDim $st[UBound($st) + 1], $lg[UBound($lg) + 1]
+					$st[UBound($st) - 1] = $start
+					$lg[UBound($lg) - 1] = $y - $start
+				EndIf
+				$start = -1
+			EndIf
+		Next
+		If UBound($st) = 0 Then ContinueLoop
+		; typische Knopfhoehe und Luecke
+		Local $h = Median($lg), $abst[UBound($st)], $na = 0
+		For $j = 1 To UBound($st) - 1
+			$abst[$na] = $st[$j] - $st[$j - 1] - $lg[$j - 1]
+			$na += 1
+		Next
+		ReDim $abst[$na]
+		Local $l = ($na > 0) ? Median($abst) : 2
+		For $j = 0 To UBound($st) - 1
+			Local $anz = Round(($lg[$j] + $l) / ($h + $l))
+			ReDim $k[$m + ($anz > 1 ? $anz : 1)][4]
+			If $anz <= 1 Then
+				$k[$m][0] = $mx
+				$k[$m][1] = $st[$j] + Int($lg[$j] / 2)
+				$k[$m][3] = $li
+				$m += 1
+			Else
+				For $z = 0 To $anz - 1
+					$k[$m][0] = $mx
+					$k[$m][1] = $st[$j] + $z * ($h + $l) + Int($h / 2)
+					$k[$m][3] = $li
+					$m += 1
+				Next
+			EndIf
+		Next
+	Next
+	$gBild = 0
+	If $m = 0 Then Return 0
+	; Sortierschluessel: spaltenweise ergibt sich die Reihenfolge schon so, zeilenweise nach y, dann x
+	For $j = 0 To $m - 1
+		$k[$j][2] = $zeilen ? Round($k[$j][1] / 4) * 100000 + $k[$j][0] : $j
+	Next
+	For $j = 1 To $m - 1
+		Local $kx = $k[$j][0], $ky = $k[$j][1], $ks = $k[$j][2], $kl = $k[$j][3], $q = $j
+		While $q > 0 And $k[$q - 1][2] > $ks
+			For $s = 0 To 3
+				$k[$q][$s] = $k[$q - 1][$s]
+			Next
+			$q -= 1
+		WEnd
+		$k[$q][0] = $kx
+		$k[$q][1] = $ky
+		$k[$q][2] = $ks
+		$k[$q][3] = $kl
+	Next
+	Return $k
+EndFunc
+
+; nimmt eine Strecke $a..$e als Spalte auf, falls nicht schon eine mit (fast) demselben rechten Rand
+; da ist, und haelt die Spalten nach links sortiert
+Func SpalteMerken(ByRef $spalten, $a, $e)
+	Local $n = UBound($spalten)
+	For $i = 0 To $n - 1
+		If Abs($spalten[$i][1] - $e) <= 3 Then
+			If $a < $spalten[$i][0] Then $spalten[$i][0] = $a
+			If $e > $spalten[$i][1] Then $spalten[$i][1] = $e
+			Return
+		EndIf
+	Next
+	ReDim $spalten[$n + 1][2]
+	While $n > 0 And $spalten[$n - 1][1] > $e
+		$spalten[$n][0] = $spalten[$n - 1][0]
+		$spalten[$n][1] = $spalten[$n - 1][1]
+		$n -= 1
+	WEnd
+	$spalten[$n][0] = $a
+	$spalten[$n][1] = $e
+EndFunc
+
+; Median eines Zahlenfelds
+Func Median($a)
+	For $i = 1 To UBound($a) - 1
+		Local $v = $a[$i], $j = $i
+		While $j > 0 And $a[$j - 1] > $v
+			$a[$j] = $a[$j - 1]
+			$j -= 1
+		WEnd
+		$a[$j] = $v
+	Next
+	Return $a[Int(UBound($a) / 2)]
 EndFunc
 
 ; ist das Hauptfenster von Medical Office aktiv? (im Hook, muss schnell sein)
@@ -548,7 +929,8 @@ EndFunc
 
 ; wechselt bei Bedarf zur Kartei und klickt dort auf den Filter Nr. $i (0-basiert)
 Func FilterWahl($i)
-	If $i < 0 Or $i >= UBound($FilterTasten) Then Return Meldung("Unbekannter Filter")
+	If $i < 0 Then Return Meldung("Unbekannter Filter")
+	EinblendungWeg()
 	Local $hWnd, $hCtrl
 	If Not HolLeiste($hWnd, $hCtrl) Then Return False
 	Local $reiter = IniRead($Ini, "Filter", "Reiter", $defFilterReiter)
@@ -566,21 +948,27 @@ EndFunc
 Func KlickBei($hWnd, $hCtrl, $x, $y)
 	Local $p = WinGetPos($hCtrl)
 	If @error Then Return Meldung("Reiterleiste nicht gefunden")
+	Return KlickPunkt($hWnd, $p[0] + $x, $p[1] + $y, "Filterliste verdeckt oder nicht sichtbar")
+EndFunc
+
+; klickt an den Bildschirmpunkt $x,$y auf das Control, das dort liegt; $verdeckt ist die Meldung,
+; wenn dort kein Control von $hWnd liegt
+Func KlickPunkt($hWnd, $x, $y, $verdeckt)
 	WinActivate($hWnd)
 	WinWaitActive($hWnd, "", 2)
 	If IniRead($Ini, "Allgemein", "EchteMaus", "0") = "1" Then
 		Local $alt = MouseGetPos()
 		Opt("MouseCoordMode", 1)
-		MouseClick("left", $p[0] + $x, $p[1] + $y, 1, 0)
+		MouseClick("left", $x, $y, 1, 0)
 		MouseMove($alt[0], $alt[1], 0)
 		Return True
 	EndIf
 	Local $pt = DllStructCreate("int X;int Y")
-	$pt.X = $p[0] + $x
-	$pt.Y = $p[1] + $y
+	$pt.X = $x
+	$pt.Y = $y
 	Local $hZiel = _WinAPI_WindowFromPoint($pt)
 	; 2 = GA_ROOT: das Control muss zum Medical-Office-Fenster gehoeren
-	If $hZiel = 0 Or _WinAPI_GetAncestor($hZiel, 2) <> $hWnd Then Return Meldung("Filterliste verdeckt oder nicht sichtbar")
+	If $hZiel = 0 Or _WinAPI_GetAncestor($hZiel, 2) <> $hWnd Then Return Meldung($verdeckt)
 	_WinAPI_ScreenToClient($hZiel, $pt)
 	If Not ControlClick($hWnd, "", $hZiel, "left", 1, $pt.X, $pt.Y) Then Return Meldung("Klick fehlgeschlagen")
 	Return True
