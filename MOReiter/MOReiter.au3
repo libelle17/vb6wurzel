@@ -22,6 +22,10 @@
 ;            Strg+Alt+A        nur in der MO-Tagesuebersicht bei "Offene To-Dos": markierte Zeile als
 ;                              erledigt abhaken und die nachrueckende Zeile markieren
 ;            Strg+Alt+Umsch+A  in der Tagesuebersicht: Maus auf die Spalte "Bereich" halten und druecken
+;            Alt+Pfeil hoch/runter  nur in der MO-Tagesuebersicht: in der Bereichsauswahl links den Eintrag
+;                              ueber bzw. unter dem gelb umrandeten anklicken (vom obersten zum untersten
+;                              und umgekehrt, der Trennstrich wird uebersprungen), danach rechts die oberste
+;                              Zeile der Liste (geklickt wird nach dem Loslassen von Alt)
 ;            Strg+Alt+Umsch+K  Kalibrieren: Maus auf Reiter "Kartei" halten und druecken
 ;            Strg+Alt+Umsch+L  Kalibrieren: Maus auf Reiter "Krankenblatt" halten und druecken
 ;            Strg+Alt+Umsch+P  Kalibrieren: Maus auf Reiter "ePA" halten und druecken
@@ -90,6 +94,11 @@ Const $defFilterWarten = 400 ; ms nach dem Reiterwechsel, bis die Filterliste st
 Const $TagesKlasse = "TfrmTagesUebersicht"
 Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500
 Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7ABEE7
+; Bereichsauswahl links (gemessen 30.9.26): der gewaehlte Eintrag hat 2 Pixel eingerueckt einen gelben
+; Rahmen (8F8F1E, innen E2E178); die blaue Hervorhebung unter der Maus kann auf jedem Eintrag liegen und
+; auch den gewaehlten bis auf einen gelben Rand links und rechts ueberdecken, deshalb zaehlt nur der Rahmen.
+; Die Eintraege haben einen grauen Rand (C1C6CF) und 1 Pixel Abstand; der Trennstrich ist innen weiss.
+Const $defBereichRahmen = 0x8F8F1E, $BereichRand = 0xC1C6CF, $defBereichWarten = 1500
 ; Krankenblatt-Liste (gemessen 28.9.26): Hintergrund der markierten Zeile, Kopfzeilenhoehe, Hoehe des
 ; Pfeilschafts ab Zeilenoberkante; Pfeil nach oben hellblau = noch nicht in der ePA, dunkel = schon drin
 Const $KbMarkiertFarbe = 0xD3E3F7, $KbKopfHoehe = 18, $KbPfeilY = 11
@@ -246,6 +255,9 @@ EndFunc
 
 ; Aufgabe zur Taste $vk, falls gerade Strg + linke Alt (ohne AltGr) gehalten werden, sonst ""
 Func HookAufgabe($vk)
+	; Alt+Pfeil hoch/runter (ohne Strg und Umschalt) nur in der Tagesuebersicht
+	If ($vk = 0x26 Or $vk = 0x28) And Gedrueckt(0x12) And Not Gedrueckt(0x11) And Not Gedrueckt(0x10) _
+			And TagesAktiv() Then Return ($vk = 0x26) ? "BereichHoch" : "BereichRunter"
 	If Not StrgAlt() Then Return ""
 	Local $kalib = Gedrueckt(0x10)
 	Switch $vk
@@ -464,6 +476,8 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "LetztePatienten" Then Return LetztePatienten()
 	If $aufgabe = "Menue" Then Return Menue()
 	If $aufgabe = "Abhaken" Then Return Abhaken()
+	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
+	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
 	If $aufgabe = "Hochladen" Then Return Hochladen()
 	If $aufgabe = "KalibBereich" Then Return KalibBereich()
 	Local $teil = StringSplit($aufgabe, ":", 2)
@@ -809,7 +823,11 @@ Func PfeilSchaft($x1, $x2, $y, $farbe, $arme)
 EndFunc
 
 Func FarbeNah($x, $y, $farbe, $tol)
-	Local $c = BildFarbe($x, $y)
+	Return FarbeGleich(BildFarbe($x, $y), $farbe, $tol)
+EndFunc
+
+; weicht die Farbe $c je Farbanteil hoechstens $tol von $farbe ab? ($c = -1: nein)
+Func FarbeGleich($c, $farbe, $tol)
 	If $c < 0 Then Return False
 	Return Abs(BitAND(BitShift($c, 16), 255) - BitAND(BitShift($farbe, 16), 255)) <= $tol _
 			And Abs(BitAND(BitShift($c, 8), 255) - BitAND(BitShift($farbe, 8), 255)) <= $tol _
@@ -819,6 +837,124 @@ EndFunc
 ; ist die MO-Tagesuebersicht das aktive Fenster? (wird im Tastatur-Hook aufgerufen, muss schnell sein)
 Func TagesAktiv()
 	Return _WinAPI_GetClassName(_WinAPI_GetForegroundWindow()) = $TagesKlasse
+EndFunc
+
+; Tagesuebersicht: in der Bereichsauswahl links den Eintrag ueber ($richtung = -1) bzw. unter (1) dem
+; gelb umrandeten anklicken, am Ende wieder am anderen Ende beginnen; danach, sobald sich die Liste
+; rechts neu aufgebaut hat, deren oberste Zeile anklicken.
+; Die Auswahl wird am Bildschirm gesucht: gelber Rahmen links (senkrecht) und rechts in derselben Zeile;
+; von dort aus werden im Raster der Eintraege nach oben und unten die weiteren gezaehlt, bis an der
+; grauen Randspalte keiner mehr ist.
+; Geklickt wird mit der echten Maus und erst nach dem Loslassen von Alt: auf einen per Nachricht
+; geschickten Klick (ControlClick) beginnt die Bereichsauswahl ein Ziehen (Halteverbots-Mauszeiger),
+; statt den Eintrag zu waehlen, und die Liste rechts bekaeme den Tastaturfokus nicht.
+Func BereichWechsel($richtung)
+	Local $hWnd = WinGetHandle("[ACTIVE]")
+	If _WinAPI_GetClassName($hWnd) <> $TagesKlasse Then Return False
+	Local $hGrid = ControlGetHandle($hWnd, "", "[CLASS:TNewStringGrid; INSTANCE:1]")
+	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
+	AltMaskieren()
+	If Not ModifierLos() Then Return Meldung("Alt bitte loslassen")
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return False
+	Local $pt = DllStructCreate("int X;int Y")
+	_WinAPI_ClientToScreen($hWnd, $pt)
+	; Bereich links neben der Liste
+	Local $x1 = $pt.X, $x2 = $g[0] - 1, $y1 = $g[1], $y2 = $g[1] + $g[3] - 1
+	If $x2 - $x1 < 40 Then Return Meldung("Bereichsauswahl links nicht sichtbar")
+	Local $farbe = Int(IniRead($Ini, "Tagesuebersicht", "BereichRahmen", $defBereichRahmen))
+	Opt("PixelCoordMode", 1)
+	If Not BildLesen($x1, $y1, $x2, $y2) Then Return Meldung("Bildschirm nicht lesbar")
+	; linke obere Ecke des Rahmens; ein Treffer zaehlt nur mit senkrechtem Rahmen darunter und
+	; demselben Rahmen am rechten Rand
+	Local $fx = -1, $fy = -1, $rx = -1, $ys = $y1
+	While $ys <= $y2 And $fx < 0
+		Local $p = PixelSearch($x1, $ys, $x2, $y2, $farbe, 10)
+		If @error Then ExitLoop
+		If FarbeNah($p[0], $p[1] + 5, $farbe, 10) And FarbeNah($p[0], $p[1] + 10, $farbe, 10) Then
+			For $x = $x2 To $p[0] + 20 Step -1
+				If FarbeNah($x, $p[1] + 5, $farbe, 10) Then
+					$fx = $p[0]
+					$fy = $p[1]
+					$rx = $x
+					ExitLoop
+				EndIf
+			Next
+		EndIf
+		$ys = $p[1] + 1
+	WEnd
+	If $fx < 0 Then
+		$gBild = 0
+		Return Meldung("Kein gelb umrandeter Eintrag links gefunden")
+	EndIf
+	; Rahmenhoehe; der Eintrag ist 2 Pixel groesser nach jeder Seite, dazu 1 Pixel Abstand
+	Local $fu = $fy
+	While $fu < $fy + 60 And FarbeNah($fx, $fu + 1, $farbe, 10)
+		$fu += 1
+	WEnd
+	Local $h = $fu - $fy + 5, $raster = $h + 1, $oben = $fy - 2, $bx = $fx - 1
+	; Oberkanten aller Eintraege, der gewaehlte an Stelle $akt
+	Local $eintr[1] = [$oben], $akt = 0
+	For $r = -1 To 1 Step 2
+		Local $t = $oben + $r * $raster, $typ = BereichTyp($bx, $t, $h)
+		While $typ <> ""
+			If $typ = "E" Then
+				If $r < 0 Then
+					VorneEinfuegen($eintr, $t)
+					$akt += 1
+				Else
+					ReDim $eintr[UBound($eintr) + 1]
+					$eintr[UBound($eintr) - 1] = $t
+				EndIf
+			EndIf
+			$t += $r * $raster
+			$typ = BereichTyp($bx, $t, $h)
+		WEnd
+	Next
+	$gBild = 0
+	Local $n = UBound($eintr), $ziel = Mod($akt + $richtung + $n, $n)
+	; oberste Zeile rechts merken, um zu sehen, wann die Liste neu aufgebaut ist
+	Local $zy = $g[1] + $KopfHoehe
+	Local $vorher = PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1)
+	Opt("MouseCoordMode", 1)
+	Local $alt = MouseGetPos()
+	MouseClick("left", Int(($fx + $rx) / 2), $eintr[$ziel] + Int($h / 2), 1, 0)
+	Local $t0 = TimerInit(), $max = Int(IniRead($Ini, "Tagesuebersicht", "BereichWarten", $defBereichWarten))
+	While TimerDiff($t0) < $max
+		Sleep(50)
+		If PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1) <> $vorher Then ExitLoop
+	WEnd
+	; bis die Zeile fertig gezeichnet ist
+	Sleep(100)
+	Local $nameX = $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "NameX", $defNameX)), $zm = $zy + Int($ZeilenHoehe / 2)
+	; leere Liste: dort ist nur weisse Flaeche
+	If PixelGetColor($nameX, $zm) <> 0xFFFFFF Then MouseClick("left", $nameX, $zm, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Return True
+EndFunc
+
+; Art des Platzes mit Oberkante $t in der Bereichsauswahl, geprueft an der grauen Randspalte $x:
+; "E" Eintrag, "T" Trennstrich (innen weiss), "" kein Eintrag mehr (liest aus BildLesen)
+Func BereichTyp($x, $t, $h)
+	If Not FarbeNah($x, $t, $BereichRand, 12) Or Not FarbeNah($x, $t + $h - 1, $BereichRand, 12) Then Return ""
+	Return FarbeNah($x, $t + Int($h / 2), 0xFFFFFF, 8) ? "T" : "E"
+EndFunc
+
+; fuegt $wert vorne in das Feld $a ein
+Func VorneEinfuegen(ByRef $a, $wert)
+	ReDim $a[UBound($a) + 1]
+	For $i = UBound($a) - 1 To 1 Step -1
+		$a[$i] = $a[$i - 1]
+	Next
+	$a[0] = $wert
+EndFunc
+
+; nach einer geschluckten Alt+Taste eine unbelegte Taste (vkE8) nachschicken, damit Windows das
+; Loslassen von Alt nicht als "Alt allein" nimmt und in die Menueleiste bzw. das Systemmenue springt
+Func AltMaskieren()
+	If Not Gedrueckt(0x12) Then Return
+	DllCall("user32.dll", "none", "keybd_event", "byte", 0xE8, "byte", 0, "dword", 0, "ulong_ptr", 0)
+	DllCall("user32.dll", "none", "keybd_event", "byte", 0xE8, "byte", 0, "dword", 2, "ulong_ptr", 0)
 EndFunc
 
 ; Tagesuebersicht, offene To-Dos: in der markierten Zeile "Bereich" anklicken, "e" (erledigt) waehlen
