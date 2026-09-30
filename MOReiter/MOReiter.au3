@@ -50,11 +50,16 @@
 ;                              gewaehlt, damit nicht nebenbei Kurzwahl 1 angeklickt wird (eine einzelne 0
 ;                              bleibt dort die Taste 0, also Nr. 10). Die Folge endet mit dem Loslassen
 ;                              von Strg oder Alt, nach 3 Ziffern oder nach [Allgemein] FolgeZeit ms Pause
-;            Strg+Alt eine halbe Sekunde halten ([Allgemein] Einblendung=ms, 0 = nie): an den Filtern
-;                              der Kartei bzw. den Diagnose-Kurzwahlen erscheinen gelbe Schildchen mit
-;                              Ziffernblock-Nummer, dahinter die direkte Taste, wenn sie anders heisst
-;                              (z.B. "0 ^", "5", "11 sz"), im Briefversand mit dem Buchstaben der Taste an
-;                              der Klickstelle, bis Strg oder Alt losgelassen wird
+;            Strg+Alt eine halbe Sekunde halten ([Allgemein] Einblendung=ms, 0 = nie): bis Strg oder
+;                              Alt losgelassen wird, stehen gelbe Schildchen an allen Stellen im aktiven
+;                              Fenster, auf die eine Taste gerade wirken wuerde:
+;                              Hauptfenster: K, L, P an den Reitern (K bzw. P an dem, zu dem gewechselt
+;                              wuerde), Z am Pfeil neben der Patientensuche, Leer am Menueknopf, H am
+;                              Hochladen-Pfeil der markierten Zeile, an den Filtern der Kartei die
+;                              Ziffernblock-Nummer und dahinter die direkte Taste, wenn sie anders heisst
+;                              (z.B. "0 ^", "5", "11 sz"); Diagnoseerfassung: ebenso an den Kurzwahlen;
+;                              Tagesuebersicht: A in der markierten Zeile, Alt+Pfeil an den Bereichen;
+;                              Briefversand: die Buchstaben an den Klickstellen
 ;            Die Tasten werden per Tastatur-Hook abgefangen (nicht per HotKeySet), weil nur so linkes Alt
 ;            von AltGr unterschieden werden kann: AltGr kommt als linke Strg + rechte Alt an und bleibt
 ;            unberuehrt, so dass AltGr+2 3 7 8 9 0 sz weiterhin hoch2 hoch3 { [ ] } \ liefern.
@@ -405,23 +410,27 @@ EndFunc
 ; Schildchen "Nummer Taste" links an jeder Diagnose-Kurzwahl bzw. an jedem Filter der Kartei; ein
 ; einziges durchsichtiges, nicht anklickbares Fenster (Farbschluessel Magenta) ueber dem Zielfenster
 Func EinblendungZeigen()
-	; $pos: linker Rand des Schildchens, Mitte y, Text ("" = Nummer und Taste aus der Stelle)
-	Local $hWnd = _WinAPI_GetForegroundWindow(), $pos[0][3], $n = 0
+	; $pos: linker Rand des Schildchens, Mitte y, Text, Mitte x (-1: linksbuendig angesetzt)
+	Local $hWnd = _WinAPI_GetForegroundWindow(), $pos[0][4]
 	If BriefAktiv() Then
-		$n = BriefPositionen($hWnd, $pos)
+		BriefPositionen($hWnd, $pos)
 	ElseIf DiagAktiv() Then
 		Local $k = DiagKnoepfe($hWnd)
 		If Not IsArray($k) Then Return
 		$gEinblendungKnoepfe = $k
-		ReDim $pos[UBound($k)][3]
+		ReDim $pos[UBound($k)][4]
 		For $i = 0 To UBound($k) - 1
 			$pos[$i][0] = $k[$i][3] + 2
 			$pos[$i][1] = $k[$i][1]
+			$pos[$i][2] = NummerText($i)
+			$pos[$i][3] = -1
 		Next
-		$n = UBound($k)
+	ElseIf TagesAktiv() Then
+		TagesPositionen($hWnd, $pos)
 	ElseIf MOAktiv() Then
-		$n = FilterPositionen($hWnd, $pos)
+		MOPositionen($hWnd, $pos)
 	EndIf
+	Local $n = UBound($pos)
 	If $n = 0 Then Return
 	Local $f = WinGetPos($hWnd)
 	If @error Then Return
@@ -431,13 +440,8 @@ Func EinblendungZeigen()
 	; 1 = LWA_COLORKEY: Magenta ist durchsichtig
 	DllCall("user32.dll", "bool", "SetLayeredWindowAttributes", "hwnd", $g, "dword", 0xFF00FF, "byte", 255, "dword", 1)
 	For $i = 0 To $n - 1
-		; Ziffernblock-Nummer (ab 0), dahinter die direkte Taste, falls sie nicht gleich heisst
 		Local $t = $pos[$i][2]
-		If $t = "" Then
-			$t = String($i)
-			If $i < UBound($TastenNamen) And $TastenNamen[$i] <> $t Then $t &= " " & $TastenNamen[$i]
-		EndIf
-		GUICtrlCreateLabel($t, $pos[$i][0] - $f[0], $pos[$i][1] - $f[1] - 8, 7 * StringLen($t) + 8, 16, BitOR($SS_CENTER, $SS_CENTERIMAGE))
+		GUICtrlCreateLabel($t, $pos[$i][0] - $f[0], $pos[$i][1] - $f[1] - 8, SchildBreite($t), 16, BitOR($SS_CENTER, $SS_CENTERIMAGE))
 		GUICtrlSetBkColor(-1, 0xFFE45C)
 		GUICtrlSetColor(-1, 0x000000)
 		GUICtrlSetFont(-1, 8.5, 700, 0, "Segoe UI")
@@ -448,14 +452,98 @@ Func EinblendungZeigen()
 EndFunc
 
 Func EinblendungWeg()
-	If $gEinblendung Then GUIDelete($gEinblendung)
+	If $gEinblendung Then
+		GUIDelete($gEinblendung)
+		; bis der Bildschirm ohne die Schildchen neu gezeichnet ist, sonst stoeren sie Bildschirmpruefungen
+		Sleep(50)
+	EndIf
 	$gEinblendung = 0
 	$gEinblendungWnd = 0
 	$gEinblendungKnoepfe = 0
 EndFunc
 
-; Bildschirmpunkte (linker Rand der Filterliste, Mitte des Filters) aller sichtbaren Filter in $pos,
-; liefert ihre Anzahl; nur wenn die Kartei (bzw. [Filter] Reiter) schon aktiv ist
+; Beschriftung fuer Filter bzw. Diagnose-Kurzwahl Nr. $i: Ziffernblock-Nummer (ab 0), dahinter die
+; direkte Taste, falls sie nicht gleich heisst
+Func NummerText($i)
+	Local $t = String($i)
+	If $i < UBound($TastenNamen) And $TastenNamen[$i] <> $t Then $t &= " " & $TastenNamen[$i]
+	Return $t
+EndFunc
+
+Func SchildBreite($t)
+	Return 7 * StringLen($t) + 8
+EndFunc
+
+; haengt ein Schildchen mittig ueber dem Bildschirmpunkt $x,$y an $pos an; wirken zwei Tasten auf
+; dieselbe Stelle, kommen sie auf ein gemeinsames Schildchen
+Func PosDazu(ByRef $pos, $x, $y, $text)
+	Local $n = UBound($pos)
+	For $i = 0 To $n - 1
+		If $pos[$i][3] >= 0 And Abs($pos[$i][3] - $x) <= 4 And Abs($pos[$i][1] - $y) <= 4 Then
+			$pos[$i][2] &= " " & $text
+			$pos[$i][0] = $pos[$i][3] - Int(SchildBreite($pos[$i][2]) / 2)
+			Return
+		EndIf
+	Next
+	ReDim $pos[$n + 1][4]
+	$pos[$n][0] = $x - Int(SchildBreite($text) / 2)
+	$pos[$n][1] = $y
+	$pos[$n][2] = $text
+	$pos[$n][3] = $x
+EndFunc
+
+; Medical Office Hauptfenster: K, L, P an den Reitern, auf die sie jetzt wirken, Z am Pfeil neben
+; der Patientensuche, Leer am Menueknopf, H am Hochladen-Pfeil, dazu die Filter der Kartei
+Func MOPositionen($hWnd, ByRef $pos)
+	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
+	If Not @error And BitAND(WinGetState($hCtrl), 2) Then
+		Local $p = WinGetPos($hCtrl), $x, $y
+		If Not @error Then
+			HolPos(ReiterAktiv("Kartei", $hWnd, $hCtrl) ? "Krankenblatt" : "Kartei", $x, $y)
+			PosDazu($pos, $p[0] + $x, $p[1] + $y, "K")
+			HolPos("Krankenblatt", $x, $y)
+			PosDazu($pos, $p[0] + $x, $p[1] + $y, "L")
+			HolPos(ReiterAktiv("ePA", $hWnd, $hCtrl) ? "ePAAbr" : "ePA", $x, $y)
+			PosDazu($pos, $p[0] + $x, $p[1] + $y, "P")
+		EndIf
+	EndIf
+	KnopfPos($pos, LetztePatKnopf($hWnd), "Z")
+	KnopfPos($pos, MenueKnopf($hWnd), "Leer")
+	Local $hGrid = KarteiListe($hWnd), $hx, $hy
+	If $hGrid And HochladenStelle($hGrid, $hx, $hy) = "" Then PosDazu($pos, $hx, $hy, "H")
+	FilterPositionen($hWnd, $pos)
+EndFunc
+
+; Schildchen mitten auf den sichtbaren Knopf $h
+Func KnopfPos(ByRef $pos, $h, $text)
+	If Not $h Or Not BitAND(WinGetState($h), 2) Then Return
+	Local $p = WinGetPos($h)
+	If @error Then Return
+	PosDazu($pos, $p[0] + Int($p[2] / 2), $p[1] + Int($p[3] / 2), $text)
+EndFunc
+
+; Tagesuebersicht: A in der markierten Zeile (Spalte Bereich, nur bei "Offene To-Dos") und
+; Alt+Pfeil an den Eintraegen der Bereichsauswahl, die Alt+Pfeil hoch bzw. runter waehlen wuerde
+Func TagesPositionen($hWnd, ByRef $pos)
+	Local $hGrid = ControlGetHandle($hWnd, "", "[CLASS:TNewStringGrid; INSTANCE:1]")
+	If @error Then Return
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return
+	Opt("PixelCoordMode", 1)
+	If OffeneToDos($hWnd) Then
+		Local $mitte = MarkierteZeile($g)
+		If $mitte >= 0 Then PosDazu($pos, $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "BereichX", $defBereichX)), $mitte, "A")
+	EndIf
+	Local $eintr, $akt, $mx, $h
+	If BereichSuchen($hWnd, $hGrid, $eintr, $akt, $mx, $h) <> "" Then Return
+	Local $n = UBound($eintr)
+	If $n < 2 Then Return
+	PosDazu($pos, $mx, $eintr[Mod($akt - 1 + $n, $n)] + Int($h / 2), "Alt+" & ChrW(0x2191))
+	PosDazu($pos, $mx, $eintr[Mod($akt + 1, $n)] + Int($h / 2), "Alt+" & ChrW(0x2193))
+EndFunc
+
+; haengt Bildschirmpunkte (linker Rand der Filterliste, Mitte des Filters) aller sichtbaren Filter an
+; $pos an; nur wenn die Kartei (bzw. [Filter] Reiter) schon aktiv ist
 Func FilterPositionen($hWnd, ByRef $pos)
 	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
 	If @error Or Not BitAND(WinGetState($hCtrl), 2) Then Return 0
@@ -466,7 +554,7 @@ Func FilterPositionen($hWnd, ByRef $pos)
 	Local $y0 = $p[1] + Int(IniRead($Ini, "Filter", "Y", $defFilterY))
 	Local $abst = Number(IniRead($Ini, "Filter", "Abstand", $defFilterAbstand))
 	If $abst < 5 Then Return 0
-	Local $pt = DllStructCreate("int X;int Y"), $hListe = 0, $links = 0, $unten = 0, $n = 0
+	Local $pt = DllStructCreate("int X;int Y"), $hListe = 0, $links = 0, $unten = 0, $n = 0, $m = UBound($pos)
 	; so lange, wie der Punkt noch auf derselben Filterliste liegt
 	While $n < 200
 		Local $y = Round($y0 + $n * $abst)
@@ -484,9 +572,11 @@ Func FilterPositionen($hWnd, ByRef $pos)
 		ElseIf $h <> $hListe Or $y > $unten Then
 			ExitLoop
 		EndIf
-		ReDim $pos[$n + 1][3]
-		$pos[$n][0] = $links
-		$pos[$n][1] = $y
+		ReDim $pos[$m + $n + 1][4]
+		$pos[$m + $n][0] = $links
+		$pos[$m + $n][1] = $y
+		$pos[$m + $n][2] = NummerText($n)
+		$pos[$m + $n][3] = -1
 		$n += 1
 	WEnd
 	Return $n
@@ -574,17 +664,10 @@ Func BriefPositionen($hWnd, ByRef $pos)
 	Local $tasten[10][2] = [["Kontakt", "K"], ["KIM", "I"], ["Krankenblatt", "R"], ["Ordner", "O"], _
 			["Empfang", "E"], ["Betreff", "B"], ["Empfaenger", "M"], ["Vorschau", "F"], ["Versenden", "V"], _
 			["Abbrechen", "Esc"]]
-	Local $n = 0, $x, $y
+	Local $x, $y
 	For $i = 0 To UBound($tasten) - 1
-		If Not BriefZiel($hWnd, $tasten[$i][0], $x, $y) Then ContinueLoop
-		ReDim $pos[$n + 1][3]
-		; Schildchen mittig ueber der Klickstelle
-		$pos[$n][0] = $x - Int((7 * StringLen($tasten[$i][1]) + 8) / 2)
-		$pos[$n][1] = $y
-		$pos[$n][2] = $tasten[$i][1]
-		$n += 1
+		If BriefZiel($hWnd, $tasten[$i][0], $x, $y) Then PosDazu($pos, $x, $y, $tasten[$i][1])
 	Next
-	Return $n
 EndFunc
 
 ; Bildschirmpunkt $x,$y, auf den fuer $was im Briefversand geklickt wird; False, wenn nicht gefunden
@@ -905,22 +988,10 @@ Func Hochladen()
 	Local $hGrid = KarteiListe($hWnd)
 	If Not $hGrid Then Return Meldung("Keine Krankenblatt-Liste gefunden")
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
-	Local $g = WinGetPos($hGrid)
-	If @error Then Return False
-	Opt("PixelCoordMode", 1)
+	Local $x, $y
+	Local $fehler = HochladenStelle($hGrid, $x, $y)
+	If $fehler <> "" Then Return Meldung($fehler)
 	Opt("MouseCoordMode", 1)
-	Local $p = PixelSearch($g[0] + 4, $g[1] + $KbKopfHoehe, $g[0] + 4, $g[1] + $g[3] - 3, $KbMarkiertFarbe, 6)
-	If @error Then Return Meldung("Keine markierte Zeile sichtbar")
-	Local $y = $p[1] + $KbPfeilY
-	; den Streifen um die Suchhoehe einmal einlesen, statt jedes Pixel einzeln (je ca. 15-20 ms) abzufragen
-	If Not BildLesen($g[0] + 2, $y - 24, $g[0] + $g[2] - 18, $y + 6) Then Return Meldung("Bildschirm nicht lesbar")
-	Local $x = PfeilSchaft($g[0] + 4, $g[0] + $g[2] - 20, $y, $KbPfeilHell, True)
-	Local $dunkel = ($x < 0) ? PfeilSchaft($g[0] + 4, $g[0] + $g[2] - 20, $y, $KbPfeilDunkel, False) : -1
-	$gBild = 0
-	If $x < 0 Then
-		If $dunkel >= 0 Then Return Meldung("Schon in der ePA (Pfeil ist schwarz)")
-		Return Meldung("Kein Pfeil zum Hochladen in der markierten Zeile")
-	EndIf
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
 	MouseMove($alt[0], $alt[1], 0)
@@ -952,6 +1023,25 @@ Func Hochladen()
 		Sleep(50)
 	WEnd
 	Return True
+EndFunc
+
+; sucht in der markierten Zeile der Liste $hGrid den hellblauen Pfeil nach oben und liefert seine
+; Bildschirmstelle in $x,$y; Rueckgabe "" bei Erfolg, sonst der Grund
+Func HochladenStelle($hGrid, ByRef $x, ByRef $y)
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return "Krankenblatt-Liste nicht sichtbar"
+	Opt("PixelCoordMode", 1)
+	Local $p = PixelSearch($g[0] + 4, $g[1] + $KbKopfHoehe, $g[0] + 4, $g[1] + $g[3] - 3, $KbMarkiertFarbe, 6)
+	If @error Then Return "Keine markierte Zeile sichtbar"
+	$y = $p[1] + $KbPfeilY
+	; den Streifen um die Suchhoehe einmal einlesen, statt jedes Pixel einzeln (je ca. 15-20 ms) abzufragen
+	If Not BildLesen($g[0] + 2, $y - 24, $g[0] + $g[2] - 18, $y + 6) Then Return "Bildschirm nicht lesbar"
+	$x = PfeilSchaft($g[0] + 4, $g[0] + $g[2] - 20, $y, $KbPfeilHell, True)
+	Local $dunkel = ($x < 0) ? PfeilSchaft($g[0] + 4, $g[0] + $g[2] - 20, $y, $KbPfeilDunkel, False) : -1
+	$gBild = 0
+	If $x >= 0 Then Return ""
+	If $dunkel >= 0 Then Return "Schon in der ePA (Pfeil ist schwarz)"
+	Return "Kein Pfeil zum Hochladen in der markierten Zeile"
 EndFunc
 
 ; wartet bis zu $ms, bis das Fenster $hDlg sichtbar und sein Knopf $text sichtbar und bedienbar ist
@@ -1079,16 +1169,46 @@ Func BereichWechsel($richtung)
 	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
 	AltMaskieren()
 	If Not ModifierLos() Then Return Meldung("Alt bitte loslassen")
+	Local $eintr, $akt, $mx, $h
+	Local $fehler = BereichSuchen($hWnd, $hGrid, $eintr, $akt, $mx, $h)
+	If $fehler <> "" Then Return Meldung($fehler)
 	Local $g = WinGetPos($hGrid)
 	If @error Then Return False
+	Local $n = UBound($eintr), $ziel = Mod($akt + $richtung + $n, $n)
+	; oberste Zeile rechts merken, um zu sehen, wann die Liste neu aufgebaut ist
+	Local $zy = $g[1] + $KopfHoehe
+	Local $vorher = PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1)
+	Opt("MouseCoordMode", 1)
+	Local $alt = MouseGetPos()
+	MouseClick("left", $mx, $eintr[$ziel] + Int($h / 2), 1, 0)
+	Local $t0 = TimerInit(), $max = Int(IniRead($Ini, "Tagesuebersicht", "BereichWarten", $defBereichWarten))
+	While TimerDiff($t0) < $max
+		Sleep(50)
+		If PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1) <> $vorher Then ExitLoop
+	WEnd
+	; bis die Zeile fertig gezeichnet ist
+	Sleep(100)
+	Local $nameX = $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "NameX", $defNameX)), $zm = $zy + Int($ZeilenHoehe / 2)
+	; leere Liste: dort ist nur weisse Flaeche
+	If PixelGetColor($nameX, $zm) <> 0xFFFFFF Then MouseClick("left", $nameX, $zm, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Return True
+EndFunc
+
+; sucht in der Bereichsauswahl links neben der Liste $hGrid den gelb umrandeten Eintrag und zaehlt die
+; uebrigen: $eintr = Oberkanten aller Eintraege, $akt = Stelle des gewaehlten, $mx = Mitte x, $h = Hoehe
+; eines Eintrags; Rueckgabe "" bei Erfolg, sonst der Grund
+Func BereichSuchen($hWnd, $hGrid, ByRef $eintr, ByRef $akt, ByRef $mx, ByRef $h)
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return "Liste der Tagesuebersicht nicht sichtbar"
 	Local $pt = DllStructCreate("int X;int Y")
 	_WinAPI_ClientToScreen($hWnd, $pt)
 	; Bereich links neben der Liste
 	Local $x1 = $pt.X, $x2 = $g[0] - 1, $y1 = $g[1], $y2 = $g[1] + $g[3] - 1
-	If $x2 - $x1 < 40 Then Return Meldung("Bereichsauswahl links nicht sichtbar")
+	If $x2 - $x1 < 40 Then Return "Bereichsauswahl links nicht sichtbar"
 	Local $farbe = Int(IniRead($Ini, "Tagesuebersicht", "BereichRahmen", $defBereichRahmen))
 	Opt("PixelCoordMode", 1)
-	If Not BildLesen($x1, $y1, $x2, $y2) Then Return Meldung("Bildschirm nicht lesbar")
+	If Not BildLesen($x1, $y1, $x2, $y2) Then Return "Bildschirm nicht lesbar"
 	; linke obere Ecke des Rahmens; ein Treffer zaehlt nur mit senkrechtem Rahmen darunter und
 	; demselben Rahmen am rechten Rand
 	Local $fx = -1, $fy = -1, $rx = -1, $ys = $y1
@@ -1109,16 +1229,20 @@ Func BereichWechsel($richtung)
 	WEnd
 	If $fx < 0 Then
 		$gBild = 0
-		Return Meldung("Kein gelb umrandeter Eintrag links gefunden")
+		Return "Kein gelb umrandeter Eintrag links gefunden"
 	EndIf
 	; Rahmenhoehe; der Eintrag ist 2 Pixel groesser nach jeder Seite, dazu 1 Pixel Abstand
 	Local $fu = $fy
 	While $fu < $fy + 60 And FarbeNah($fx, $fu + 1, $farbe, 10)
 		$fu += 1
 	WEnd
-	Local $h = $fu - $fy + 5, $raster = $h + 1, $oben = $fy - 2, $bx = $fx - 1
+	$h = $fu - $fy + 5
+	$mx = Int(($fx + $rx) / 2)
+	Local $raster = $h + 1, $oben = $fy - 2, $bx = $fx - 1
 	; Oberkanten aller Eintraege, der gewaehlte an Stelle $akt
-	Local $eintr[1] = [$oben], $akt = 0
+	Local $e[1] = [$oben]
+	$eintr = $e
+	$akt = 0
 	For $r = -1 To 1 Step 2
 		Local $t = $oben + $r * $raster, $typ = BereichTyp($bx, $t, $h)
 		While $typ <> ""
@@ -1136,25 +1260,7 @@ Func BereichWechsel($richtung)
 		WEnd
 	Next
 	$gBild = 0
-	Local $n = UBound($eintr), $ziel = Mod($akt + $richtung + $n, $n)
-	; oberste Zeile rechts merken, um zu sehen, wann die Liste neu aufgebaut ist
-	Local $zy = $g[1] + $KopfHoehe
-	Local $vorher = PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1)
-	Opt("MouseCoordMode", 1)
-	Local $alt = MouseGetPos()
-	MouseClick("left", Int(($fx + $rx) / 2), $eintr[$ziel] + Int($h / 2), 1, 0)
-	Local $t0 = TimerInit(), $max = Int(IniRead($Ini, "Tagesuebersicht", "BereichWarten", $defBereichWarten))
-	While TimerDiff($t0) < $max
-		Sleep(50)
-		If PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1) <> $vorher Then ExitLoop
-	WEnd
-	; bis die Zeile fertig gezeichnet ist
-	Sleep(100)
-	Local $nameX = $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "NameX", $defNameX)), $zm = $zy + Int($ZeilenHoehe / 2)
-	; leere Liste: dort ist nur weisse Flaeche
-	If PixelGetColor($nameX, $zm) <> 0xFFFFFF Then MouseClick("left", $nameX, $zm, 1, 0)
-	MouseMove($alt[0], $alt[1], 0)
-	Return True
+	Return ""
 EndFunc
 
 ; Art des Platzes mit Oberkante $t in der Bereichsauswahl, geprueft an der grauen Randspalte $x:
@@ -1282,22 +1388,30 @@ EndFunc
 Func LetztePatienten()
 	Local $hWnd = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
-	Local $hSuche = ControlGetHandle($hWnd, "", "[CLASS:TAlnumEdit; INSTANCE:1]")
-	If @error Then Return Meldung("Patientensuche nicht gefunden")
-	Local $hKnopf = RandKnopf(_WinAPI_GetParent($hSuche), "rechts")
+	Local $hKnopf = LetztePatKnopf($hWnd)
 	If Not $hKnopf Then Return Meldung("Pfeil neben der Patientensuche nicht gefunden")
 	Return KnopfKlick($hWnd, $hKnopf)
+EndFunc
+
+Func LetztePatKnopf($hWnd)
+	Local $hSuche = ControlGetHandle($hWnd, "", "[CLASS:TAlnumEdit; INSTANCE:1]")
+	If @error Then Return 0
+	Return RandKnopf(_WinAPI_GetParent($hSuche), "rechts")
 EndFunc
 
 ; drei Striche links oben: der oberste, linkeste Knopf im Kopfbereich
 Func Menue()
 	Local $hWnd = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
-	Local $hKopf = ControlGetHandle($hWnd, "", "[CLASS:THeaderForm; INSTANCE:1]")
-	If @error Then Return Meldung("Kopfbereich nicht gefunden")
-	Local $hKnopf = RandKnopf($hKopf, "linksoben")
+	Local $hKnopf = MenueKnopf($hWnd)
 	If Not $hKnopf Then Return Meldung("Menueknopf nicht gefunden")
 	Return KnopfKlick($hWnd, $hKnopf)
+EndFunc
+
+Func MenueKnopf($hWnd)
+	Local $hKopf = ControlGetHandle($hWnd, "", "[CLASS:THeaderForm; INSTANCE:1]")
+	If @error Then Return 0
+	Return RandKnopf($hKopf, "linksoben")
 EndFunc
 
 ; sichtbarer TAdvSmoothButton unterhalb von $hEltern, der am weitesten rechts bzw. links oben liegt
