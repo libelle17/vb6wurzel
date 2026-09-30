@@ -68,7 +68,8 @@
 ;            Strg+Alt+K Kontaktverzeichnis, I KIM-Verzeichnis, R Krankenblatt, O Ordner (Anhaenge),
 ;                              E Kaestchen "Empfangsbestaetigung anfordern", B Betreff-Zeile, M oberster
 ;                              Empfaenger, F Brief-Vorschau, V Versenden/Drucken; Esc allein: Abbrechen
-;                              (geklickt wird mit der echten Maus, nach dem Loslassen von Strg und Alt);
+;                              (geklickt wird mit der echten Maus, Strg+Alt darf dabei gehalten bleiben,
+;                              z.B. fuer E und dann V);
 ;                              beim Halten von Strg+Alt erscheinen die Buchstaben gelb an den Klickstellen
 ;            Strg+Alt+Umsch+D  Liste der Controls im aktiven Fenster (Klasse, Nummer, Text, Lage) in die
 ;                              Zwischenablage und nach %APPDATA%\MOReiter\Fenster.txt, zum Einrichten neuer Tasten
@@ -144,6 +145,11 @@ Global $gNummer = "", $gNummerZiel = "", $gUnten = "", $gNummerAngezeigt = ""
 Global $gNummerOben = False
 ; Kartei: bei gehaltenem Strg+Alt bisher getippte Ziffern der oberen Reihe und Zeit der letzten
 Global $gFolge = "", $gFolgeZeit = 0
+; Strg links/rechts und Alt links, wie sie der Hook zuletzt gesehen hat (ohne die eigenen, mit
+; $Kennung eingespeisten Tasten); gilt statt GetAsyncKeyState, solange MOReiter sie Windows gegenueber
+; als losgelassen gemeldet hat ($gLosGemeldet), obwohl sie noch gehalten werden (hoechstens 10 s)
+Global $gGehaltenMod[3] = [False, False, False], $gLosGemeldet = False, $gLosZeit = 0
+Const $Kennung = 0x4D4F5231 ; "MOR1" in dwExtraInfo eigener Tastenereignisse
 Const $defFolgeZeit = 2000 ; ms, eine laengere Pause zwischen zwei Ziffern beginnt eine neue Folge
 ; Einblendung: Fenster mit den Schildchen, zugehoeriges Fenster und dessen Kurzwahl-Knoepfe,
 ; Beginn des Haltens von Strg+Alt (0 = nicht gehalten), schon versucht
@@ -218,6 +224,11 @@ Func TastenHook($nCode, $wParam, $lParam)
 	If $nCode >= 0 Then
 		Local $kb = DllStructCreate($tagKBDLLHOOKSTRUCT, $lParam)
 		Local $vk = $kb.vkCode
+		; Strg/Alt mitverfolgen, eigene eingespeiste Ereignisse nicht
+		If $vk >= 0xA2 And $vk <= 0xA4 And $kb.dwExtraInfo <> $Kennung Then
+			$gGehaltenMod[$vk - 0xA2] = Not ($wParam = $WM_KEYUP Or $wParam = $WM_SYSKEYUP)
+			If Not ($gGehaltenMod[0] Or $gGehaltenMod[1] Or $gGehaltenMod[2]) Then $gLosGemeldet = False
+		EndIf
 		If $wParam = $WM_KEYUP Or $wParam = $WM_SYSKEYUP Then
 			; zum geschluckten Druecken auch das Loslassen schlucken
 			If StringInStr($gUnten, "," & $vk & ",") Then
@@ -314,7 +325,26 @@ EndFunc
 
 ; Strg + linke Alt gehalten, aber nicht AltGr (kommt als linke Strg + rechte Alt)
 Func StrgAlt()
+	If $gLosGemeldet And TimerDiff($gLosZeit) > 10000 Then $gLosGemeldet = False
+	If $gLosGemeldet Then Return ($gGehaltenMod[0] Or $gGehaltenMod[1]) And $gGehaltenMod[2] And Not Gedrueckt(0xA5)
 	Return (Gedrueckt(0xA2) Or Gedrueckt(0xA3)) And Gedrueckt(0xA4) And Not Gedrueckt(0xA5)
+EndFunc
+
+; meldet gehaltenes Strg und Alt Windows gegenueber als losgelassen, damit ein folgender echter
+; Mausklick ohne sie ankommt, obwohl sie noch gedrueckt sind; der Hook erkennt Strg+Alt+Taste dann
+; weiter an den selbst mitverfolgten Tasten. Alt zuerst, solange Strg noch gilt (dann ist es kein
+; Alt allein, das die Menueleiste aufruft); das Loslassen der echten Tasten kommt spaeter doppelt an,
+; was nichts ausloest.
+Func ModifierAus()
+	If Not (Gedrueckt(0x11) Or Gedrueckt(0x12)) Then Return
+	AltMaskieren()
+	$gLosGemeldet = True
+	$gLosZeit = TimerInit()
+	For $vk In StringSplit("164,165,163,162", ",", 2) ; LAlt, RAlt, RStrg, LStrg
+		; 1 = KEYEVENTF_EXTENDEDKEY (rechte Tasten), 2 = KEYEVENTF_KEYUP
+		If Gedrueckt(Int($vk)) Then DllCall("user32.dll", "none", "keybd_event", "byte", Int($vk), "byte", 0, _
+				"dword", 2 + ((Int($vk) = 163 Or Int($vk) = 165) ? 1 : 0), "ulong_ptr", $Kennung)
+	Next
 EndFunc
 
 ; Ziffer 0-9 einer Ziffernblocktaste, -1 fuer andere Tasten; ohne NumLock liefert der Ziffernblock
@@ -645,13 +675,14 @@ Func BriefTaste($vk)
 EndFunc
 
 ; Briefversand: klickt mit der echten Maus auf das zu $was gehoerende Control, erst nach dem
-; Loslassen von Strg und Alt (sonst kaeme ein Strg+Alt+Klick an)
+; Melden von Strg und Alt als losgelassen (sonst kaeme ein Strg+Alt+Klick an); so koennen, ohne Strg+Alt
+; loszulassen, mehrere Tasten nacheinander folgen, z.B. E und V
 Func BriefKlick($was)
 	Local $hWnd = _WinAPI_GetForegroundWindow()
 	If StringLeft(_WinAPI_GetWindowText($hWnd), StringLen($BriefTitel)) <> $BriefTitel Then Return False
 	Local $x, $y
 	If Not BriefZiel($hWnd, $was, $x, $y) Then Return Meldung($was & " im Briefversand nicht gefunden (Strg+Alt+Umsch+D listet die Controls)")
-	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	ModifierAus()
 	Opt("MouseCoordMode", 1)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
