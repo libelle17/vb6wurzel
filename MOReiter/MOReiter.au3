@@ -25,7 +25,7 @@
 ;            Alt+Pfeil hoch/runter  nur in der MO-Tagesuebersicht: in der Bereichsauswahl links den Eintrag
 ;                              ueber bzw. unter dem gelb umrandeten anklicken (vom obersten zum untersten
 ;                              und umgekehrt, der Trennstrich wird uebersprungen), danach rechts die oberste
-;                              Zeile der Liste (geklickt wird nach dem Loslassen von Alt)
+;                              Zeile der Liste (Alt darf fuer mehrere Schritte gehalten bleiben)
 ;            Strg+Alt+Umsch+K  Kalibrieren: Maus auf Reiter "Kartei" halten und druecken
 ;            Strg+Alt+Umsch+L  Kalibrieren: Maus auf Reiter "Krankenblatt" halten und druecken
 ;            Strg+Alt+Umsch+P  Kalibrieren: Maus auf Reiter "ePA" halten und druecken
@@ -285,8 +285,7 @@ EndFunc
 ; Aufgabe zur Taste $vk, falls gerade Strg + linke Alt (ohne AltGr) gehalten werden, sonst ""
 Func HookAufgabe($vk)
 	; Alt+Pfeil hoch/runter (ohne Strg und Umschalt) nur in der Tagesuebersicht
-	If ($vk = 0x26 Or $vk = 0x28) And Gedrueckt(0x12) And Not Gedrueckt(0x11) And Not Gedrueckt(0x10) _
-			And TagesAktiv() Then Return ($vk = 0x26) ? "BereichHoch" : "BereichRunter"
+	If ($vk = 0x26 Or $vk = 0x28) And AltAllein() And Not Gedrueckt(0x10) And TagesAktiv() Then Return ($vk = 0x26) ? "BereichHoch" : "BereichRunter"
 	; Esc allein im Briefversand: Abbrechen
 	If $vk = 0x1B And Not (Gedrueckt(0x10) Or Gedrueckt(0x11) Or Gedrueckt(0x12) Or Gedrueckt(0x5B) Or Gedrueckt(0x5C)) _
 			And BriefAktiv() Then Return "Brief:Abbrechen"
@@ -328,6 +327,13 @@ Func StrgAlt()
 	If $gLosGemeldet And TimerDiff($gLosZeit) > 10000 Then $gLosGemeldet = False
 	If $gLosGemeldet Then Return ($gGehaltenMod[0] Or $gGehaltenMod[1]) And $gGehaltenMod[2] And Not Gedrueckt(0xA5)
 	Return (Gedrueckt(0xA2) Or Gedrueckt(0xA3)) And Gedrueckt(0xA4) And Not Gedrueckt(0xA5)
+EndFunc
+
+; Alt ohne Strg gehalten (wie StrgAlt nach ModifierAus an den selbst mitverfolgten Tasten)
+Func AltAllein()
+	If $gLosGemeldet And TimerDiff($gLosZeit) > 10000 Then $gLosGemeldet = False
+	If $gLosGemeldet Then Return $gGehaltenMod[2] And Not ($gGehaltenMod[0] Or $gGehaltenMod[1])
+	Return Gedrueckt(0x12) And Not Gedrueckt(0x11)
 EndFunc
 
 ; meldet gehaltenes Strg und Alt Windows gegenueber als losgelassen, damit ein folgender echter
@@ -1190,7 +1196,7 @@ EndFunc
 ; Die Auswahl wird am Bildschirm gesucht: gelber Rahmen links (senkrecht) und rechts in derselben Zeile;
 ; von dort aus werden im Raster der Eintraege nach oben und unten die weiteren gezaehlt, bis an der
 ; grauen Randspalte keiner mehr ist.
-; Geklickt wird mit der echten Maus und erst nach dem Loslassen von Alt: auf einen per Nachricht
+; Geklickt wird mit der echten Maus, Alt vorher als losgelassen gemeldet (ModifierAus): auf einen per Nachricht
 ; geschickten Klick (ControlClick) beginnt die Bereichsauswahl ein Ziehen (Halteverbots-Mauszeiger),
 ; statt den Eintrag zu waehlen, und die Liste rechts bekaeme den Tastaturfokus nicht.
 Func BereichWechsel($richtung)
@@ -1198,8 +1204,9 @@ Func BereichWechsel($richtung)
 	If _WinAPI_GetClassName($hWnd) <> $TagesKlasse Then Return False
 	Local $hGrid = ControlGetHandle($hWnd, "", "[CLASS:TNewStringGrid; INSTANCE:1]")
 	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
-	AltMaskieren()
-	If Not ModifierLos() Then Return Meldung("Alt bitte loslassen")
+	; Alt als losgelassen melden, damit die Klicks ohne Alt ankommen; so kann Alt fuer mehrere
+	; Schritte gehalten bleiben
+	ModifierAus()
 	Local $eintr, $akt, $mx, $h
 	Local $fehler = BereichSuchen($hWnd, $hGrid, $eintr, $akt, $mx, $h)
 	If $fehler <> "" Then Return Meldung($fehler)
