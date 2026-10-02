@@ -566,21 +566,25 @@ fehler:
 End Function ' WarteAufNicht
 
 'ShellAndWaitforTermination, von http://www.vbaccelerator.com/home/VB/Code/Libraries/Shell_Projects/Shell_And_Wait_For_Completion/article.asp
+' obKill: nach Ablauf von lTimeOut (ms) den Prozess samt Kindprozessen beenden (taskkill /T /F)
 ' Aufruf in: Formular.GetVorDat
 Public Function ShellaW( _
         sShell As String, _
         Optional ByVal eWindowStyle As VBA.VbAppWinStyle = vbNormalFocus, _
         Optional ByRef sError As String, _
-        Optional ByVal lTimeOut As Long = 2000000000 _
+        Optional ByVal lTimeOut As Long = 2000000000, _
+        Optional ByVal obKill As Boolean _
     ) As Boolean
 Dim hProcess As Long
 Dim lR As Long
 Dim lTimeStart As Long
 Dim bSuccess As Boolean
+Dim pid As Long
 
 On Error GoTo ShellAndWaitForTerminationError
     ' This is v2 which is somewhat more reliable:
-    hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, False, Shell(sShell, eWindowStyle))
+    pid = Shell(sShell, eWindowStyle)
+    hProcess = OpenProcess(PROCESS_QUERY_INFORMATION Or PROCESS_TERMINATE, False, pid)
     If (hProcess = 0) Then
         sError = "Dieses Programm konnte nicht feststellen, ob der Prozess gestartet wurde." & _
              "Bitte beobachten Sie das Programm und prüfen Sie, ob es fertig wird."
@@ -591,22 +595,35 @@ On Error GoTo ShellAndWaitForTerminationError
         lTimeStart = timeGetTime()
         Do
             ' Get the status of the process
-            GetExitCodeProcess hProcess, lR
+            If GetExitCodeProcess(hProcess, lR) = 0 Then
+                ' Status nicht abfragbar -> nicht endlos weiter warten
+                sError = "GetExitCodeProcess fehlgeschlagen, LastDllError: " & Err.LastDllError
+                lR = 0
+                bSuccess = False
+                Exit Do
+            End If
+            If lR <> STILL_ACTIVE Then Exit Do
             ' Sleep during wait to ensure the other process gets
             ' processor slice:
             DoEvents: Sleep 100
             If (timeGetTime() - lTimeStart > lTimeOut) Then
                 ' Too long!
                 sError = "The process has timed out."
+                If obKill Then
+                    Shell "taskkill /T /F /PID " & pid, vbHide
+                    TerminateProcess hProcess, 1
+                End If
                 lR = 0
                 bSuccess = False
             End If
         Loop While lR = STILL_ACTIVE
+        CloseHandle hProcess
     End If
     ShellaW = bSuccess
     Exit Function
 ShellAndWaitForTerminationError:
     sError = Err.Description
+    If hProcess <> 0 Then CloseHandle hProcess
     Exit Function
 End Function ' ShellaW
 
