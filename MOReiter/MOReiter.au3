@@ -21,6 +21,8 @@
 ;            Strg+Alt+T        aus jedem Programm: Termine des Patienten zeigen, solange Strg+Alt+T gehalten
 ;                              wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurueck ins
 ;                              vorige Fenster)
+;            Strg+Alt+F1       bildschirmfuellende Hilfe (Text aus MOReiter-Hilfe.txt, in die exe eingebettet),
+;                              Esc oder nochmals Strg+Alt+F1 schliesst sie (MO-Hilfe weiter mit Strg+F1)
 ;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
 ;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
 ;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
@@ -91,6 +93,7 @@
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <StaticConstants.au3>
+#include <EditConstants.au3>
 Opt("MustDeclareVars", 1)
 Opt("WinTitleMatchMode", 4)
 ; keine 250 ms Pause nach jedem Fensterbefehl; wo ein Fenster Zeit braucht, wird ausdruecklich gewartet
@@ -165,6 +168,8 @@ Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHalt
 ; Tastatur-Hook: der Rueckruf merkt sich nur die Aufgabe, ausgefuehrt wird sie in der Hauptschleife,
 ; weil Windows einen Hook, der zu lange braucht, stillschweigend abhaengt
 Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
+; offenes Hilfefenster (0 = keins)
+Global $gHilfe = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
@@ -183,7 +188,7 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
+TraySetToolTip("MOReiter: Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
@@ -205,6 +210,7 @@ While 1
 	EndIf
 	NummerPruefen()
 	EinblendungPruefen()
+	If $gHilfe Then HilfePruefen()
 	; Windows entfernt einen Hook stillschweigend, wenn er einmal zu langsam antwortet (z.B. bei hoher
 	; Last, Sperren, Aufwachen), das Programm liefe dann taub weiter; daher regelmaessig neu einhaengen
 	If TimerDiff($erneuert) > 5000 Then
@@ -323,6 +329,8 @@ Func HookAufgabe($vk)
 			Return $kalib ? "" : "Unten"
 		Case 0x54 ; T
 			Return $kalib ? "" : "Termine"
+		Case 0x70 ; F1
+			Return $kalib ? "" : "Hilfe"
 		Case 0x5A ; Z
 			Return $kalib ? "" : "LetztePatienten"
 		Case 0x20 ; Leertaste
@@ -648,6 +656,7 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "Menue" Then Return Menue()
 	If $aufgabe = "Unten" Then Return Unten()
 	If $aufgabe = "Termine" Then Return Termine()
+	If $aufgabe = "Hilfe" Then Return Hilfe()
 	If $aufgabe = "Abhaken" Then Return Abhaken()
 	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
 	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
@@ -1120,6 +1129,47 @@ Func InWinList($liste, $h)
 		If $liste[$i][1] = $h And $liste[$i][0] = "sichtbar" Then Return True
 	Next
 	Return False
+EndFunc
+
+; Strg+Alt+F1: bildschirmfuellendes Fenster mit der Hilfe; ist es schon offen, schliesst es sich.
+; Der Text steht in MOReiter-Hilfe.txt (UTF-8), die beim Kompilieren in die exe eingebettet wird.
+; Das Fenster blockiert die Hauptschleife nicht, geschlossen wird es in HilfePruefen.
+Func Hilfe()
+	If $gHilfe Then Return HilfeWeg()
+	Local $datei = @TempDir & "\MOReiter-Hilfe.txt"
+	FileInstall("MOReiter-Hilfe.txt", $datei, 1)
+	; 256 = UTF-8
+	Local $fh = FileOpen($datei, 256)
+	If $fh = -1 Then Return Meldung("Hilfetext nicht gefunden")
+	Local $txt = FileRead($fh)
+	FileClose($fh)
+	$txt = StringRegExpReplace($txt, "\r?\n", @CRLF)
+	Local $b = @DesktopWidth, $h = @DesktopHeight
+	$gHilfe = GUICreate("MOReiter - Hilfe", $b, $h, 0, 0, $WS_POPUP, $WS_EX_TOPMOST)
+	GUISetBkColor(0xFFFFFF, $gHilfe)
+	; Spalte in der Mitte, so breit wie der Text (ca. 100 Zeichen Consolas 11), hoechstens der Bildschirm
+	Local $sb = ($b > 1000) ? 1000 : $b - 20
+	Local $ed = GUICtrlCreateEdit($txt, Int(($b - $sb) / 2), 10, $sb, $h - 20, _
+			BitOR($ES_MULTILINE, $ES_READONLY, $ES_AUTOVSCROLL, $WS_VSCROLL), 0)
+	GUICtrlSetFont($ed, 11, 400, 0, "Consolas")
+	GUICtrlSetBkColor($ed, 0xFFFFFF)
+	GUISetState(@SW_SHOW, $gHilfe)
+	WinActivate($gHilfe)
+	; sonst ist der ganze Text markiert
+	GUICtrlSendMsg($ed, $EM_SETSEL, 0, 0)
+	Return True
+EndFunc
+
+; Esc (schliesst GUI-Fenster von selbst) bzw. Schliessen-Ereignis abfragen
+Func HilfePruefen()
+	Local $msg = GUIGetMsg(1)
+	If $msg[0] = $GUI_EVENT_CLOSE And $msg[1] = $gHilfe Then HilfeWeg()
+EndFunc
+
+Func HilfeWeg()
+	If $gHilfe Then GUIDelete($gHilfe)
+	$gHilfe = 0
+	Return True
 EndFunc
 
 ; Strg+Alt+T: Medical Office nach vorn, F6 und Alt+T, bis T oder Strg/Alt losgelassen wird; dann F6

@@ -1,0 +1,120 @@
+MOReiter – Tastenkürzel für Medical Office                       (Esc schließt dieses Fenster)
+====================================================================================================
+
+MOReiter läuft unauffällig im Hintergrund (Symbol im Infobereich der Taskleiste, Beenden über dessen
+Menü) und bedient Medical Office per Tastatur, wo es sonst nur die Maus gibt. Läuft Medical Office
+noch nicht, startet jedes Tastenkürzel die Zentrale (medoff.exe) zum Anmelden.
+
+Alle Kürzel verwenden die LINKE Alt-Taste zusammen mit Strg. AltGr bleibt unberührt, so dass
+AltGr+2 3 7 8 9 0 ß weiterhin ² ³ { [ ] } \ liefern.
+
+
+REITER UND HAUPTFENSTER
+----------------------------------------------------------------------------------------------------
+Strg+Alt+K          Reiter "Kartei"; ist die Kartei schon aktiv: "Krankenblatt"
+Strg+Alt+L          Reiter "Krankenblatt"
+Strg+Alt+P          Reiter "ePA"; ist die ePA schon aktiv: "ePAAbr"
+Strg+Alt+U          ("unten") die Liste im Container Karteikarte aktivieren, so dass Pfeiltasten usw.
+                    dort wirken; ist keine sichtbar, vorher zum Krankenblatt wechseln
+Strg+Alt+T          aus jedem Programm: die Termine des Patienten zeigen, solange Strg+Alt+T gehalten
+                    wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurück ins
+                    vorige Programm)
+Strg+Alt+Z          Liste der zuletzt geöffneten Patienten (Pfeil rechts neben der Patientensuche)
+Strg+Alt+Leertaste  Hauptmenü (drei Striche links oben)
+Strg+Alt+H          in der markierten Zeile der Karteikarte den hellblauen Pfeil nach oben anklicken
+                    (in die ePA hochladen), im folgenden Fenster "Hochladen" drücken und einen danach
+                    erscheinenden Leistungsdialog mit "Übernehmen" bestätigen
+Strg+Alt+F1         diese Hilfe (die Hilfe von Medical Office selbst gibt es weiter mit Strg+F1)
+
+
+FILTER DER KARTEI
+----------------------------------------------------------------------------------------------------
+Strg+Alt+ ^ 1 2 3 4 5 6 7 8 9 0 ß ´ F2 F3 ... F12
+                    wechselt zur Kartei und wählt dort den 1., 2., ... 24. Filter links
+                    ("Alle Einträge", "Dateien", "RR Gewicht", ...)
+Strg+Alt + Ziffernblock
+                    Strg+Alt halten und auf dem Ziffernblock eine Nummer (bis 3 Stellen) tippen; beim
+                    Loslassen wird der Filter mit dieser Nummer gewählt, auch jenseits von 24.
+                    Gezählt wird ab 0 wie bei den Tasten oben: 0 = ^, 1-9 = 1-9, 10 = Taste 0,
+                    11 = ß, 12 = ´, 13 = F2 ...
+Strg+Alt + mehrere Ziffern der oberen Reihe
+                    ohne Ziffernblock: z.B. Strg+Alt halten und 1, 7 tippen: erst wird Filter 1 gewählt,
+                    mit der 7 dann Filter 17 (wie Ziffernblock 17)
+
+
+DIAGNOSEERFASSUNG
+----------------------------------------------------------------------------------------------------
+Ist das Fenster "Diagnoseerfassung" aktiv, wählen dieselben Tasten (^ 1 2 ... F12, Ziffernblock,
+Ziffernfolgen) statt der Filter die Diagnose-Kurzwahl-Knöpfe rechts: erst die linke Spalte von oben
+nach unten, dann die nächste. Hier wird bei Ziffernfolgen erst beim Loslassen gewählt.
+Die Knöpfe werden bei jedem Druck am Bildschirm gesucht, Kalibrieren ist nicht nötig.
+
+
+TAGESÜBERSICHT
+----------------------------------------------------------------------------------------------------
+Strg+Alt+A          bei "Offene To-Dos": die markierte Zeile als erledigt abhaken und die
+                    nachrückende Zeile markieren
+Alt+Pfeil hoch/runter
+                    in der Bereichsauswahl links den Eintrag über bzw. unter dem gelb umrandeten
+                    anklicken, danach rechts die oberste Zeile der Liste; Alt darf für mehrere Schritte
+                    gehalten bleiben
+
+
+BRIEFVERSAND (Fenster "MEDICAL OFFICE - Briefversand")
+----------------------------------------------------------------------------------------------------
+Strg+Alt+K Kontaktverzeichnis       Strg+Alt+I KIM-Verzeichnis       Strg+Alt+R Krankenblatt
+Strg+Alt+O Ordner (Anhänge)         Strg+Alt+E Empfangsbestätigung   Strg+Alt+B Betreff-Zeile
+Strg+Alt+M oberster Empfänger       Strg+Alt+F Brief-Vorschau        Strg+Alt+V Versenden/Drucken
+Esc        Abbrechen
+Strg+Alt darf zwischen zwei Tasten gehalten bleiben, z.B. für E und dann V.
+
+
+EINBLENDUNG
+----------------------------------------------------------------------------------------------------
+Strg+Alt eine halbe Sekunde halten: bis zum Loslassen stehen gelbe Schildchen an allen Stellen im
+aktiven Fenster, auf die gerade eine Taste wirken würde (Reiter, Filter mit ihrer Nummer, Pfeil zum
+Hochladen, Karteikarte, Diagnose-Kurzwahlen, Tagesübersicht, Briefversand).
+
+
+KALIBRIEREN (nur nötig, wenn ein Klick daneben geht)
+----------------------------------------------------------------------------------------------------
+Strg+Alt+Umsch+K / L / P / A
+                    Maus auf den Reiter "Kartei" / "Krankenblatt" / "ePA" / "ePAAbr" halten und drücken
+Strg+Alt+Umsch+^    Maus auf den ersten Filter ("Alle Einträge") halten und drücken
+Strg+Alt+Umsch+ eine andere Filtertaste (z.B. F12)
+                    Maus auf diesen Filter halten und drücken: ergibt den Zeilenabstand
+Strg+Alt+Umsch+A    in der Tagesübersicht: Maus auf die Spalte "Bereich" halten und drücken
+Strg+Alt+Umsch+D    Liste aller Controls im aktiven Fenster in die Zwischenablage und nach
+                    %APPDATA%\MOReiter\Fenster.txt (zum Einrichten neuer Tasten)
+
+
+AUFRUF VON AUSSEN (z.B. aus einem eigenen Programm)
+----------------------------------------------------------------------------------------------------
+MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr | Wechsel | ePAWechsel
+MOReiter.exe LetztePatienten | Menue | Unten
+MOReiter.exe Filter n          n-ter Filter der Kartei
+MOReiter.exe Diagnose n        n-te Diagnose-Kurzwahl
+Ohne Parameter bleibt MOReiter mit den Tastenkürzeln im Hintergrund.
+
+
+EINSTELLUNGEN (%APPDATA%\MOReiter\MOReiter.ini, alles optional)
+----------------------------------------------------------------------------------------------------
+[Allgemein]   EchteMaus=1        mit der echten Maus klicken statt per Fensternachricht
+              Einblendung=500    ms Halten bis zu den Schildchen, 0 = nie
+              FolgeZeit=2000     ms Pause, nach der eine Ziffernfolge neu beginnt
+              Control, AktivFarbe, Toleranz   Reiterleiste und Farbe des aktiven Reiters
+[Kartei], [Krankenblatt], [ePA], [ePAAbr]   X, Y   Lage der Reiter (schreibt das Kalibrieren)
+[Filter]      Reiter=Kartei      Reiter mit der Filterliste
+              Warten=400         ms nach dem Reiterwechsel
+              X, Y, Abstand      Lage des ersten Filters und Zeilenabstand (schreibt das Kalibrieren)
+[Karteikarte] Art=Klick          Strg+Alt+U klickt in die markierte Zeile statt nur den Fokus zu setzen
+[Termine]     Warten=200         ms zwischen F6 und Alt+T
+[Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
+[Diagnosen]   Reihenfolge=Zeilen zeilenweise statt spaltenweise zählen
+              KnopfFarbe, Toleranz   Farbe der Kurzwahl-Knöpfe
+[Tagesuebersicht]  BereichX, NameX, Warten, BereichWarten, BereichRahmen
+[Briefversand]     EmpfaengerX, EmpfaengerY; Betreff, Empfaenger, Vorschau = Control in AutoIt-
+                   Schreibweise, falls die automatische Suche danebenliegt
+
+
+Hinweis: AutoIt-Skript, Quelltext MOReiter.au3; kompilieren mit Kompilieren.bat (AutoIt3 nötig).
