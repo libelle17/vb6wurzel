@@ -23,6 +23,12 @@
 ;                              vorige Fenster)
 ;            Strg+Alt+F1       bildschirmfuellende Hilfe (Text aus MOReiter-Hilfe.txt, in die exe eingebettet),
 ;                              Esc oder nochmals Strg+Alt+F1 schliesst sie (MO-Hilfe weiter mit Strg+F1)
+;            Strg+Alt+B        Laborbefunde des Patienten im Firefox: onlinebefunde.labor-staber.de anwaehlen
+;                              oder oeffnen, anmelden (Passwort aus dem Firefox), Patient nach Name und
+;                              Geburtsdatum suchen und seinen ersten Befund zeigen; die Arbeit auf der
+;                              Seite macht das Lesezeichen-Skript MOReiter-Labor.js (Schluesselwort
+;                              "morlabor", einmal %APPDATA%\MOReiter\MOReiter-Labor-Lesezeichen.html in
+;                              Firefox importieren); Name und Geburtsdatum aus der Seite "Personalien"
 ;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
 ;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
 ;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
@@ -147,6 +153,9 @@ Global $FilterTasten[24] = [0xDC, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38
 ; Beschriftung dieser Tasten fuer die Einblendung
 Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
 		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
+; Labor: Portal, Kennung (leer = was Firefox eintraegt), Gesamtzeit, Zahl der durchsuchten Tabs
+Const $LaborUrl = "https://onlinebefunde.labor-staber.de/onlinebefunde/index.php?func=patienten&cache=delete"
+Const $LaborTitel = "^(Onlinebefunde|MOR:)", $defLaborZeit = 30000, $defLaborTabs = 30
 Const $defTermineWarten = 200 ; ms zwischen F6 und Alt+T bzw. nach dem zweiten F6
 Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet werden
 ; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
@@ -188,7 +197,7 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
+TraySetToolTip("MOReiter: Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, B Labor, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
@@ -329,6 +338,8 @@ Func HookAufgabe($vk)
 			Return $kalib ? "" : "Unten"
 		Case 0x54 ; T
 			Return $kalib ? "" : "Termine"
+		Case 0x42 ; B (im Briefversand schon oben als Betreff vergeben)
+			Return $kalib ? "" : "Labor"
 		Case 0x70 ; F1
 			Return $kalib ? "" : "Hilfe"
 		Case 0x5A ; Z
@@ -657,6 +668,7 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "Unten" Then Return Unten()
 	If $aufgabe = "Termine" Then Return Termine()
 	If $aufgabe = "Hilfe" Then Return Hilfe()
+	If $aufgabe = "Labor" Then Return Labor()
 	If $aufgabe = "Abhaken" Then Return Abhaken()
 	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
 	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
@@ -1129,6 +1141,212 @@ Func InWinList($liste, $h)
 		If $liste[$i][1] = $h And $liste[$i][0] = "sichtbar" Then Return True
 	Next
 	Return False
+EndFunc
+
+; Strg+Alt+B: Laborbefunde des Patienten im Firefox. MOReiter waehlt den Tab mit dem Portal (oder
+; oeffnet es) und tippt wiederholt "morlabor Nachname;Vorname;Geburtsdatum;Kennung;Nr" in die
+; Adresszeile; das Lesezeichen-Skript macht jeweils einen Schritt und meldet ihn im Seitentitel
+; "MOR:Nr:Zustand" (siehe MOReiter-Labor.js), MOReiter wartet darauf und macht weiter.
+Func Labor()
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Local $nach, $vor, $geb
+	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	Local $datei = LesezeichenSchreiben()
+	Local $neu = False
+	Local $hFF = FirefoxTab($neu)
+	If Not $hFF Then Return False
+	; Hochkomma, Anfuehrungszeichen, Backslash und Prozent wuerden das Skript stoeren
+	Local $nr = Random(1000, 9999, 1)
+	Local $arg = StringRegExpReplace($nach & ";" & $vor & ";" & $geb & ";" & IniRead($Ini, "Labor", "Kennung", "") & ";" & $nr, "['""\\%]", " ")
+	Local $t = TimerInit(), $max = Int(IniRead($Ini, "Labor", "Zeit", $defLaborZeit))
+	; nach dem Oeffnen und nach jedem Seitenwechsel erst das Laden abwarten
+	Local $laden = $neu, $versuche = 0
+	While TimerDiff($t) < $max
+		If $laden And Not FFGeladen($hFF, $max - TimerDiff($t)) Then ExitLoop
+		; Firefox traegt gespeicherte Anmeldedaten erst nach dem Laden ein
+		If $laden Then Sleep(300)
+		$laden = True
+		If Not FFAdresse($hFF, "morlabor " & $arg) Then Return Meldung("Firefox laesst sich nicht aktivieren")
+		Local $z = FFZustand($hFF, $nr, "", 5000)
+		If $z = "suche" Then $z = FFZustand($hFF, $nr, "suche", $max - TimerDiff($t))
+		Switch $z
+			Case ""
+				Return Meldung("Keine Antwort vom Lesezeichen ""morlabor"". Einmal in Firefox importieren: " & _
+						"Lesezeichen verwalten (Strg+Umsch+O), Importieren und Sichern, HTML importieren: " & $datei)
+			Case "laden", "anmelden"
+				ContinueLoop
+			Case "passwort"
+				; Firefox-Liste der gespeicherten Anmeldungen im Kennungsfeld aufklappen und die erste waehlen
+				$versuche += 1
+				If $versuche > 2 Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort)")
+				Send("{DOWN}")
+				Sleep(300)
+				Send("{ENTER}")
+				Sleep(300)
+				$laden = False
+			Case "fertig"
+				Return True
+			Case "liste"
+				Return Meldung("Kein " & $nach & ", " & $vor & " mit Geburtsdatum " & $geb & ", Suchliste angezeigt")
+			Case "nichts"
+				Return Meldung("Im Labor kein Patient " & $nach & " " & $vor)
+			Case Else
+				Return Meldung("Labor: " & $z)
+		EndSwitch
+	WEnd
+	Return Meldung("Labor: Zeitueberschreitung")
+EndFunc
+
+; Nachname, Vorname und Geburtsdatum aus der Seite "Personalien" des geoeffneten Patienten; sie liegt
+; auch ohne F6 (unsichtbar unterhalb) im Fenster, sonst wird sie mit F6 kurz geholt
+Func PatientDaten($hWnd, ByRef $nach, ByRef $vor, ByRef $geb)
+	If PersonalienLesen($hWnd, $nach, $vor, $geb) Then Return True
+	WinActivate($hWnd)
+	If Not WinWaitActive($hWnd, "", 2) Then Return False
+	TasteEinspeisen(0x75, False) ; F6
+	Sleep(500)
+	Local $ok = PersonalienLesen($hWnd, $nach, $vor, $geb)
+	TasteEinspeisen(0x75, False)
+	Return $ok
+EndFunc
+
+Func PersonalienLesen($hWnd, ByRef $nach, ByRef $vor, ByRef $geb)
+	Local $liste = _WinAPI_EnumChildWindows($hWnd, False)
+	If @error Then Return False
+	$nach = FeldNeben($hWnd, $liste, "&Nachname")
+	$vor = FeldNeben($hWnd, $liste, "&Vorname")
+	$geb = FeldNeben($hWnd, $liste, "Geb&urtsdatum")
+	If $nach = "" Or Not StringRegExp($geb, "^\d{1,2}\.\d{1,2}\.\d{4}$") Then Return False
+	; wie im Portal: TT.MM.JJJJ
+	Local $d = StringSplit($geb, ".", 2)
+	$geb = StringFormat("%02d.%02d.%04d", Int($d[0]), Int($d[1]), Int($d[2]))
+	Return True
+EndFunc
+
+; Text des Eingabefelds rechts neben der Beschriftung $text (Static) auf gleicher Hoehe
+Func FeldNeben($hWnd, $liste, $text)
+	For $i = 1 To $liste[0][0]
+		If $liste[$i][1] <> "Static" Or _WinAPI_GetWindowText($liste[$i][0]) <> $text Then ContinueLoop
+		Local $s = WinGetPos($liste[$i][0])
+		If @error Then ContinueLoop
+		Local $hEltern = _WinAPI_GetParent($liste[$i][0]), $best = 0, $bestX = 0
+		For $j = 1 To $liste[0][0]
+			If $liste[$j][1] <> "Edit" Or _WinAPI_GetParent($liste[$j][0]) <> $hEltern Then ContinueLoop
+			Local $e = WinGetPos($liste[$j][0])
+			If @error Or $e[0] <= $s[0] Or Abs(($e[1] + $e[3] / 2) - ($s[1] + $s[3] / 2)) > 12 Then ContinueLoop
+			If $best = 0 Or $e[0] < $bestX Then
+				$best = $liste[$j][0]
+				$bestX = $e[0]
+			EndIf
+		Next
+		; WM_GETTEXT, das liefert bei Eingabefeldern fremder Programme den Inhalt
+		If $best Then Return StringStripWS(ControlGetText($hWnd, "", $best), 3)
+	Next
+	Return ""
+EndFunc
+
+; Firefox-Fenster mit dem Portal im aktiven Tab: sucht es unter den Tabs (Strg+Tab) des vordersten
+; Firefox-Fensters, sonst neuer Tab bzw. Firefox starten; $neu = True, wenn das Portal erst laedt
+Func FirefoxTab(ByRef $neu)
+	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
+	Local $h = WinGetHandle($muster)
+	If @error Then
+		ShellExecute("firefox.exe", '"' & $LaborUrl & '"')
+		$h = WinWait($muster, "", 20)
+		If Not $h Then Return Meldung("Firefox nicht gefunden")
+		$neu = True
+		Return $h
+	EndIf
+	WinActivate($h)
+	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
+	If StringRegExp(WinGetTitle($h), $LaborTitel) Then Return $h
+	Local $start = WinGetTitle($h), $n = Int(IniRead($Ini, "Labor", "Tabs", $defLaborTabs))
+	For $i = 1 To $n
+		Send("^{TAB}")
+		Sleep(80)
+		Local $tt = WinGetTitle($h)
+		If StringRegExp($tt, $LaborTitel) Then Return $h
+		; einmal rundum
+		If $tt = $start Then ExitLoop
+	Next
+	Send("^t")
+	Sleep(300)
+	FFAdresse($h, $LaborUrl)
+	$neu = True
+	Return $h
+EndFunc
+
+; tippt $txt in die Adresszeile und drueckt Enter
+Func FFAdresse($h, $txt)
+	WinActivate($h)
+	If Not WinWaitActive($h, "", 2) Then Return False
+	Send("^l")
+	Sleep(150)
+	Send($txt, 1)
+	Send("{ENTER}")
+	Return True
+EndFunc
+
+; Seitentitel ohne " - Mozilla Firefox"
+Func FFTitel($h)
+	Return StringRegExpReplace(WinGetTitle($h), "\s+\S\s+Mozilla Firefox$", "")
+EndFunc
+
+; wartet, bis eine Portalseite fertig geladen ist (Titel "Onlinebefunde", nicht mehr "MOR:Nr:...")
+Func FFGeladen($h, $ms)
+	Local $t = TimerInit()
+	While TimerDiff($t) < $ms
+		Local $tt = FFTitel($h)
+		If StringLeft($tt, 13) = "Onlinebefunde" Then Return True
+		Sleep(100)
+	WEnd
+	Return False
+EndFunc
+
+; wartet bis zu $ms auf den Titel "MOR:Nr:Zustand" mit einem anderen Zustand als $ausser, liefert ihn
+; oder "" bei Zeitablauf
+Func FFZustand($h, $nr, $ausser, $ms)
+	Local $t = TimerInit(), $vor = "MOR:" & $nr & ":"
+	While TimerDiff($t) < $ms
+		Local $tt = FFTitel($h)
+		If StringLeft($tt, StringLen($vor)) = $vor Then
+			Local $z = StringTrimLeft($tt, StringLen($vor))
+			If $z <> $ausser Then Return $z
+		EndIf
+		; kurz, weil "laden" nur bis zum Erscheinen der neuen Seite im Titel steht
+		Sleep(20)
+	WEnd
+	Return ""
+EndFunc
+
+; schreibt aus MOReiter-Labor.js (in die exe eingebettet) die Lesezeichen-Datei zum Importieren in
+; Firefox: Kommentare weg, alles in eine Zeile, HTML-maskiert; liefert ihren Pfad
+Func LesezeichenSchreiben()
+	Local $js = @TempDir & "\MOReiter-Labor.js"
+	FileInstall("MOReiter-Labor.js", $js, 1)
+	Local $fh = FileOpen($js, 256)
+	Local $code = FileRead($fh)
+	FileClose($fh)
+	$code = StringRegExpReplace($code, "(?s)/\*.*?\*/", "")
+	$code = StringStripWS(StringRegExpReplace($code, "\s+", " "), 3)
+	$code = StringReplace($code, "&", "&amp;")
+	$code = StringReplace($code, '"', "&quot;")
+	$code = StringReplace($code, "<", "&lt;")
+	$code = StringReplace($code, ">", "&gt;")
+	Local $html = "<!DOCTYPE NETSCAPE-Bookmark-file-1>" & @CRLF _
+			& '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">' & @CRLF _
+			& "<TITLE>Bookmarks</TITLE>" & @CRLF & "<H1>Bookmarks</H1>" & @CRLF & "<DL><p>" & @CRLF _
+			& '    <DT><A HREF="javascript:' & $code & '" SHORTCUTURL="morlabor">MOReiter Labor</A>' & @CRLF _
+			& "</DL><p>" & @CRLF
+	DirCreate(@AppDataDir & "\MOReiter")
+	Local $datei = @AppDataDir & "\MOReiter\MOReiter-Labor-Lesezeichen.html"
+	; 2 = ueberschreiben, 128 = UTF-8 mit BOM
+	$fh = FileOpen($datei, 2 + 128)
+	FileWrite($fh, $html)
+	FileClose($fh)
+	Return $datei
 EndFunc
 
 ; Strg+Alt+F1: bildschirmfuellendes Fenster mit der Hilfe; ist es schon offen, schliesst es sich.

@@ -19,6 +19,7 @@ Strg+Alt+U          ("unten") die Liste im Container Karteikarte aktivieren, so 
 Strg+Alt+T          aus jedem Programm: die Termine des Patienten zeigen, solange Strg+Alt+T gehalten
                     wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurück ins
                     vorige Programm)
+Strg+Alt+B          Laborbefunde des Patienten im Firefox (siehe LABOR unten)
 Strg+Alt+Z          Liste der zuletzt geöffneten Patienten (Pfeil rechts neben der Patientensuche)
 Strg+Alt+Leertaste  Hauptmenü (drei Striche links oben)
 Strg+Alt+H          in der markierten Zeile der Karteikarte den hellblauen Pfeil nach oben anklicken
@@ -41,6 +42,17 @@ Strg+Alt + mehrere Ziffern der oberen Reihe
                     ohne Ziffernblock: z.B. Strg+Alt halten und 1, 7 tippen: erst wird Filter 1 gewählt,
                     mit der 7 dann Filter 17 (wie Ziffernblock 17)
 
+
+LABOR (Strg+Alt+B, Onlinebefunde Labor Staber im Firefox)
+----------------------------------------------------------------------------------------------------
+Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office, wählt im Firefox
+den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Passwort aus dem
+Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
+und zeigt dessen ersten Befund. Ohne passendes Geburtsdatum bleibt die Suchliste stehen.
+Einmalig einrichten: in Firefox Lesezeichen verwalten (Strg+Umsch+O), "Importieren und Sichern",
+"Lesezeichen von HTML importieren" und %APPDATA%\MOReiter\MOReiter-Labor-Lesezeichen.html wählen
+(die Datei schreibt MOReiter beim ersten Strg+Alt+B). Das ergibt das Lesezeichen "MOReiter Labor"
+mit dem Schlüsselwort "morlabor", das die Arbeit auf der Webseite erledigt.
 
 DIAGNOSEERFASSUNG
 ----------------------------------------------------------------------------------------------------
@@ -91,7 +103,7 @@ Strg+Alt+Umsch+D    Liste aller Controls im aktiven Fenster in die Zwischenablag
 AUFRUF VON AUSSEN (z.B. aus einem eigenen Programm)
 ----------------------------------------------------------------------------------------------------
 MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr | Wechsel | ePAWechsel
-MOReiter.exe LetztePatienten | Menue | Unten
+MOReiter.exe LetztePatienten | Menue | Unten | Labor
 MOReiter.exe Filter n          n-ter Filter der Kartei
 MOReiter.exe Diagnose n        n-te Diagnose-Kurzwahl
 Ohne Parameter bleibt MOReiter mit den Tastenkürzeln im Hintergrund.
@@ -109,6 +121,8 @@ EINSTELLUNGEN (%APPDATA%\MOReiter\MOReiter.ini, alles optional)
               X, Y, Abstand      Lage des ersten Filters und Zeilenabstand (schreibt das Kalibrieren)
 [Karteikarte] Art=Klick          Strg+Alt+U klickt in die markierte Zeile statt nur den Fokus zu setzen
 [Termine]     Warten=200         ms zwischen F6 und Alt+T
+[Labor]       Kennung=...        Benutzerkennung, falls Firefox sie nicht selbst einträgt
+              Zeit=30000, Tabs=30   ms für alles, so viele Firefox-Tabs werden durchsucht
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
 [Diagnosen]   Reihenfolge=Zeilen zeilenweise statt spaltenweise zählen
               KnopfFarbe, Toleranz   Farbe der Kurzwahl-Knöpfe
