@@ -6,6 +6,7 @@
 ; MOReiter: waehlt in Medical Office den Reiter "Kartei", "Krankenblatt", "ePA" oder "ePAAbr" per Mausklick
 ; Aufruf:  MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr  -> einmal klicken und beenden (z.B. aus VB6 per Shell)
 ;          MOReiter.exe LetztePatienten | Menue  -> Pfeil neben der Patientensuche bzw. drei Striche links oben
+;          MOReiter.exe Unten                    -> Liste im Container Karteikarte aktivieren
 ;          MOReiter.exe Filter n                 -> Kartei und dort den n-ten Filter waehlen
 ;          MOReiter.exe Diagnose n               -> in der Diagnoseerfassung die n-te Kurzwahl rechts anklicken
 ;          MOReiter.exe Wechsel                  -> Kartei, bzw. Krankenblatt, wenn Kartei schon aktiv ist
@@ -14,6 +15,12 @@
 ;            Strg+Alt+K        Kartei, ist Kartei schon aktiv: Krankenblatt
 ;            Strg+Alt+L        Krankenblatt
 ;            Strg+Alt+P        ePA, ist ePA schon aktiv: ePAAbr
+;            Strg+Alt+U        ("unten") die Liste im Container Karteikarte aktivieren (Fokus hinein), notfalls
+;                              vorher zum Krankenblatt wechseln; [Karteikarte] Art=Klick klickt statt dessen
+;                              in die markierte (sonst oberste) Zeile
+;            Strg+Alt+T        aus jedem Programm: Termine des Patienten zeigen, solange Strg+Alt+T gehalten
+;                              wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurueck ins
+;                              vorige Fenster)
 ;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
 ;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
 ;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
@@ -54,7 +61,7 @@
 ;                              Alt losgelassen wird, stehen gelbe Schildchen an allen Stellen im aktiven
 ;                              Fenster, auf die eine Taste gerade wirken wuerde:
 ;                              Hauptfenster: K, L, P an den Reitern (K bzw. P an dem, zu dem gewechselt
-;                              wuerde), Z am Pfeil neben der Patientensuche, Leer am Menueknopf, H am
+;                              wuerde), U an der Karteikarte, Z am Pfeil neben der Patientensuche, Leer am Menueknopf, H am
 ;                              Hochladen-Pfeil der markierten Zeile, an den Filtern der Kartei die
 ;                              Ziffernblock-Nummer und dahinter die direkte Taste, wenn sie anders heisst
 ;                              (z.B. "0 ^", "5", "11 sz"); Diagnoseerfassung: ebenso an den Kurzwahlen;
@@ -137,6 +144,7 @@ Global $FilterTasten[24] = [0xDC, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38
 ; Beschriftung dieser Tasten fuer die Einblendung
 Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
 		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
+Const $defTermineWarten = 200 ; ms zwischen F6 und Alt+T bzw. nach dem zweiten F6
 Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet werden
 ; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
 ; gedrueckte Ziffertasten als ",vk,", und die gerade angezeigte Nummer
@@ -175,7 +183,7 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
+TraySetToolTip("MOReiter: Strg+Alt+K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
@@ -223,6 +231,9 @@ EndFunc
 Func TastenHook($nCode, $wParam, $lParam)
 	If $nCode >= 0 Then
 		Local $kb = DllStructCreate($tagKBDLLHOOKSTRUCT, $lParam)
+		; selbst eingespeiste Tasten (ModifierAus, TasteEinspeisen) unbesehen weiter, sonst loeste
+		; z.B. das fuer Strg+Alt+T gesendete Alt+T bei noch gehaltenem Strg+Alt erneut Termine aus
+		If $kb.dwExtraInfo = $Kennung Then Return _WinAPI_CallNextHookEx($gHook, $nCode, $wParam, $lParam)
 		Local $vk = $kb.vkCode
 		; Strg/Alt mitverfolgen, eigene eingespeiste Ereignisse nicht
 		If $vk >= 0xA2 And $vk <= 0xA4 And $kb.dwExtraInfo <> $Kennung Then
@@ -308,6 +319,10 @@ Func HookAufgabe($vk)
 			Return $kalib ? "Kalib:ePAAbr" : ""
 		Case 0x48 ; H, nur in Medical Office
 			Return ($kalib Or Not MOAktiv()) ? "" : "Hochladen"
+		Case 0x55 ; U
+			Return $kalib ? "" : "Unten"
+		Case 0x54 ; T
+			Return $kalib ? "" : "Termine"
 		Case 0x5A ; Z
 			Return $kalib ? "" : "LetztePatienten"
 		Case 0x20 ; Leertaste
@@ -547,6 +562,9 @@ Func MOPositionen($hWnd, ByRef $pos)
 	KnopfPos($pos, MenueKnopf($hWnd), "Leer")
 	Local $hGrid = KarteiListe($hWnd), $hx, $hy
 	If $hGrid And HochladenStelle($hGrid, $hx, $hy) = "" Then PosDazu($pos, $hx, $hy, "H")
+	; U mitten auf die Kopfzeile der Karteikarte
+	Local $g = $hGrid ? WinGetPos($hGrid) : 0
+	If IsArray($g) Then PosDazu($pos, $g[0] + Int($g[2] / 2), $g[1] + Int($KbKopfHoehe / 2), "U")
 	FilterPositionen($hWnd, $pos)
 EndFunc
 
@@ -628,6 +646,8 @@ Func Ausfuehren($aufgabe)
 	If StringLeft($aufgabe, 9) <> "Diagnose:" And StringLeft($aufgabe, 7) <> "Filter:" Then EinblendungWeg()
 	If $aufgabe = "LetztePatienten" Then Return LetztePatienten()
 	If $aufgabe = "Menue" Then Return Menue()
+	If $aufgabe = "Unten" Then Return Unten()
+	If $aufgabe = "Termine" Then Return Termine()
 	If $aufgabe = "Abhaken" Then Return Abhaken()
 	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
 	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
@@ -1102,19 +1122,101 @@ Func InWinList($liste, $h)
 	Return False
 EndFunc
 
-; die Liste im Krankenblatt-Container: bevorzugt die mit dem Fokus, sonst die im TKarteikarteForm
+; Strg+Alt+T: Medical Office nach vorn, F6 und Alt+T, bis T oder Strg/Alt losgelassen wird; dann F6
+; und zurueck ins vorige Fenster. Die Tasten werden mit $Kennung eingespeist, nachdem Strg und Alt als
+; losgelassen gemeldet sind, damit nicht Strg+Alt+F6 ankommt.
+Func Termine()
+	Local $hVorher = _WinAPI_GetForegroundWindow()
+	Local $hWnd = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	ModifierAus()
+	If $hVorher <> $hWnd Then
+		WinActivate($hWnd)
+		If Not WinWaitActive($hWnd, "", 2) Then Return Meldung("Medical Office laesst sich nicht aktivieren")
+	EndIf
+	Local $ms = Int(IniRead($Ini, "Termine", "Warten", $defTermineWarten))
+	TasteEinspeisen(0x75, False) ; F6
+	Sleep($ms)
+	TasteEinspeisen(0x54, True) ; Alt+T
+	; T gilt als gehalten, solange der Hook kein Loslassen gesehen hat; die automatische Wiederholung
+	; frischt $gGehaltenZeit auf, ohne sie (verschluckte Loslassen bei Fernsteuerung) nach 1 s Schluss
+	While StrgAlt() And $gGehalten = 0x54 And TimerDiff($gGehaltenZeit) < 1000
+		Sleep(20)
+	WEnd
+	TasteEinspeisen(0x75, False) ; F6
+	; kam die Wiederholung erst nach mehr als 1 s, hat der Hook sie als neuen Druck vorgemerkt
+	If $gAufgabe = "Termine" Then $gAufgabe = ""
+	If $hVorher <> $hWnd And WinExists($hVorher) Then
+		Sleep($ms)
+		WinActivate($hVorher)
+	EndIf
+	Return True
+EndFunc
+
+; schickt die Taste $vk (mit Alt) als eigene, vom Hook durchgelassene Eingabe
+Func TasteEinspeisen($vk, $mitAlt)
+	; 2 = KEYEVENTF_KEYUP
+	If $mitAlt Then DllCall("user32.dll", "none", "keybd_event", "byte", 0xA4, "byte", 0, "dword", 0, "ulong_ptr", $Kennung)
+	DllCall("user32.dll", "none", "keybd_event", "byte", $vk, "byte", 0, "dword", 0, "ulong_ptr", $Kennung)
+	DllCall("user32.dll", "none", "keybd_event", "byte", $vk, "byte", 0, "dword", 2, "ulong_ptr", $Kennung)
+	If $mitAlt Then DllCall("user32.dll", "none", "keybd_event", "byte", 0xA4, "byte", 0, "dword", 2, "ulong_ptr", $Kennung)
+EndFunc
+
+; Strg+Alt+U: die Liste im Container Karteikarte aktivieren, damit Pfeiltasten usw. dort wirken;
+; ist keine sichtbar (z.B. auf dem Reiter ePAAbr), erst zum Krankenblatt wechseln
+Func Unten()
+	Local $hWnd, $hCtrl
+	If Not HolLeiste($hWnd, $hCtrl) Then Return False
+	WinActivate($hWnd)
+	WinWaitActive($hWnd, "", 2)
+	Local $hGrid = KarteiListe($hWnd)
+	If Not $hGrid Then
+		If Not Reiter("Krankenblatt") Then Return False
+		Sleep(Int(IniRead($Ini, "Filter", "Warten", $defFilterWarten)))
+		$hGrid = KarteiListe($hWnd)
+		If Not $hGrid Then Return Meldung("Keine Karteikarte gefunden")
+	EndIf
+	If IniRead($Ini, "Karteikarte", "Art", "Fokus") <> "Klick" Then
+		ControlFocus($hWnd, "", $hGrid)
+		If ControlGetHandle($hWnd, "", ControlGetFocus($hWnd)) = $hGrid Then Return True
+	EndIf
+	; Fokus hat nicht gegriffen oder Klick gewuenscht: in die markierte Zeile klicken, sonst in die
+	; oberste, jeweils ganz links in die Datumsspalte (dort liegen keine Symbole)
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return Meldung("Karteikarte nicht sichtbar")
+	Opt("PixelCoordMode", 1)
+	Local $y = $g[1] + $KbKopfHoehe + 8
+	Local $m = PixelSearch($g[0] + 4, $g[1] + $KbKopfHoehe, $g[0] + 4, $g[1] + $g[3] - 3, $KbMarkiertFarbe, 6)
+	If Not @error Then $y = $m[1] + 4
+	Return KlickPunkt($hWnd, $g[0] + 20, $y, "Karteikarte verdeckt")
+EndFunc
+
+; die Liste im Krankenblatt-Container: bevorzugt die mit dem Fokus, sonst die groesste sichtbare
+; (MO haelt mehrere TKarteikarteForm vor, die sichtbare ist nicht immer die erste, z.B. nach einem
+; Wechsel in ein anderes Programm und zurueck)
 Func KarteiListe($hWnd)
 	Local $h = ControlGetHandle($hWnd, "", ControlGetFocus($hWnd))
-	If Not @error And _WinAPI_GetClassName($h) = "TmoStringGrid" _
-			And _WinAPI_GetClassName(_WinAPI_GetParent($h)) = "TfrmKarteikarteControl" Then Return $h
-	Local $hForm = ControlGetHandle($hWnd, "", "[CLASS:TKarteikarteForm; INSTANCE:1]")
-	If @error Or Not BitAND(WinGetState($hForm), 2) Then Return 0
-	Local $liste = _WinAPI_EnumChildWindows($hForm)
+	If Not @error And KarteiGrid($h) Then Return $h
+	; nur sichtbare Fenster, auch die Eltern muessen sichtbar sein
+	Local $liste = _WinAPI_EnumChildWindows($hWnd, True)
 	If @error Then Return 0
+	Local $best = 0, $bestFlaeche = 0
 	For $i = 1 To $liste[0][0]
-		If $liste[$i][1] = "TmoStringGrid" Then Return $liste[$i][0]
+		If $liste[$i][1] <> "TmoStringGrid" Or Not KarteiGrid($liste[$i][0]) Then ContinueLoop
+		Local $p = WinGetPos($liste[$i][0])
+		If @error Then ContinueLoop
+		If $p[2] * $p[3] > $bestFlaeche Then
+			$best = $liste[$i][0]
+			$bestFlaeche = $p[2] * $p[3]
+		EndIf
 	Next
-	Return 0
+	Return $best
+EndFunc
+
+; sichtbare Liste einer Karteikarte?
+Func KarteiGrid($h)
+	Return _WinAPI_GetClassName($h) = "TmoStringGrid" And _WinAPI_IsWindowVisible($h) _
+			And _WinAPI_GetClassName(_WinAPI_GetParent($h)) = "TfrmKarteikarteControl"
 EndFunc
 
 ; liest das Bildschirmrechteck $x1,$y1 - $x2,$y2 in den Speicher ($gBild, 32 Bit je Pixel, zeilenweise
