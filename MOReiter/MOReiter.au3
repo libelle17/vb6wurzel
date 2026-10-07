@@ -1191,12 +1191,13 @@ Func Unten()
 	Return KlickPunkt($hWnd, $g[0] + 20, $y, "Karteikarte verdeckt")
 EndFunc
 
-; die Liste im Krankenblatt-Container: bevorzugt die mit dem Fokus, sonst die groesste sichtbare
-; (MO haelt mehrere TKarteikarteForm vor, die sichtbare ist nicht immer die erste, z.B. nach einem
-; Wechsel in ein anderes Programm und zurueck)
+; die Liste im Krankenblatt-Container: die groesste sichtbare, die mit dem Fokus nur, wenn sie
+; mindestens halb so gross ist (die Filterliste links ist ebenfalls ein TmoStringGrid in der
+; Karteikarte und darf nicht gewinnen, nur weil sie den Fokus hat); MO haelt mehrere TKarteikarteForm
+; vor, die sichtbare ist nicht immer die erste, z.B. nach einem Wechsel in ein anderes Programm und zurueck
 Func KarteiListe($hWnd)
-	Local $h = ControlGetHandle($hWnd, "", ControlGetFocus($hWnd))
-	If Not @error And KarteiGrid($h) Then Return $h
+	Local $hFokus = ControlGetHandle($hWnd, "", ControlGetFocus($hWnd))
+	If @error Or Not KarteiGrid($hFokus) Then $hFokus = 0
 	; nur sichtbare Fenster, auch die Eltern muessen sichtbar sein
 	Local $liste = _WinAPI_EnumChildWindows($hWnd, True)
 	If @error Then Return 0
@@ -1210,6 +1211,10 @@ Func KarteiListe($hWnd)
 			$bestFlaeche = $p[2] * $p[3]
 		EndIf
 	Next
+	If $hFokus And $hFokus <> $best Then
+		Local $f = WinGetPos($hFokus)
+		If Not @error And $f[2] * $f[3] * 2 >= $bestFlaeche Then Return $hFokus
+	EndIf
 	Return $best
 EndFunc
 
