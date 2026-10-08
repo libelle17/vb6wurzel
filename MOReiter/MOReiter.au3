@@ -23,7 +23,8 @@
 ;                              vorige Fenster)
 ;            Strg+Alt+F1       bildschirmfuellende Hilfe (Text aus MOReiter-Hilfe.txt, in die exe eingebettet),
 ;                              Esc oder nochmals Strg+Alt+F1 schliesst sie (MO-Hilfe weiter mit Strg+F1)
-;            Strg+Alt+B        Laborbefunde des Patienten im Firefox: onlinebefunde.labor-staber.de anwaehlen
+;            Strg+Alt+B        (Zusatz, nur mit [Labor] Url= in der INI, Beispiel Labor Staber)
+;                              Laborbefunde des Patienten im Firefox: onlinebefunde.labor-staber.de anwaehlen
 ;                              oder oeffnen, anmelden (Passwort aus dem Firefox), Patient nach Name und
 ;                              Geburtsdatum suchen und seinen ersten Befund zeigen; die Arbeit auf der
 ;                              Seite macht das Benutzerskript MOReiter-Labor.user.js (einmal in das
@@ -106,8 +107,11 @@ Opt("WinTitleMatchMode", 4)
 Opt("WinWaitDelay", 0)
 
 Const $MOFenster = "[REGEXPTITLE:^Medical Office; CLASS:OWL_Window]"
-; INI im Benutzerprofil, weil das Programmverzeichnis unter "Program Files" nicht beschreibbar ist
+; INI im Benutzerprofil, weil das Programmverzeichnis unter "Program Files" nicht beschreibbar ist;
+; hier stehen nur die eigenen Einstellungen und Kalibrierungen dieses Benutzers
 Const $Ini = @AppDataDir & "\MOReiter\MOReiter.ini"
+; Voreinstellungen der Praxis neben der exe (verteilt z.B. NVerb), gelten, wo $Ini nichts angibt
+Const $IniVorgaben = @ScriptDir & "\MOReiter-Vorgaben.ini"
 
 ; Voreinstellungen (Pixel relativ zum Control), werden durch Kalibrieren in der INI ueberschrieben
 Const $defCtrl = "[CLASS:TmoTabSet; INSTANCE:1]"
@@ -153,9 +157,9 @@ Global $FilterTasten[24] = [0xDC, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38
 ; Beschriftung dieser Tasten fuer die Einblendung
 Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
 		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
-; Labor: Portal, Kennung (leer = was Firefox eintraegt), Gesamtzeit, Zahl der durchsuchten Tabs
-Const $LaborUrl = "https://onlinebefunde.labor-staber.de/onlinebefunde/index.php?func=patienten&cache=delete"
-Const $LaborTitel = "^(Onlinebefunde|MOR:)", $defLaborZeit = 30000, $defLaborTabs = 5
+; Labor (Strg+Alt+B, nur wenn [Labor] Url= gesetzt ist): Seitentitel des Portals, Gesamtzeit, Zahl der
+; durchsuchten Tabs
+Const $defLaborTitel = "Onlinebefunde", $defLaborZeit = 30000, $defLaborTabs = 5
 ; Installationsquelle des Benutzerskripts: Tampermonkey bietet beim Oeffnen einer *.user.js-Adresse die Installation an
 Const $defLaborSkript = "https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Labor.user.js"
 Const $defTermineWarten = 200 ; ms zwischen F6 und Alt+T bzw. nach dem zweiten F6
@@ -430,7 +434,7 @@ Func FolgeAufgabe($vk, $aufgabe)
 	EndIf
 	Local $d = String($vk - 0x30)
 	If $gFolge <> "" And StringLen($gFolge) < 3 _
-			And TimerDiff($gFolgeZeit) < Int(IniRead($Ini, "Allgemein", "FolgeZeit", $defFolgeZeit)) Then
+			And TimerDiff($gFolgeZeit) < Int(Einst("Allgemein", "FolgeZeit", $defFolgeZeit)) Then
 		$gFolge &= $d
 		$aufgabe = "Filter:" & Int($gFolge)
 	Else
@@ -473,7 +477,7 @@ Func EinblendungPruefen()
 		Return
 	EndIf
 	If $gHaltStart = 0 Then $gHaltStart = TimerInit()
-	Local $ms = Int(IniRead($Ini, "Allgemein", "Einblendung", $defEinblendung))
+	Local $ms = Int(Einst("Allgemein", "Einblendung", $defEinblendung))
 	If $ms <= 0 Or $gEinblendungVersucht Or TimerDiff($gHaltStart) < $ms Then Return
 	$gEinblendungVersucht = True
 	EinblendungZeigen()
@@ -567,7 +571,7 @@ EndFunc
 ; Medical Office Hauptfenster: K, L, P an den Reitern, auf die sie jetzt wirken, Z am Pfeil neben
 ; der Patientensuche, Leer am Menueknopf, H am Hochladen-Pfeil, dazu die Filter der Kartei
 Func MOPositionen($hWnd, ByRef $pos)
-	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
+	Local $hCtrl = ControlGetHandle($hWnd, "", Einst("Allgemein", "Control", $defCtrl))
 	If Not @error And BitAND(WinGetState($hCtrl), 2) Then
 		Local $p = WinGetPos($hCtrl), $x, $y
 		If Not @error Then
@@ -607,7 +611,7 @@ Func TagesPositionen($hWnd, ByRef $pos)
 	Opt("PixelCoordMode", 1)
 	If OffeneToDos($hWnd) Then
 		Local $mitte = MarkierteZeile($g)
-		If $mitte >= 0 Then PosDazu($pos, $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "BereichX", $defBereichX)), $mitte, "A")
+		If $mitte >= 0 Then PosDazu($pos, $g[0] + Int(Einst("Tagesuebersicht", "BereichX", $defBereichX)), $mitte, "A")
 	EndIf
 	Local $eintr, $akt, $mx, $h
 	If BereichSuchen($hWnd, $hGrid, $eintr, $akt, $mx, $h) <> "" Then Return
@@ -620,14 +624,14 @@ EndFunc
 ; haengt Bildschirmpunkte (linker Rand der Filterliste, Mitte des Filters) aller sichtbaren Filter an
 ; $pos an; nur wenn die Kartei (bzw. [Filter] Reiter) schon aktiv ist
 Func FilterPositionen($hWnd, ByRef $pos)
-	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
+	Local $hCtrl = ControlGetHandle($hWnd, "", Einst("Allgemein", "Control", $defCtrl))
 	If @error Or Not BitAND(WinGetState($hCtrl), 2) Then Return 0
-	If Not ReiterAktiv(IniRead($Ini, "Filter", "Reiter", $defFilterReiter), $hWnd, $hCtrl) Then Return 0
+	If Not ReiterAktiv(Einst("Filter", "Reiter", $defFilterReiter), $hWnd, $hCtrl) Then Return 0
 	Local $p = WinGetPos($hCtrl)
 	If @error Then Return 0
-	Local $x = $p[0] + Int(IniRead($Ini, "Filter", "X", $defFilterX))
-	Local $y0 = $p[1] + Int(IniRead($Ini, "Filter", "Y", $defFilterY))
-	Local $abst = Number(IniRead($Ini, "Filter", "Abstand", $defFilterAbstand))
+	Local $x = $p[0] + Int(Einst("Filter", "X", $defFilterX))
+	Local $y0 = $p[1] + Int(Einst("Filter", "Y", $defFilterY))
+	Local $abst = Number(Einst("Filter", "Abstand", $defFilterAbstand))
 	If $abst < 5 Then Return 0
 	Local $pt = DllStructCreate("int X;int Y"), $hListe = 0, $links = 0, $unten = 0, $n = 0, $m = UBound($pos)
 	; so lange, wie der Punkt noch auf derselben Filterliste liegt
@@ -781,8 +785,8 @@ Func BriefZiel($hWnd, $was, ByRef $x, ByRef $y)
 			If $h And $was = "Empfaenger" Then
 				; in die erste Zeile, rechts vom Kaestchen, damit es nicht umgeschaltet wird
 				$p = WinGetPos($h)
-				$x = $p[0] + Int(IniRead($Ini, "Briefversand", "EmpfaengerX", $defEmpfaengerX))
-				$y = $p[1] + Int(IniRead($Ini, "Briefversand", "EmpfaengerY", $defEmpfaengerY))
+				$x = $p[0] + Int(Einst("Briefversand", "EmpfaengerX", $defEmpfaengerX))
+				$y = $p[1] + Int(Einst("Briefversand", "EmpfaengerY", $defEmpfaengerY))
 			EndIf
 	EndSwitch
 	If Not $h Then Return False
@@ -806,7 +810,7 @@ EndFunc
 ; sonst vermutet: Betreff das oberste einzeilige Eingabefeld, Empfaenger die oberste Liste,
 ; Vorschau das groesste Control ohne Unterfenster unterhalb des Betreffs in der linken Haelfte
 Func BriefControl($hWnd, $was)
-	Local $ctl = IniRead($Ini, "Briefversand", $was, "")
+	Local $ctl = Einst("Briefversand", $was, "")
 	If $ctl <> "" Then
 		Local $hc = ControlGetHandle($hWnd, "", $ctl)
 		If @error Or Not BitAND(WinGetState($hc), 2) Then Return 0
@@ -917,8 +921,8 @@ Func DiagKnoepfe($hWnd)
 	_WinAPI_ClientToScreen($hWnd, $pt)
 	Local $gr = WinGetClientSize($hWnd)
 	If @error Then Return 0
-	Local $farbe = Int(IniRead($Ini, "Diagnosen", "KnopfFarbe", $defDiagKnopfFarbe))
-	Local $tol = Int(IniRead($Ini, "Diagnosen", "Toleranz", $defDiagToleranz))
+	Local $farbe = Int(Einst("Diagnosen", "KnopfFarbe", $defDiagKnopfFarbe))
+	Local $tol = Int(Einst("Diagnosen", "Toleranz", $defDiagToleranz))
 	Local $x1 = $pt.X + Int($gr[0] / 2), $x2 = $pt.X + $gr[0] - 1, $y1 = $pt.Y, $y2 = $pt.Y + $gr[1] - 1
 	If Not BildLesen($x1, $y1, $x2, $y2) Then Return 0
 	; Spalten [n][2]: linker und rechter Rand; nur Strecken ab ca. 100 Pixel, so lang ist in der Mitte
@@ -947,7 +951,7 @@ Func DiagKnoepfe($hWnd)
 		$gBild = 0
 		Return 0
 	EndIf
-	Local $zeilen = (IniRead($Ini, "Diagnosen", "Reihenfolge", $defDiagReihenfolge) = "Zeilen")
+	Local $zeilen = (Einst("Diagnosen", "Reihenfolge", $defDiagReihenfolge) = "Zeilen")
 	Local $k[0][4], $m = 0
 	For $c = 0 To UBound($spalten) - 1
 		Local $li = $spalten[$c][0], $re = $spalten[$c][1], $mx = Int(($li + $re) / 2)
@@ -1080,7 +1084,7 @@ Func Hochladen()
 	If Not $hDlg Then Return Meldung("Fenster ""MEDICAL OFFICE - ePA"" ist nicht erschienen")
 	Local $hKnopf = KnopfBereit($hDlg, "Hochladen", 5000)
 	If Not $hKnopf Then Return Meldung("Knopf ""Hochladen"" nicht bereit")
-	Sleep(Int(IniRead($Ini, "Hochladen", "Warten", $defHochladenWarten)))
+	Sleep(Int(Einst("Hochladen", "Warten", $defHochladenWarten)))
 	; schon offene Dialoge merken, damit nur ein neu erscheinender Leistungsdialog bestaetigt wird
 	Local $vorher = WinList($LeistungDialog)
 	For $i = 1 To $vorher[0][0]
@@ -1089,14 +1093,14 @@ Func Hochladen()
 	If Not KnopfKlick($hDlg, $hKnopf) Then Return False
 	; manchmal folgt nach dem Hochladen ein Dialog zur Leistungsdokumentation: dort "Uebernehmen"
 	If Not WinWaitClose($hDlg, "", 30) Then Return True
-	Local $t = TimerInit(), $max = Int(IniRead($Ini, "Hochladen", "LeistungWarten", $defLeistungWarten))
+	Local $t = TimerInit(), $max = Int(Einst("Hochladen", "LeistungWarten", $defLeistungWarten))
 	While TimerDiff($t) < $max
 		Local $liste = WinList($LeistungDialog)
 		For $i = 1 To $liste[0][0]
 			If Not BitAND(WinGetState($liste[$i][1]), 2) Or InWinList($vorher, $liste[$i][1]) Then ContinueLoop
 			Local $hUeb = KnopfBereit($liste[$i][1], ChrW(220) & "bernehmen", 1000)
 			If $hUeb Then
-				Sleep(Int(IniRead($Ini, "Hochladen", "Warten", $defHochladenWarten)))
+				Sleep(Int(Einst("Hochladen", "Warten", $defHochladenWarten)))
 				Return KnopfKlick($liste[$i][1], $hUeb)
 			EndIf
 		Next
@@ -1145,22 +1149,33 @@ Func InWinList($liste, $h)
 	Return False
 EndFunc
 
+; Wert aus der eigenen INI, sonst aus den Praxis-Vorgaben, sonst $def; geschrieben (Kalibrieren) wird
+; immer nur in die eigene INI, so dass ein neu verteiltes MOReiter-Vorgaben.ini sie nicht ueberschreibt
+Func Einst($sektion, $schluessel, $def)
+	Local $v = IniRead($Ini, $sektion, $schluessel, Chr(1))
+	If $v <> Chr(1) Then Return $v
+	Return IniRead($IniVorgaben, $sektion, $schluessel, $def)
+EndFunc
+
 ; Strg+Alt+B: Laborbefunde des Patienten im Firefox. MOReiter waehlt den Tab mit dem Portal (oder
 ; einen neuen) und oeffnet dort die Portaladresse mit dem Auftrag "#mor=Nachname;Vorname;Geburtsdatum;
 ; Kennung;Nr"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-Labor.user.js (Tampermonkey),
 ; das seinen Fortschritt im Seitentitel "MOR:Nr:Zustand" meldet.
 Func Labor()
+	; Zusatzfunktion fuer ein bestimmtes Labor, nur mit Eintrag in der INI
+	Local $portal = Einst("Labor", "Url", "")
+	If $portal = "" Then Return Meldung("Laborabfrage nicht eingerichtet ([Labor] Url= in der INI, siehe Hilfe)")
 	Local $hMO = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
 	Local $nach, $vor, $geb
 	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
 	Local $nr = Random(1000, 9999, 1)
-	Local $url = $LaborUrl & "#mor=" & UrlKodiert($nach) & ";" & UrlKodiert($vor) & ";" & UrlKodiert($geb) & ";" _
-			& UrlKodiert(IniRead($Ini, "Labor", "Kennung", "")) & ";" & $nr
+	Local $url = $portal & "#mor=" & UrlKodiert($nach) & ";" & UrlKodiert($vor) & ";" & UrlKodiert($geb) & ";" _
+			& UrlKodiert(Einst("Labor", "Kennung", "")) & ";" & $nr
 	Local $hFF = FirefoxOeffnen($url)
 	If Not $hFF Then Return False
-	Local $t = TimerInit(), $max = Int(IniRead($Ini, "Labor", "Zeit", $defLaborZeit)), $z = "", $pw = False
+	Local $t = TimerInit(), $max = Int(Einst("Labor", "Zeit", $defLaborZeit)), $z = "", $pw = False
 	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
 	While TimerDiff($t) < $max
 		$z = FFZustand($hFF, $nr, $z, ($z = "") ? 15000 : $max - TimerDiff($t))
@@ -1194,7 +1209,7 @@ Func Labor()
 		If WinWaitActive($hFF, "", 2) Then
 			Send("^t")
 			Sleep(300)
-			Einfuegen(IniRead($Ini, "Labor", "Skript", $defLaborSkript))
+			Einfuegen(Einst("Labor", "Skript", $defLaborSkript))
 			Send("{ENTER}")
 		EndIf
 		Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"": bitte im neuen Tab bei Tampermonkey ""Installieren"" " & _
@@ -1271,6 +1286,8 @@ EndFunc
 ; neuen Tab; laeuft Firefox nicht, wird er damit gestartet
 Func FirefoxOeffnen($url)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
+	; Portalseite oder eine mit dem Fortschritt des Benutzerskripts
+	Local $LaborTitel = "^(\Q" & Einst("Labor", "Titel", $defLaborTitel) & "\E|MOR:)"
 	Local $h = WinGetHandle($muster)
 	If @error Then
 		ShellExecute("firefox.exe", '"' & $url & '"')
@@ -1282,7 +1299,7 @@ Func FirefoxOeffnen($url)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
 	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel)
 	If Not $gefunden Then
-		Local $n = Int(IniRead($Ini, "Labor", "Tabs", $defLaborTabs)), $vorher = ""
+		Local $n = Int(Einst("Labor", "Tabs", $defLaborTabs)), $vorher = ""
 		For $i = 1 To $n
 			Send(($i = 1) ? "^9" : "^{PGUP}")
 			Sleep(80)
@@ -1398,7 +1415,7 @@ Func Termine()
 		WinActivate($hWnd)
 		If Not WinWaitActive($hWnd, "", 2) Then Return Meldung("Medical Office laesst sich nicht aktivieren")
 	EndIf
-	Local $ms = Int(IniRead($Ini, "Termine", "Warten", $defTermineWarten))
+	Local $ms = Int(Einst("Termine", "Warten", $defTermineWarten))
 	TasteEinspeisen(0x75, False) ; F6
 	Sleep($ms)
 	TasteEinspeisen(0x54, True) ; Alt+T
@@ -1436,11 +1453,11 @@ Func Unten()
 	Local $hGrid = KarteiListe($hWnd)
 	If Not $hGrid Then
 		If Not Reiter("Krankenblatt") Then Return False
-		Sleep(Int(IniRead($Ini, "Filter", "Warten", $defFilterWarten)))
+		Sleep(Int(Einst("Filter", "Warten", $defFilterWarten)))
 		$hGrid = KarteiListe($hWnd)
 		If Not $hGrid Then Return Meldung("Keine Karteikarte gefunden")
 	EndIf
-	If IniRead($Ini, "Karteikarte", "Art", "Fokus") <> "Klick" Then
+	If Einst("Karteikarte", "Art", "Fokus") <> "Klick" Then
 		ControlFocus($hWnd, "", $hGrid)
 		If ControlGetHandle($hWnd, "", ControlGetFocus($hWnd)) = $hGrid Then Return True
 	EndIf
@@ -1590,14 +1607,14 @@ Func BereichWechsel($richtung)
 	Opt("MouseCoordMode", 1)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $mx, $eintr[$ziel] + Int($h / 2), 1, 0)
-	Local $t0 = TimerInit(), $max = Int(IniRead($Ini, "Tagesuebersicht", "BereichWarten", $defBereichWarten))
+	Local $t0 = TimerInit(), $max = Int(Einst("Tagesuebersicht", "BereichWarten", $defBereichWarten))
 	While TimerDiff($t0) < $max
 		Sleep(50)
 		If PixelChecksum($g[0] + 2, $zy, $g[0] + $g[2] - 20, $zy + $ZeilenHoehe - 1) <> $vorher Then ExitLoop
 	WEnd
 	; bis die Zeile fertig gezeichnet ist
 	Sleep(100)
-	Local $nameX = $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "NameX", $defNameX)), $zm = $zy + Int($ZeilenHoehe / 2)
+	Local $nameX = $g[0] + Int(Einst("Tagesuebersicht", "NameX", $defNameX)), $zm = $zy + Int($ZeilenHoehe / 2)
 	; leere Liste: dort ist nur weisse Flaeche
 	If PixelGetColor($nameX, $zm) <> 0xFFFFFF Then MouseClick("left", $nameX, $zm, 1, 0)
 	MouseMove($alt[0], $alt[1], 0)
@@ -1615,7 +1632,7 @@ Func BereichSuchen($hWnd, $hGrid, ByRef $eintr, ByRef $akt, ByRef $mx, ByRef $h)
 	; Bereich links neben der Liste
 	Local $x1 = $pt.X, $x2 = $g[0] - 1, $y1 = $g[1], $y2 = $g[1] + $g[3] - 1
 	If $x2 - $x1 < 40 Then Return "Bereichsauswahl links nicht sichtbar"
-	Local $farbe = Int(IniRead($Ini, "Tagesuebersicht", "BereichRahmen", $defBereichRahmen))
+	Local $farbe = Int(Einst("Tagesuebersicht", "BereichRahmen", $defBereichRahmen))
 	Opt("PixelCoordMode", 1)
 	If Not BildLesen($x1, $y1, $x2, $y2) Then Return "Bildschirm nicht lesbar"
 	; linke obere Ecke des Rahmens; ein Treffer zaehlt nur mit senkrechtem Rahmen darunter und
@@ -1715,7 +1732,7 @@ Func Abhaken()
 	Local $mitte = MarkierteZeile($g)
 	If $mitte < 0 Then Return Meldung("Keine markierte Zeile sichtbar")
 	Local $alt = MouseGetPos()
-	MouseClick("left", $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "BereichX", $defBereichX)), $mitte, 1, 0)
+	MouseClick("left", $g[0] + Int(Einst("Tagesuebersicht", "BereichX", $defBereichX)), $mitte, 1, 0)
 	; Kontextmenue (Offen / In Arbeit / erledigt) abwarten
 	If Not MenueWarten(True) Then
 		MouseMove($alt[0], $alt[1], 0)
@@ -1723,10 +1740,10 @@ Func Abhaken()
 	EndIf
 	Send("e")
 	MenueWarten(False)
-	Sleep(Int(IniRead($Ini, "Tagesuebersicht", "Warten", $defAbhakenWarten)))
+	Sleep(Int(Einst("Tagesuebersicht", "Warten", $defAbhakenWarten)))
 	; nachrueckende Zeile markieren; war es die letzte Zeile, ist dort jetzt leere (weisse) Flaeche,
 	; dann die daruber
-	Local $nameX = $g[0] + Int(IniRead($Ini, "Tagesuebersicht", "NameX", $defNameX))
+	Local $nameX = $g[0] + Int(Einst("Tagesuebersicht", "NameX", $defNameX))
 	If PixelGetColor($nameX, $mitte) = 0xFFFFFF And $mitte - $ZeilenHoehe > $g[1] + $KopfHoehe Then $mitte -= $ZeilenHoehe
 	If PixelGetColor($nameX, $mitte) <> 0xFFFFFF Then MouseClick("left", $nameX, $mitte, 1, 0)
 	MouseMove($alt[0], $alt[1], 0)
@@ -1847,7 +1864,7 @@ Func KnopfKlick($hWnd, $hKnopf)
 	If @error Then Return Meldung("Knopf nicht gefunden")
 	WinActivate($hWnd)
 	WinWaitActive($hWnd, "", 2)
-	If IniRead($Ini, "Allgemein", "EchteMaus", "0") = "1" Then
+	If Einst("Allgemein", "EchteMaus", "0") = "1" Then
 		Local $alt = MouseGetPos()
 		Opt("MouseCoordMode", 1)
 		MouseClick("left", $p[0] + Int($p[2] / 2), $p[1] + Int($p[3] / 2), 1, 0)
@@ -1864,13 +1881,13 @@ Func FilterWahl($i)
 	EinblendungWeg()
 	Local $hWnd, $hCtrl
 	If Not HolLeiste($hWnd, $hCtrl) Then Return False
-	Local $reiter = IniRead($Ini, "Filter", "Reiter", $defFilterReiter)
+	Local $reiter = Einst("Filter", "Reiter", $defFilterReiter)
 	If Not ReiterAktiv($reiter, $hWnd, $hCtrl) Then
 		If Not Reiter($reiter) Then Return False
-		Sleep(Int(IniRead($Ini, "Filter", "Warten", $defFilterWarten)))
+		Sleep(Int(Einst("Filter", "Warten", $defFilterWarten)))
 	EndIf
-	Local $x = Int(IniRead($Ini, "Filter", "X", $defFilterX))
-	Local $y = Int(IniRead($Ini, "Filter", "Y", $defFilterY)) + $i * Number(IniRead($Ini, "Filter", "Abstand", $defFilterAbstand))
+	Local $x = Int(Einst("Filter", "X", $defFilterX))
+	Local $y = Int(Einst("Filter", "Y", $defFilterY)) + $i * Number(Einst("Filter", "Abstand", $defFilterAbstand))
 	Return KlickBei($hWnd, $hCtrl, $x, Round($y))
 EndFunc
 
@@ -1887,7 +1904,7 @@ EndFunc
 Func KlickPunkt($hWnd, $x, $y, $verdeckt)
 	WinActivate($hWnd)
 	WinWaitActive($hWnd, "", 2)
-	If IniRead($Ini, "Allgemein", "EchteMaus", "0") = "1" Then
+	If Einst("Allgemein", "EchteMaus", "0") = "1" Then
 		Local $alt = MouseGetPos()
 		Opt("MouseCoordMode", 1)
 		MouseClick("left", $x, $y, 1, 0)
@@ -1919,7 +1936,7 @@ Func KalibrierFilter($i)
 		IniWrite($Ini, "Filter", "Y", $y)
 		Hinweis("Filter 1 kalibriert: " & $x & ", " & $y)
 	Else
-		Local $abst = Round(($y - Int(IniRead($Ini, "Filter", "Y", $defFilterY))) / $i, 2)
+		Local $abst = Round(($y - Int(Einst("Filter", "Y", $defFilterY))) / $i, 2)
 		If $abst < 5 Then Return Meldung("Erst mit Strg+Alt+Umsch+^ den 1. Filter kalibrieren")
 		IniWrite($Ini, "Filter", "Abstand", $abst)
 		Hinweis("Filter-Zeilenabstand kalibriert: " & $abst)
@@ -1931,7 +1948,7 @@ EndFunc
 Func HolLeiste(ByRef $hWnd, ByRef $hCtrl)
 	$hWnd = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
-	$hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
+	$hCtrl = ControlGetHandle($hWnd, "", Einst("Allgemein", "Control", $defCtrl))
 	If @error Or Not BitAND(WinGetState($hCtrl), 2) Then Return Meldung("Reiterleiste nicht sichtbar (Patient geoeffnet?)")
 	Return True
 EndFunc
@@ -1951,7 +1968,7 @@ Func Reiter($name)
 		HolPos($name, $x, $y)
 	EndIf
 
-	If IniRead($Ini, "Allgemein", "EchteMaus", "0") = "1" Then
+	If Einst("Allgemein", "EchteMaus", "0") = "1" Then
 		; Ausweichweg, falls das Control auf gepostete Mausnachrichten nicht reagiert
 		Local $p = WinGetPos($hCtrl), $alt = MouseGetPos()
 		WinActivate($hWnd)
@@ -1969,17 +1986,17 @@ EndFunc
 Func HolPos($name, ByRef $x, ByRef $y)
 	Switch $name
 		Case "Kartei"
-			$x = Int(IniRead($Ini, "Kartei", "X", $defKarteiX))
-			$y = Int(IniRead($Ini, "Kartei", "Y", $defKarteiY))
+			$x = Int(Einst("Kartei", "X", $defKarteiX))
+			$y = Int(Einst("Kartei", "Y", $defKarteiY))
 		Case "Krankenblatt"
-			$x = Int(IniRead($Ini, "Krankenblatt", "X", $defKrbX))
-			$y = Int(IniRead($Ini, "Krankenblatt", "Y", $defKrbY))
+			$x = Int(Einst("Krankenblatt", "X", $defKrbX))
+			$y = Int(Einst("Krankenblatt", "Y", $defKrbY))
 		Case "ePA"
-			$x = Int(IniRead($Ini, "ePA", "X", $defEpaX))
-			$y = Int(IniRead($Ini, "ePA", "Y", $defEpaY))
+			$x = Int(Einst("ePA", "X", $defEpaX))
+			$y = Int(Einst("ePA", "Y", $defEpaY))
 		Case "ePAAbr"
-			$x = Int(IniRead($Ini, "ePAAbr", "X", $defEpaAbrX))
-			$y = Int(IniRead($Ini, "ePAAbr", "Y", $defEpaAbrY))
+			$x = Int(Einst("ePAAbr", "X", $defEpaAbrX))
+			$y = Int(Einst("ePAAbr", "Y", $defEpaAbrY))
 		Case Else
 			Return False
 	EndSwitch
@@ -1998,8 +2015,8 @@ Func ReiterAktiv($name, $hWnd, $hCtrl)
 	EndIf
 	Local $p = WinGetPos($hCtrl)
 	If @error Then Return False
-	Local $farbe = Int(IniRead($Ini, "Allgemein", "AktivFarbe", $defAktivFarbe))
-	Local $tol = Int(IniRead($Ini, "Allgemein", "Toleranz", $defToleranz))
+	Local $farbe = Int(Einst("Allgemein", "AktivFarbe", $defAktivFarbe))
+	Local $tol = Int(Einst("Allgemein", "Toleranz", $defToleranz))
 	Opt("PixelCoordMode", 1)
 	PixelSearch($p[0] + $x - 12, $p[1] + $y - 5, $p[0] + $x + 12, $p[1] + $y + 5, $farbe, $tol)
 	Return Not @error
@@ -2009,7 +2026,7 @@ EndFunc
 Func Kalibrieren($name)
 	Local $hWnd = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
-	Local $hCtrl = ControlGetHandle($hWnd, "", IniRead($Ini, "Allgemein", "Control", $defCtrl))
+	Local $hCtrl = ControlGetHandle($hWnd, "", Einst("Allgemein", "Control", $defCtrl))
 	If @error Then Return Meldung("Reiterleiste nicht gefunden")
 	Opt("MouseCoordMode", 1)
 	Local $m = MouseGetPos(), $p = WinGetPos($hCtrl)

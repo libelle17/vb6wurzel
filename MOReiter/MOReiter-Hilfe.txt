@@ -19,7 +19,7 @@ Strg+Alt+U          ("unten") die Liste im Container Karteikarte aktivieren, so 
 Strg+Alt+T          aus jedem Programm: die Termine des Patienten zeigen, solange Strg+Alt+T gehalten
                     wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurück ins
                     vorige Programm)
-Strg+Alt+B          Laborbefunde des Patienten im Firefox (siehe LABOR unten)
+Strg+Alt+B          Laborbefunde des Patienten im Firefox (Zusatz, siehe LABOR unten)
 Strg+Alt+Z          Liste der zuletzt geöffneten Patienten (Pfeil rechts neben der Patientensuche)
 Strg+Alt+Leertaste  Hauptmenü (drei Striche links oben)
 Strg+Alt+H          in der markierten Zeile der Karteikarte den hellblauen Pfeil nach oben anklicken
@@ -43,8 +43,9 @@ Strg+Alt + mehrere Ziffern der oberen Reihe
                     mit der 7 dann Filter 17 (wie Ziffernblock 17)
 
 
-LABOR (Strg+Alt+B, Onlinebefunde Labor Staber im Firefox)
+LABOR (Strg+Alt+B, Zusatzfunktion; Beispiel Onlinebefunde Labor Staber im Firefox)
 ----------------------------------------------------------------------------------------------------
+Nur eingeschaltet mit [Labor] Url=<Adresse der Patientensuche des Portals> in der INI.
 Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office, wählt im Firefox
 den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Passwort aus dem
 Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
@@ -112,8 +113,11 @@ MOReiter.exe Diagnose n        n-te Diagnose-Kurzwahl
 Ohne Parameter bleibt MOReiter mit den Tastenkürzeln im Hintergrund.
 
 
-EINSTELLUNGEN (%APPDATA%\MOReiter\MOReiter.ini, alles optional)
+EINSTELLUNGEN (alles optional)
 ----------------------------------------------------------------------------------------------------
+Eigene Einstellungen und Kalibrierungen: %APPDATA%\MOReiter\MOReiter.ini. Was dort fehlt, kommt aus
+MOReiter-Vorgaben.ini neben MOReiter.exe (Voreinstellungen z.B. einer Praxis), sonst gilt der
+eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur in die eigene.
 [Allgemein]   EchteMaus=1        mit der echten Maus klicken statt per Fensternachricht
               Einblendung=500    ms Halten bis zu den Schildchen, 0 = nie
               FolgeZeit=2000     ms Pause, nach der eine Ziffernfolge neu beginnt
@@ -124,7 +128,9 @@ EINSTELLUNGEN (%APPDATA%\MOReiter\MOReiter.ini, alles optional)
               X, Y, Abstand      Lage des ersten Filters und Zeilenabstand (schreibt das Kalibrieren)
 [Karteikarte] Art=Klick          Strg+Alt+U klickt in die markierte Zeile statt nur den Fokus zu setzen
 [Termine]     Warten=200         ms zwischen F6 und Alt+T
-[Labor]       Kennung=...        Benutzerkennung, falls Firefox sie nicht selbst einträgt
+[Labor]       Url=...            Adresse der Patientensuche; ohne sie ist Strg+Alt+B abgeschaltet
+              Titel=Onlinebefunde   Seitentitel des Portals
+              Kennung=...        Benutzerkennung, falls Firefox sie nicht selbst einträgt
               Skript=...         Adresse des Benutzerskripts (Voreinstellung: GitHub)
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
