@@ -26,9 +26,9 @@
 ;            Strg+Alt+B        Laborbefunde des Patienten im Firefox: onlinebefunde.labor-staber.de anwaehlen
 ;                              oder oeffnen, anmelden (Passwort aus dem Firefox), Patient nach Name und
 ;                              Geburtsdatum suchen und seinen ersten Befund zeigen; die Arbeit auf der
-;                              Seite macht das Lesezeichen-Skript MOReiter-Labor.js (Schluesselwort
-;                              "morlabor", einmal %APPDATA%\MOReiter\MOReiter-Labor-Lesezeichen.html in
-;                              Firefox importieren); Name und Geburtsdatum aus der Seite "Personalien"
+;                              Seite macht das Benutzerskript MOReiter-Labor.user.js (einmal in das
+;                              Firefox-Add-on Tampermonkey aufnehmen); Name und Geburtsdatum aus der
+;                              Seite "Personalien"
 ;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
 ;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
 ;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
@@ -1144,48 +1144,37 @@ Func InWinList($liste, $h)
 EndFunc
 
 ; Strg+Alt+B: Laborbefunde des Patienten im Firefox. MOReiter waehlt den Tab mit dem Portal (oder
-; oeffnet es) und tippt wiederholt "morlabor Nachname;Vorname;Geburtsdatum;Kennung;Nr" in die
-; Adresszeile; das Lesezeichen-Skript macht jeweils einen Schritt und meldet ihn im Seitentitel
-; "MOR:Nr:Zustand" (siehe MOReiter-Labor.js), MOReiter wartet darauf und macht weiter.
+; einen neuen) und oeffnet dort die Portaladresse mit dem Auftrag "#mor=Nachname;Vorname;Geburtsdatum;
+; Kennung;Nr"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-Labor.user.js (Tampermonkey),
+; das seinen Fortschritt im Seitentitel "MOR:Nr:Zustand" meldet.
 Func Labor()
 	Local $hMO = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
 	Local $nach, $vor, $geb
 	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
-	Local $datei = LesezeichenSchreiben()
-	Local $neu = False
-	Local $hFF = FirefoxTab($neu)
-	If Not $hFF Then Return False
-	; Hochkomma, Anfuehrungszeichen, Backslash und Prozent wuerden das Skript stoeren
 	Local $nr = Random(1000, 9999, 1)
-	Local $arg = StringRegExpReplace($nach & ";" & $vor & ";" & $geb & ";" & IniRead($Ini, "Labor", "Kennung", "") & ";" & $nr, "['""\\%]", " ")
-	Local $t = TimerInit(), $max = Int(IniRead($Ini, "Labor", "Zeit", $defLaborZeit))
-	; nach dem Oeffnen und nach jedem Seitenwechsel erst das Laden abwarten
-	Local $laden = $neu, $versuche = 0
+	Local $url = $LaborUrl & "#mor=" & UrlKodiert($nach) & ";" & UrlKodiert($vor) & ";" & UrlKodiert($geb) & ";" _
+			& UrlKodiert(IniRead($Ini, "Labor", "Kennung", "")) & ";" & $nr
+	Local $hFF = FirefoxOeffnen($url)
+	If Not $hFF Then Return False
+	Local $t = TimerInit(), $max = Int(IniRead($Ini, "Labor", "Zeit", $defLaborZeit)), $z = "", $pw = False
+	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
 	While TimerDiff($t) < $max
-		If $laden And Not FFGeladen($hFF, $max - TimerDiff($t)) Then ExitLoop
-		; Firefox traegt gespeicherte Anmeldedaten erst nach dem Laden ein
-		If $laden Then Sleep(300)
-		$laden = True
-		If Not FFAdresse($hFF, "morlabor " & $arg) Then Return Meldung("Firefox laesst sich nicht aktivieren")
-		Local $z = FFZustand($hFF, $nr, "", 5000)
-		If $z = "suche" Then $z = FFZustand($hFF, $nr, "suche", $max - TimerDiff($t))
+		$z = FFZustand($hFF, $nr, $z, ($z = "") ? 15000 : $max - TimerDiff($t))
 		Switch $z
 			Case ""
-				Return Meldung("Keine Antwort vom Lesezeichen ""morlabor"". Einmal in Firefox importieren: " & _
-						"Lesezeichen verwalten (Strg+Umsch+O), Importieren und Sichern, HTML importieren: " & $datei)
-			Case "laden", "anmelden"
-				ContinueLoop
+				ExitLoop
 			Case "passwort"
-				; Firefox-Liste der gespeicherten Anmeldungen im Kennungsfeld aufklappen und die erste waehlen
-				$versuche += 1
-				If $versuche > 2 Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort)")
-				Send("{DOWN}")
-				Sleep(300)
-				Send("{ENTER}")
-				Sleep(300)
-				$laden = False
+				; Firefox-Liste der gespeicherten Anmeldungen im Kennungsfeld aufklappen und die erste
+				; waehlen; das Skript schickt die Anmeldung ab, sobald das Passwort drinsteht
+				If Not $pw And WinActive($hFF) Then
+					Send("{DOWN}")
+					Sleep(300)
+					Send("{ENTER}")
+				EndIf
+				$pw = True
+			Case "anmelden", "suche"
 			Case "fertig"
 				Return True
 			Case "liste"
@@ -1196,7 +1185,24 @@ Func Labor()
 				Return Meldung("Labor: " & $z)
 		EndSwitch
 	WEnd
+	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
+	If $z = "" Then Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"" (Tampermonkey installiert, Skript aktiv?)")
 	Return Meldung("Labor: Zeitueberschreitung")
+EndFunc
+
+; %-Kodierung (UTF-8) fuer den Teil hinter "#", ausser Buchstaben, Ziffern und . - _
+Func UrlKodiert($s)
+	Local $b = StringToBinary($s, 4), $r = ""
+	For $i = 1 To BinaryLen($b)
+		Local $c = Int(BinaryMid($b, $i, 1))
+		If ($c >= 0x30 And $c <= 0x39) Or ($c >= 0x41 And $c <= 0x5A) Or ($c >= 0x61 And $c <= 0x7A) _
+				Or $c = 0x2E Or $c = 0x2D Or $c = 0x5F Then
+			$r &= Chr($c)
+		Else
+			$r &= "%" & Hex($c, 2)
+		EndIf
+	Next
+	Return $r
 EndFunc
 
 ; Nachname, Vorname und Geburtsdatum aus der Seite "Personalien" des geoeffneten Patienten; sie liegt
@@ -1247,62 +1253,46 @@ Func FeldNeben($hWnd, $liste, $text)
 	Return ""
 EndFunc
 
-; Firefox-Fenster mit dem Portal im aktiven Tab: sucht es unter den Tabs (Strg+Tab) des vordersten
-; Firefox-Fensters, sonst neuer Tab bzw. Firefox starten; $neu = True, wenn das Portal erst laedt
-Func FirefoxTab(ByRef $neu)
+; oeffnet $url im Firefox: im Tab mit dem Portal, falls einer der Tabs (Strg+Tab) des vordersten
+; Fensters es zeigt, sonst in einem neuen Tab; laeuft Firefox nicht, wird er damit gestartet
+Func FirefoxOeffnen($url)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
 	Local $h = WinGetHandle($muster)
 	If @error Then
-		ShellExecute("firefox.exe", '"' & $LaborUrl & '"')
+		ShellExecute("firefox.exe", '"' & $url & '"')
 		$h = WinWait($muster, "", 20)
 		If Not $h Then Return Meldung("Firefox nicht gefunden")
-		$neu = True
 		Return $h
 	EndIf
 	WinActivate($h)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
-	If StringRegExp(WinGetTitle($h), $LaborTitel) Then Return $h
-	Local $start = WinGetTitle($h), $n = Int(IniRead($Ini, "Labor", "Tabs", $defLaborTabs))
-	For $i = 1 To $n
-		Send("^{TAB}")
-		Sleep(80)
-		Local $tt = WinGetTitle($h)
-		If StringRegExp($tt, $LaborTitel) Then Return $h
-		; einmal rundum
-		If $tt = $start Then ExitLoop
-	Next
-	Send("^t")
-	Sleep(300)
-	FFAdresse($h, $LaborUrl)
-	$neu = True
-	Return $h
-EndFunc
-
-; tippt $txt in die Adresszeile und drueckt Enter
-Func FFAdresse($h, $txt)
-	WinActivate($h)
-	If Not WinWaitActive($h, "", 2) Then Return False
+	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel)
+	If Not $gefunden Then
+		Local $start = WinGetTitle($h), $n = Int(IniRead($Ini, "Labor", "Tabs", $defLaborTabs))
+		For $i = 1 To $n
+			Send("^{TAB}")
+			Sleep(80)
+			Local $tt = WinGetTitle($h)
+			$gefunden = StringRegExp($tt, $LaborTitel)
+			; gefunden oder einmal rundum
+			If $gefunden Or $tt = $start Then ExitLoop
+		Next
+	EndIf
+	If Not $gefunden Then
+		Send("^t")
+		Sleep(300)
+	EndIf
+	; Adresszeile: Strg+L, Adresse, Enter
 	Send("^l")
 	Sleep(150)
-	Send($txt, 1)
+	Send($url, 1)
 	Send("{ENTER}")
-	Return True
+	Return $h
 EndFunc
 
 ; Seitentitel ohne " - Mozilla Firefox"
 Func FFTitel($h)
 	Return StringRegExpReplace(WinGetTitle($h), "\s+\S\s+Mozilla Firefox$", "")
-EndFunc
-
-; wartet, bis eine Portalseite fertig geladen ist (Titel "Onlinebefunde", nicht mehr "MOR:Nr:...")
-Func FFGeladen($h, $ms)
-	Local $t = TimerInit()
-	While TimerDiff($t) < $ms
-		Local $tt = FFTitel($h)
-		If StringLeft($tt, 13) = "Onlinebefunde" Then Return True
-		Sleep(100)
-	WEnd
-	Return False
 EndFunc
 
 ; wartet bis zu $ms auf den Titel "MOR:Nr:Zustand" mit einem anderen Zustand als $ausser, liefert ihn
@@ -1315,38 +1305,9 @@ Func FFZustand($h, $nr, $ausser, $ms)
 			Local $z = StringTrimLeft($tt, StringLen($vor))
 			If $z <> $ausser Then Return $z
 		EndIf
-		; kurz, weil "laden" nur bis zum Erscheinen der neuen Seite im Titel steht
-		Sleep(20)
+		Sleep(50)
 	WEnd
 	Return ""
-EndFunc
-
-; schreibt aus MOReiter-Labor.js (in die exe eingebettet) die Lesezeichen-Datei zum Importieren in
-; Firefox: Kommentare weg, alles in eine Zeile, HTML-maskiert; liefert ihren Pfad
-Func LesezeichenSchreiben()
-	Local $js = @TempDir & "\MOReiter-Labor.js"
-	FileInstall("MOReiter-Labor.js", $js, 1)
-	Local $fh = FileOpen($js, 256)
-	Local $code = FileRead($fh)
-	FileClose($fh)
-	$code = StringRegExpReplace($code, "(?s)/\*.*?\*/", "")
-	$code = StringStripWS(StringRegExpReplace($code, "\s+", " "), 3)
-	$code = StringReplace($code, "&", "&amp;")
-	$code = StringReplace($code, '"', "&quot;")
-	$code = StringReplace($code, "<", "&lt;")
-	$code = StringReplace($code, ">", "&gt;")
-	Local $html = "<!DOCTYPE NETSCAPE-Bookmark-file-1>" & @CRLF _
-			& '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">' & @CRLF _
-			& "<TITLE>Bookmarks</TITLE>" & @CRLF & "<H1>Bookmarks</H1>" & @CRLF & "<DL><p>" & @CRLF _
-			& '    <DT><A HREF="javascript:' & $code & '" SHORTCUTURL="morlabor">MOReiter Labor</A>' & @CRLF _
-			& "</DL><p>" & @CRLF
-	DirCreate(@AppDataDir & "\MOReiter")
-	Local $datei = @AppDataDir & "\MOReiter\MOReiter-Labor-Lesezeichen.html"
-	; 2 = ueberschreiben, 128 = UTF-8 mit BOM
-	$fh = FileOpen($datei, 2 + 128)
-	FileWrite($fh, $html)
-	FileClose($fh)
-	Return $datei
 EndFunc
 
 ; Strg+Alt+F1: bildschirmfuellendes Fenster mit der Hilfe; ist es schon offen, schliesst es sich.

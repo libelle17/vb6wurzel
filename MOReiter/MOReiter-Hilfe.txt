@@ -49,10 +49,11 @@ Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical O
 den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Passwort aus dem
 Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
 und zeigt dessen ersten Befund. Ohne passendes Geburtsdatum bleibt die Suchliste stehen.
-Einmalig einrichten: in Firefox Lesezeichen verwalten (Strg+Umsch+O), "Importieren und Sichern",
-"Lesezeichen von HTML importieren" und %APPDATA%\MOReiter\MOReiter-Labor-Lesezeichen.html wählen
-(die Datei schreibt MOReiter beim ersten Strg+Alt+B). Das ergibt das Lesezeichen "MOReiter Labor"
-mit dem Schlüsselwort "morlabor", das die Arbeit auf der Webseite erledigt.
+Einmalig einrichten: im Firefox das Add-on "Tampermonkey" installieren, in dessen Übersicht
+"Neues Skript erstellen", den ganzen Inhalt von MOReiter-Labor.user.js hineinkopieren und speichern.
+Das Skript wird nur auf Seiten von onlinebefunde.labor-staber.de aktiv und erledigt dort den Auftrag,
+den MOReiter hinter "#mor=" an die Adresse hängt.
+
 
 DIAGNOSEERFASSUNG
 ----------------------------------------------------------------------------------------------------
