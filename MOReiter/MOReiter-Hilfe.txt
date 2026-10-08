@@ -50,9 +50,10 @@ Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical O
 den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Passwort aus dem
 Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
 und zeigt dessen ersten Befund. Ohne passendes Geburtsdatum bleibt die Suchliste stehen.
-Einmalig einrichten: im Firefox das Add-on "Tampermonkey" installieren (in der Praxis erledigt das
-NVerb). Antwortet das Benutzerskript nicht, öffnet MOReiter dessen Installationsseite (Adresse in
-[Labor] Skript=), dort bei Tampermonkey "Installieren" drücken. Ohne Internet ginge auch: in Tampermonkey
+Einmalig einrichten: Fehlt im Firefox das Add-on "Tampermonkey", bietet MOReiter es beim ersten
+Strg+Alt+B in einem neuen Tab an ([Labor] AddOn=, sonst addons.mozilla.org): "Hinzufügen" klicken.
+Gleich danach bietet es das Benutzerskript an ([Labor] Skript=): "Installieren" klicken. Dann läuft
+die Abfrage im selben Durchgang weiter. Ohne Internet ginge auch: in Tampermonkey
 "Neues Skript erstellen" und den ganzen Inhalt von MOReiter-Labor.user.js hineinkopieren.
 Das Skript wird nur auf Seiten von onlinebefunde.labor-staber.de aktiv und erledigt dort den Auftrag,
 den MOReiter hinter "#mor=" an die Adresse hängt.
@@ -132,6 +133,7 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               Titel=Onlinebefunde   Seitentitel des Portals
               Kennung=...        Benutzerkennung, falls Firefox sie nicht selbst einträgt
               Skript=...         Adresse des Benutzerskripts (Voreinstellung: GitHub)
+              AddOn=...          .xpi-Datei oder Adresse von Tampermonkey
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
 [Diagnosen]   Reihenfolge=Zeilen zeilenweise statt spaltenweise zählen

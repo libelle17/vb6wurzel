@@ -1170,6 +1170,24 @@ Func Labor()
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
 	Local $nach, $vor, $geb
 	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	; beim ersten Mal auf dem PC: Tampermonkey und das Benutzerskript gleich einrichten, ohne erst
+	; vergeblich auf eine Antwort zu warten; danach geht es mit dem Auftrag weiter
+	If Not TampermonkeyDa() Then
+		If Not AddOnEinrichten() Then Return False
+		If Not SkriptEinrichten() Then Return False
+	EndIf
+	Local $r = LaborAuftrag($portal, $nach, $vor, $geb)
+	If Not @extended Then Return $r
+	; keine Antwort, obwohl Tampermonkey da ist: das Skript fehlt (oder ist abgeschaltet)
+	If Not TampermonkeyDa() And Not AddOnEinrichten() Then Return False
+	If Not SkriptEinrichten() Then Return False
+	$r = LaborAuftrag($portal, $nach, $vor, $geb)
+	If @extended Then Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"": in Tampermonkey eingeschaltet?")
+	Return $r
+EndFunc
+
+; schickt den Auftrag ans Portal und verfolgt ihn; @extended = 1: keine Antwort vom Benutzerskript
+Func LaborAuftrag($portal, $nach, $vor, $geb)
 	Local $nr = Random(1000, 9999, 1)
 	Local $url = $portal & "#mor=" & UrlKodiert($nach) & ";" & UrlKodiert($vor) & ";" & UrlKodiert($geb) & ";" _
 			& UrlKodiert(Einst("Labor", "Kennung", "")) & ";" & $nr
@@ -1203,19 +1221,114 @@ Func Labor()
 		EndSwitch
 	WEnd
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
-	If $z = "" Then
-		; vermutlich fehlt das Skript: in einem neuen Tab seine Installationsseite oeffnen
-		WinActivate($hFF)
-		If WinWaitActive($hFF, "", 2) Then
-			Send("^t")
-			Sleep(300)
-			Einfuegen(Einst("Labor", "Skript", $defLaborSkript))
-			Send("{ENTER}")
-		EndIf
-		Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"": bitte im neuen Tab bei Tampermonkey ""Installieren"" " & _
-				"druecken und Strg+Alt+B wiederholen (fehlt Tampermonkey selbst, installiert es NVerb beim naechsten Start)")
-	EndIf
+	If $z = "" Then Return SetExtended(1, False)
 	Return Meldung("Labor: Zeitueberschreitung")
+EndFunc
+
+; bietet Tampermonkey in einem neuen Firefox-Tab an und wartet, bis es eingeschaltet ist
+Func AddOnEinrichten()
+	Local $pol = TampermonkeyRichtlinie()
+	If $pol <> "" Then Return Meldung("Bitte erst als Administrator " & $pol & " loeschen (oder das neue NVerb laufen " & _
+			"lassen), Firefox neu starten und Strg+Alt+B wiederholen")
+	If Not FirefoxTab(AddOnQuelle()) Then Return False
+	HinweisStehend("Einmalig: im Firefox bei ""Tampermonkey hinzufuegen"" auf ""Hinzufuegen"" klicken")
+	Local $t = TimerInit()
+	While Not TampermonkeyDa()
+		If TimerDiff($t) > 180000 Then Return Meldung("Tampermonkey wurde nicht hinzugefuegt")
+		Sleep(500)
+	WEnd
+	; Firefox und Tampermonkey kurz zu Ende einrichten lassen
+	Sleep(2000)
+	Return True
+EndFunc
+
+; oeffnet das Benutzerskript in einem neuen Tab (Tampermonkey zeigt dann seine Installationsseite) und
+; wartet, bis diese verschwindet ("Installieren": Tampermonkey schliesst den Tab)
+Func SkriptEinrichten()
+	Local $h = FirefoxTab(Einst("Labor", "Skript", $defLaborSkript))
+	If Not $h Then Return False
+	HinweisStehend("Einmalig: im Firefox bei Tampermonkey auf ""Installieren"" klicken")
+	; Installationsseite: der erste Titel, der 2 s stehen bleibt und nicht mehr die rohe Skriptadresse ist
+	Local $t = TimerInit(), $seite = "", $seit = TimerInit(), $tt
+	While TimerDiff($t) < 20000
+		$tt = WinGetTitle($h)
+		If $tt <> $seite Then
+			$seite = $tt
+			$seit = TimerInit()
+		ElseIf TimerDiff($seit) > 2000 And Not StringInStr($tt, ".user.js") Then
+			ExitLoop
+		EndIf
+		Sleep(200)
+	WEnd
+	While WinGetTitle($h) = $seite
+		If TimerDiff($t) > 180000 Then Return Meldung("Benutzerskript ""MOReiter Labor"" wurde nicht installiert")
+		Sleep(300)
+	WEnd
+	Sleep(1000)
+	ToolTip("")
+	Return True
+EndFunc
+
+; oeffnet $adr in einem neuen Firefox-Tab (bzw. startet Firefox damit), liefert das Fenster
+Func FirefoxTab($adr)
+	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
+	Local $h = WinGetHandle($muster)
+	If @error Then
+		ShellExecute("firefox.exe", '"' & $adr & '"')
+		$h = WinWait($muster, "", 20)
+		If Not $h Then Return Meldung("Firefox nicht gefunden")
+		Return $h
+	EndIf
+	WinActivate($h)
+	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
+	Send("^t")
+	Sleep(300)
+	Einfuegen($adr)
+	Send("{ENTER}")
+	Return $h
+EndFunc
+
+; ist das Add-on Tampermonkey in einem der Firefox-Profile des Benutzers eingeschaltet? Massgeblich ist
+; extensions.json ("active"), die .xpi kann auch von einem abgeschalteten oder entfernten Add-on stammen
+Func TampermonkeyDa()
+	Local $pfad = @AppDataDir & "\Mozilla\Firefox\Profiles\"
+	Local $such = FileFindFirstFile($pfad & "*")
+	If $such = -1 Then Return False
+	Local $da = False
+	While Not $da
+		Local $d = FileFindNextFile($such)
+		If @error Then ExitLoop
+		If Not @extended Then ContinueLoop
+		Local $j = FileRead($pfad & $d & "\extensions.json")
+		Local $p = StringInStr($j, '"id":"firefox@tampermonkey.net"')
+		If $p = 0 Then ContinueLoop
+		; "active" folgt im selben Eintrag nach ein paar hundert Zeichen
+		Local $a = StringRegExp(StringMid($j, $p, 4000), '"active":(true|false)', 1)
+		If Not @error And $a[0] = "true" Then $da = True
+	WEnd
+	FileClose($such)
+	Return $da
+EndFunc
+
+; eine Firefox-Unternehmensrichtlinie zu Tampermonkey (distribution\policies.json, frueher von NVerb angelegt)
+; kann ein vom Benutzer installiertes Tampermonkey wieder entfernen; liefert ihren Pfad oder ""
+Func TampermonkeyRichtlinie()
+	Local $vz[3] = [EnvGet("ProgramW6432"), EnvGet("ProgramFiles(x86)"), @ProgramFilesDir]
+	For $v In $vz
+		If $v = "" Then ContinueLoop
+		Local $pol = $v & "\Mozilla Firefox\distribution\policies.json"
+		If StringInStr(FileRead($pol), "tampermonkey") Then Return $pol
+	Next
+	Return ""
+EndFunc
+
+; Adresse zum Installieren von Tampermonkey: [Labor] AddOn= (Pfad zu einer .xpi oder Adresse), sonst die
+; Seite bei addons.mozilla.org; eine Datei wird als file:-Adresse geoeffnet, Firefox fragt dann nach
+Func AddOnQuelle()
+	Local $q = Einst("Labor", "AddOn", "https://addons.mozilla.org/de/firefox/addon/tampermonkey/")
+	If StringRegExp($q, "^[A-Za-z]:\\") Then Return "file:///" & StringReplace($q, "\", "/")
+	If StringLeft($q, 2) = "\\" Then Return "file:" & StringReplace($q, "\", "/")
+	Return $q
 EndFunc
 
 ; %-Kodierung (UTF-8) fuer den Teil hinter "#", ausser Buchstaben, Ziffern und . - _
@@ -2067,6 +2180,12 @@ EndFunc
 Func Hinweis($txt)
 	ToolTip($txt, Default, Default, "MOReiter")
 	AdlibRegister("HinweisWeg", 3000)
+EndFunc
+
+; wie Hinweis, bleibt aber stehen, bis ToolTip("") oder der naechste Hinweis ihn ersetzt
+Func HinweisStehend($txt)
+	AdlibUnRegister("HinweisWeg")
+	ToolTip($txt, Default, Default, "MOReiter")
 EndFunc
 
 Func HinweisWeg()
