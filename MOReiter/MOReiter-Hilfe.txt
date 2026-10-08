@@ -123,7 +123,7 @@ EINSTELLUNGEN (%APPDATA%\MOReiter\MOReiter.ini, alles optional)
 [Karteikarte] Art=Klick          Strg+Alt+U klickt in die markierte Zeile statt nur den Fokus zu setzen
 [Termine]     Warten=200         ms zwischen F6 und Alt+T
 [Labor]       Kennung=...        Benutzerkennung, falls Firefox sie nicht selbst einträgt
-              Zeit=30000, Tabs=30   ms für alles, so viele Firefox-Tabs werden durchsucht
+              Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
 [Diagnosen]   Reihenfolge=Zeilen zeilenweise statt spaltenweise zählen
               KnopfFarbe, Toleranz   Farbe der Kurzwahl-Knöpfe

@@ -155,7 +155,7 @@ Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
 ; Labor: Portal, Kennung (leer = was Firefox eintraegt), Gesamtzeit, Zahl der durchsuchten Tabs
 Const $LaborUrl = "https://onlinebefunde.labor-staber.de/onlinebefunde/index.php?func=patienten&cache=delete"
-Const $LaborTitel = "^(Onlinebefunde|MOR:)", $defLaborZeit = 30000, $defLaborTabs = 30
+Const $LaborTitel = "^(Onlinebefunde|MOR:)", $defLaborZeit = 30000, $defLaborTabs = 5
 Const $defTermineWarten = 200 ; ms zwischen F6 und Alt+T bzw. nach dem zweiten F6
 Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet werden
 ; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
@@ -1253,8 +1253,9 @@ Func FeldNeben($hWnd, $liste, $text)
 	Return ""
 EndFunc
 
-; oeffnet $url im Firefox: im Tab mit dem Portal, falls einer der Tabs (Strg+Tab) des vordersten
-; Fensters es zeigt, sonst in einem neuen Tab; laeuft Firefox nicht, wird er damit gestartet
+; oeffnet $url im Firefox: im Tab mit dem Portal, falls der aktive oder einer der [Labor] Tabs letzten
+; Tabs des vordersten Fensters es zeigt (von rechts her: Strg+9, dann Strg+Bild hoch), sonst in einem
+; neuen Tab; laeuft Firefox nicht, wird er damit gestartet
 Func FirefoxOeffnen($url)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
 	Local $h = WinGetHandle($muster)
@@ -1268,14 +1269,15 @@ Func FirefoxOeffnen($url)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
 	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel)
 	If Not $gefunden Then
-		Local $start = WinGetTitle($h), $n = Int(IniRead($Ini, "Labor", "Tabs", $defLaborTabs))
+		Local $n = Int(IniRead($Ini, "Labor", "Tabs", $defLaborTabs)), $vorher = ""
 		For $i = 1 To $n
-			Send("^{TAB}")
+			Send(($i = 1) ? "^9" : "^{PGUP}")
 			Sleep(80)
 			Local $tt = WinGetTitle($h)
 			$gefunden = StringRegExp($tt, $LaborTitel)
-			; gefunden oder einmal rundum
-			If $gefunden Or $tt = $start Then ExitLoop
+			; gefunden, oder Titel unveraendert: ganz links angekommen (bzw. zwei gleiche Tabs, selten)
+			If $gefunden Or $tt = $vorher Then ExitLoop
+			$vorher = $tt
 		Next
 	EndIf
 	If Not $gefunden Then
@@ -1285,9 +1287,29 @@ Func FirefoxOeffnen($url)
 	; Adresszeile: Strg+L, Adresse, Enter
 	Send("^l")
 	Sleep(150)
-	Send($url, 1)
+	Einfuegen($url)
 	Send("{ENTER}")
 	Return $h
+EndFunc
+
+; fuegt $txt auf einmal per Zwischenablage ein und stellt deren Text danach wieder her; enthaelt die
+; Zwischenablage etwas anderes als Text (z.B. ein Bild), das sonst verloren ginge, wird statt dessen
+; schnell getippt
+Func Einfuegen($txt)
+	Local $alt = ClipGet(), $fehler = @error
+	; @error 1 = leer, 2 = kein Text, 3/4 = nicht lesbar
+	If $fehler >= 2 Then
+		Local $verz = Opt("SendKeyDelay", 0)
+		Send($txt, 1)
+		Opt("SendKeyDelay", $verz)
+		Return
+	EndIf
+	ClipPut($txt)
+	Send("^v")
+	; erst wiederherstellen, wenn Firefox eingefuegt hat
+	Sleep(200)
+	If $fehler = 0 Then ClipPut($alt)
+	If $fehler = 1 Then ClipPut("")
 EndFunc
 
 ; Seitentitel ohne " - Mozilla Firefox"
