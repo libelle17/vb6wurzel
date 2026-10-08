@@ -156,6 +156,8 @@ Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 ; Labor: Portal, Kennung (leer = was Firefox eintraegt), Gesamtzeit, Zahl der durchsuchten Tabs
 Const $LaborUrl = "https://onlinebefunde.labor-staber.de/onlinebefunde/index.php?func=patienten&cache=delete"
 Const $LaborTitel = "^(Onlinebefunde|MOR:)", $defLaborZeit = 30000, $defLaborTabs = 5
+; Installationsquelle des Benutzerskripts: Tampermonkey bietet beim Oeffnen einer *.user.js-Adresse die Installation an
+Const $defLaborSkript = "https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Labor.user.js"
 Const $defTermineWarten = 200 ; ms zwischen F6 und Alt+T bzw. nach dem zweiten F6
 Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet werden
 ; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
@@ -1186,7 +1188,18 @@ Func Labor()
 		EndSwitch
 	WEnd
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
-	If $z = "" Then Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"" (Tampermonkey installiert, Skript aktiv?)")
+	If $z = "" Then
+		; vermutlich fehlt das Skript: in einem neuen Tab seine Installationsseite oeffnen
+		WinActivate($hFF)
+		If WinWaitActive($hFF, "", 2) Then
+			Send("^t")
+			Sleep(300)
+			Einfuegen(IniRead($Ini, "Labor", "Skript", $defLaborSkript))
+			Send("{ENTER}")
+		EndIf
+		Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"": bitte im neuen Tab bei Tampermonkey ""Installieren"" " & _
+				"druecken und Strg+Alt+B wiederholen (fehlt Tampermonkey selbst, installiert es NVerb beim naechsten Start)")
+	EndIf
 	Return Meldung("Labor: Zeitueberschreitung")
 EndFunc
 
