@@ -162,6 +162,8 @@ Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 Const $defLaborTitel = "Onlinebefunde", $defLaborZeit = 30000, $defLaborTabs = 5
 ; Installationsquelle des Benutzerskripts: Tampermonkey bietet beim Oeffnen einer *.user.js-Adresse die Installation an
 Const $defLaborSkript = "https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Labor.user.js"
+; andere Portale: Benutzerskript MOReiter-<Abschnitt>.user.js daneben
+Const $defSkriptBasis = "https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-"
 Const $defTermineWarten = 200 ; ms zwischen F6 und Alt+T bzw. nach dem zweiten F6
 Const $defEinblendung = 500 ; ms Strg+Alt halten, bis die Nummern eingeblendet werden
 ; Ziffernblock: im Hook gesammelte Nummer, ihr Ziel ("Filter"/"Diagnose"), geschluckte, noch
@@ -718,6 +720,7 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "Hilfe" Then Return Hilfe()
 	If $aufgabe = "Labor" Then Return Labor()
 	If StringLeft($aufgabe, 7) = "Aufruf:" Then Return Aufruf(Int(StringTrimLeft($aufgabe, 7)))
+	If StringLeft($aufgabe, 7) = "Portal:" Then Return Portal(StringTrimLeft($aufgabe, 7))
 	If $aufgabe = "Abhaken" Then Return Abhaken()
 	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
 	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
@@ -1246,6 +1249,8 @@ Func Aufruf($i)
 	Local $hMO = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
 	Local $befehl = $gAufrufe[$i][3]
+	; Portal im Firefox mit eigenem Benutzerskript, z.B. Strg+L=Portal:LibreView
+	If StringLeft($befehl, 7) = "Portal:" Then Return Portal(StringStripWS(StringTrimLeft($befehl, 7), 3))
 	If StringInStr($befehl, "{pat}") Then
 		; F6 (falls die Personalien fehlen) darf nicht als Strg+F6 ankommen
 		If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
@@ -1275,14 +1280,19 @@ Func Einst($sektion, $schluessel, $def)
 	Return IniRead($IniVorgaben, $sektion, $schluessel, $def)
 EndFunc
 
-; Strg+Alt+B: Laborbefunde des Patienten im Firefox. MOReiter waehlt den Tab mit dem Portal (oder
-; einen neuen) und oeffnet dort die Portaladresse mit dem Auftrag "#mor=Nachname;Vorname;Geburtsdatum;
-; Kennung;Nr"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-Labor.user.js (Tampermonkey),
-; das seinen Fortschritt im Seitentitel "MOR:Nr:Zustand" meldet.
+; Strg+Alt+B: Laborbefunde des Patienten im Firefox, ebenso andere Portale (Abschnitt $s in der INI, z.B.
+; [LibreView], aufgerufen ueber [Aufrufe] Strg+L=Portal:LibreView). MOReiter waehlt den Tab mit dem Portal
+; (oder einen neuen) und oeffnet dort die Portaladresse mit dem Auftrag "#mor=Nachname;Vorname;Geburtsdatum;
+; Kennung;Nr;PC-Name"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-<Abschnitt>.user.js
+; (Tampermonkey), das seinen Fortschritt im Seitentitel "MOR:Nr:Zustand" meldet.
 Func Labor()
-	; Zusatzfunktion fuer ein bestimmtes Labor, nur mit Eintrag in der INI
-	Local $portal = Einst("Labor", "Url", "")
-	If $portal = "" Then Return Meldung("Laborabfrage nicht eingerichtet ([Labor] Url= in der INI, siehe Hilfe)")
+	Return Portal("Labor")
+EndFunc
+
+Func Portal($s)
+	; Zusatzfunktion fuer ein bestimmtes Portal, nur mit Eintrag in der INI
+	Local $portal = Einst($s, "Url", "")
+	If $portal = "" Then Return Meldung($s & " nicht eingerichtet ([" & $s & "] Url= in der INI, siehe Hilfe)")
 	Local $hMO = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
@@ -1292,26 +1302,35 @@ Func Labor()
 	; vergeblich auf eine Antwort zu warten; danach geht es mit dem Auftrag weiter
 	If Not TampermonkeyDa() Then
 		If Not AddOnEinrichten() Then Return False
-		If Not SkriptEinrichten() Then Return False
+		If Not SkriptEinrichten($s) Then Return False
 	EndIf
-	Local $r = LaborAuftrag($portal, $nach, $vor, $geb)
+	Local $r = PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	If Not @extended Then Return $r
 	; keine Antwort, obwohl Tampermonkey da ist: das Skript fehlt (oder ist abgeschaltet)
 	If Not TampermonkeyDa() And Not AddOnEinrichten() Then Return False
-	If Not SkriptEinrichten() Then Return False
-	$r = LaborAuftrag($portal, $nach, $vor, $geb)
-	If @extended Then Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter Labor"": in Tampermonkey eingeschaltet?")
+	If Not SkriptEinrichten($s) Then Return False
+	$r = PortalAuftrag($s, $portal, $nach, $vor, $geb)
+	If @extended Then Return Meldung("Keine Antwort vom Benutzerskript ""MOReiter " & $s & """: in Tampermonkey eingeschaltet?")
 	Return $r
 EndFunc
 
+; Voreinstellungen je Portal: Seitentitel, Adresse des Benutzerskripts
+Func PortalTitel($s)
+	Return Einst($s, "Titel", ($s = "Labor") ? $defLaborTitel : $s)
+EndFunc
+
+Func PortalSkript($s)
+	Return Einst($s, "Skript", ($s = "Labor") ? $defLaborSkript : $defSkriptBasis & $s & ".user.js")
+EndFunc
+
 ; schickt den Auftrag ans Portal und verfolgt ihn; @extended = 1: keine Antwort vom Benutzerskript
-Func LaborAuftrag($portal, $nach, $vor, $geb)
+Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	Local $nr = Random(1000, 9999, 1)
 	Local $url = $portal & "#mor=" & UrlKodiert($nach) & ";" & UrlKodiert($vor) & ";" & UrlKodiert($geb) & ";" _
-			& UrlKodiert(Einst("Labor", "Kennung", "")) & ";" & $nr
-	Local $hFF = FirefoxOeffnen($url)
+			& UrlKodiert(Einst($s, "Kennung", "")) & ";" & $nr & ";" & UrlKodiert(@ComputerName)
+	Local $hFF = FirefoxOeffnen($url, PortalTitel($s), $s)
 	If Not $hFF Then Return False
-	Local $t = TimerInit(), $max = Int(Einst("Labor", "Zeit", $defLaborZeit)), $z = "", $pw = False
+	Local $t = TimerInit(), $max = Int(Einst($s, "Zeit", $defLaborZeit)), $z = "", $pw = False, $code = False
 	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
 	While TimerDiff($t) < $max
 		$z = FFZustand($hFF, $nr, $z, ($z = "") ? 15000 : $max - TimerDiff($t))
@@ -1327,20 +1346,33 @@ Func LaborAuftrag($portal, $nach, $vor, $geb)
 					Send("{ENTER}")
 				EndIf
 				$pw = True
-			Case "anmelden", "suche"
+			Case "code"
+				; Zwei-Faktor-Anmeldung: der Mensch tippt den Code aus der Mail ein und bestaetigt
+				If Not $code Then
+					$code = True
+					$max = TimerDiff($t) + 300000
+					HinweisStehend($s & ": bitte den Code aus der Mail eingeben und ""Bestaetigen und Anmelden"" druecken")
+				EndIf
+			Case "anmelden", "suche", "land", "zweifaktor", "patient"
+				If $code Then ToolTip("")
 			Case "fertig"
 				Return True
 			Case "liste"
 				Return Meldung("Kein " & $nach & ", " & $vor & " mit Geburtsdatum " & $geb & ", Suchliste angezeigt")
 			Case "nichts"
-				Return Meldung("Im Labor kein Patient " & $nach & " " & $vor)
+				Return Meldung($s & ": kein Patient " & $nach & " " & $vor)
+			Case "keinedaten"
+				Return Meldung($s & ": fuer " & $nach & ", " & $vor & " keine Daten")
+			Case "anmeldefehler"
+				Return Meldung($s & ": Anmeldung abgelehnt; bitte selbst anmelden (nicht wiederholt probieren, sonst Sperre)")
 			Case Else
-				Return Meldung("Labor: " & $z)
+				Return Meldung($s & ": " & $z)
 		EndSwitch
 	WEnd
+	If $code Then ToolTip("")
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
 	If $z = "" Then Return SetExtended(1, False)
-	Return Meldung("Labor: Zeitueberschreitung")
+	Return Meldung($s & ": Zeitueberschreitung")
 EndFunc
 
 ; bietet Tampermonkey in einem neuen Firefox-Tab an und wartet, bis es eingeschaltet ist
@@ -1381,8 +1413,8 @@ EndFunc
 
 ; oeffnet das Benutzerskript in einem neuen Tab (Tampermonkey zeigt dann seine Installationsseite) und
 ; wartet, bis diese verschwindet ("Installieren": Tampermonkey schliesst den Tab)
-Func SkriptEinrichten()
-	Local $h = FirefoxTab(Einst("Labor", "Skript", $defLaborSkript))
+Func SkriptEinrichten($s)
+	Local $h = FirefoxTab(PortalSkript($s))
 	If Not $h Then Return False
 	HinweisStehend("Einmalig: im Firefox bei Tampermonkey auf ""Installieren"" klicken")
 	; Installationsseite: der erste Titel, der 2 s stehen bleibt und nicht mehr die rohe Skriptadresse ist
@@ -1398,7 +1430,7 @@ Func SkriptEinrichten()
 		Sleep(200)
 	WEnd
 	While WinGetTitle($h) = $seite
-		If TimerDiff($t) > 180000 Then Return Meldung("Benutzerskript ""MOReiter Labor"" wurde nicht installiert")
+		If TimerDiff($t) > 180000 Then Return Meldung("Benutzerskript ""MOReiter " & $s & """ wurde nicht installiert")
 		Sleep(300)
 	WEnd
 	Sleep(1000)
@@ -1534,10 +1566,10 @@ EndFunc
 ; oeffnet $url im Firefox: im Tab mit dem Portal, falls der aktive oder einer der [Labor] Tabs letzten
 ; Tabs des vordersten Fensters es zeigt (von rechts her: Strg+9, dann Strg+Bild hoch), sonst in einem
 ; neuen Tab; laeuft Firefox nicht, wird er damit gestartet
-Func FirefoxOeffnen($url)
+Func FirefoxOeffnen($url, $titel, $s)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
 	; Portalseite oder eine mit dem Fortschritt des Benutzerskripts
-	Local $LaborTitel = "^(\Q" & Einst("Labor", "Titel", $defLaborTitel) & "\E|MOR:)"
+	Local $LaborTitel = "^(\Q" & $titel & "\E|MOR:)"
 	Local $h = WinGetHandle($muster)
 	If @error Then
 		ShellExecute("firefox.exe", '"' & $url & '"')
@@ -1549,7 +1581,7 @@ Func FirefoxOeffnen($url)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
 	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel)
 	If Not $gefunden Then
-		Local $n = Int(Einst("Labor", "Tabs", $defLaborTabs)), $vorher = ""
+		Local $n = Int(Einst($s, "Tabs", $defLaborTabs)), $vorher = ""
 		For $i = 1 To $n
 			Send(($i = 1) ? "^9" : "^{PGUP}")
 			Sleep(80)

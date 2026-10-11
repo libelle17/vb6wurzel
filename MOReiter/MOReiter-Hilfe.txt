@@ -66,6 +66,12 @@ Programm mit Name, Vorname und Geburtsdatum des geöffneten Patienten, unabhäng
 Schalterleiste. Hat ein Eingabefeld den Fokus, behält die Taste ihre normale Bedeutung (z.B. Strg+A).
 Hier eingerichtet:
 {AUFRUFE}
+Statt einer Befehlszeile kann dort auch Portal:<Abschnitt> stehen (z.B. Strg+L=Portal:LibreView):
+dann wie bei LABOR, mit eigenem Abschnitt [LibreView] (Url=, Titel=) und Benutzerskript
+MOReiter-LibreView.user.js, das MOReiter bei Bedarf zur Installation anbietet. LibreView: Anmeldung mit
+den im Firefox gespeicherten Daten (höchstens ein Versuch); fehlt die 14-Tage-Freigabe, fordert das
+Skript den Code per E-Mail an, hakt "14 Tage merken" an und trägt den PC-Namen ein; den Code selbst
+eintippen und "Bestätigen und Anmelden" drücken, dann geht es zu den Glukose-Berichten des Patienten.
 
 
 DIAGNOSEERFASSUNG
