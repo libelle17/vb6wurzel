@@ -1,30 +1,52 @@
 Attribute VB_Name = "Haupt"
 Public Const FcExePfad$ = "C:\Program Files (x86)\FreeCommander XE\FreeCommander.exe"
 Public Const FcSetupExe$ = "\\linux1\daten\down\FreeCommanderXE-32_setup.exe"
+' 11.10.26: fuer den Patienten als Parameter (s. MOPidZuName): Zugangsdaten zu medoff wie in Dateilese
+Public Const ZugangDatei$ = "C:\Program Files (x86)\Dateilesen\Zugang.ini"
+Public Const MORegStelle$ = "HKCU\Software\GSProducts\Dateilese\"
+' Ersatz ohne Verbindung zu medoff: namen in quelle auf linux1, Zugang wie in DBVerb (LiesZentraleDatei)
+Public Const QuelleServer$ = "linux1", ZentralDatei$ = "\\linux1\dbverbfreigabe\dbverb.cfg"
+Private Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" (ByVal lpApplicationName$, _
+  ByVal lpKeyName$, ByVal lpDefault$, ByVal lpReturnedString$, ByVal nSize&, ByVal lpFileName$) As Long
 
 Sub Main() ' ruft den FreeCommander mit P:\ links und Archiv-Unterverzeichnis eines Patienten rechts auf
+ ' Patient aus c:\gdt\turbcust.gdt (Schalterleiste von Medical Office) oder, seit 11.10.26, als Parameter
+ ' "Nachname;Vorname;TT.MM.JJJJ" (von MOReiter, Strg+I aus jedem Fenster von Medical Office)
  ' Analog zu ExpAufruf (dort Windows-Explorer), Aufruf des FreeCommander wie OeffneDualPane in NVerb (Haupt.bas)
  Const svz$ = "P:\dok\", asvz$ = "\\linux1\daten\Patientendokumente\dok\", uevz$ = "c:\gdt\", uedat$ = uevz & "turbcust.gdt"
  Dim zeile$, pid$, nachname$, uvz$, fcCmd$, fehlertext$
- On Error Resume Next
- MkDir uevz
- On Error GoTo fehler
- Open uedat For Input As #65
- Do While Not EOF(65)
-  Line Input #65, zeile
-  If zeile Like "???3000*" Then ' Patientennummer
-   pid = Mid$(zeile, 8)
-  ElseIf zeile Like "???3101*" Then ' Nachname (fuer den Namensfilter "Pat" im FreeCommander)
-   nachname = Mid$(zeile, 8)
+ Dim par$
+ par = Trim$(Command$)
+ Call Prot("Aufruf mit: " & Command$)
+ If Left$(par, 1) = Chr$(34) Then par = Mid$(par, 2)
+ If Right$(par, 1) = Chr$(34) Then par = Left$(par, Len(par) - 1)
+ If InStr(par, ";") <> 0 Then
+  pid = MOPidZuName(par)
+  Call Prot("Patientennummer: '" & pid & "'")
+  If pid = "" Then Exit Sub
+  nachname = Trim$(Split(par, ";")(0))
+ Else
+  On Error Resume Next
+  MkDir uevz
+  On Error GoTo fehler
+  Open uedat For Input As #65
+  Do While Not EOF(65)
+   Line Input #65, zeile
+   If zeile Like "???3000*" Then ' Patientennummer
+    pid = Mid$(zeile, 8)
+   ElseIf zeile Like "???3101*" Then ' Nachname (fuer den Namensfilter "Pat" im FreeCommander)
+    nachname = Mid$(zeile, 8)
+   End If
+  Loop ' While Not EOF(65)
+  Close #65
+  If pid = "" Then
+   MsgBox "In '" & uedat & "' wurde keine Patientennummer gefunden."
+   Exit Sub
   End If
- Loop ' While Not EOF(65)
- Close #65
- If pid = "" Then
-  MsgBox "In '" & uedat & "' wurde keine Patientennummer gefunden."
-  Exit Sub
- End If
+ End If ' InStr(par, ";") <> 0
  uvz = svz & pid & "\"
  If Dir(uvz) = "" Then uvz = asvz & pid & "\"
+ Call Prot("Archivordner: " & uvz)
  If Dir(uvz) = "" Then
   MsgBox "Archivordner '" & uvz & "' für Pat. " & pid & " (noch) nicht gefunden."
   Exit Sub
@@ -40,6 +62,147 @@ fehler:
  Close #65
  MsgBox "Fehler beim Öffnen des Dateimanagers: " & fehlertext
 End Sub ' Main()
+
+' 11.10.26: Patientennummer (FSurogat, wie Feld 3000 in turbcust.gdt) zu "Nachname;Vorname;TT.MM.JJJJ" aus patstamm von
+' Medical Office (wie MOPidZuName in Dateilese, Lese5.frm); Server wie dort aus der Registry (MOServer, sonst MORes),
+' Zugangsdaten aus Zugang.ini von Dateilese; gelingt die Verbindung nicht (z.B. ungueltige Zugangsdaten), ersatzweise
+' pat_id aus quelle.namen; ohne eindeutigen Treffer Meldung und ""
+Function MOPidZuName$(pat$)
+ Dim t$(), d$(), sql$, cn As New ADODB.Connection, rs As ADODB.Recordset, srv, verb$, fehlertext$, gd$, wo$, pid$
+ On Error GoTo fehler
+ t = Split(pat, ";")
+ If UBound(t) < 2 Then GoTo nichts
+ d = Split(Trim$(t(2)), ".")
+ If UBound(d) <> 2 Then GoTo nichts
+ ' wie in Dateilese: DATE(JJJJMMTT)
+ gd = Format$(DateSerial(Val(d(2)), Val(d(1)), Val(d(0))), "yyyymmdd")
+ verb = "DRIVER={MySQL ODBC 8.0 Unicode Driver};option=0;database=medoff;uid=" & ZugangWert("medoff", "uid") & ";pwd=" & _
+        ZugangWert("medoff", "pwd") & ";port=2020;server="
+ Call Prot("Zugang.ini: " & ZugangDatei & IIf(Len(Dir$(ZugangDatei)) = 0, " fehlt", " vorhanden") & ", [medoff] uid='" & _
+   ZugangWert("medoff", "uid") & "', pwd " & IIf(ZugangWert("medoff", "pwd") = "", "leer", "gesetzt") & _
+   "; VirtualStore-Kopie " & IIf(Len(Dir$(Environ$("LOCALAPPDATA") & "\VirtualStore\Program Files (x86)\Dateilesen\Zugang.ini")) = 0, "keine", "VORHANDEN"))
+ For Each srv In Array(RegWert("MOServer", "wser"), RegWert("MORes", "wres"))
+  On Error Resume Next
+  Err.Clear
+  cn.Open verb & srv
+  If Err.Number = 0 Then
+   Call Prot("medoff auf " & srv & ": verbunden")
+   Exit For
+  End If
+  fehlertext = Err.Description
+  Call Prot("medoff auf " & srv & ": " & fehlertext)
+ Next srv
+ On Error GoTo fehler
+ If cn.State <> 0 Then
+  wo = "in Medical Office (" & srv & ")"
+  sql = "SELECT FSurogat pid FROM patstamm WHERE FNachname='" & SqlText(t(0)) & "' AND FVorname='" & SqlText(t(1)) & _
+        "' AND DATE(FGeburtsdatum)=DATE(" & gd & ")"
+  pid = EinePid(cn, sql)
+  Call Prot(sql & " -> '" & pid & "'")
+  cn.Close
+ End If
+ ' ersatzweise (keine Verbindung zu medoff oder dort nicht gefunden) in quelle.namen
+ If pid = "" Then
+  On Error Resume Next
+  Err.Clear
+  cn.Open "DRIVER={MySQL ODBC 8.0 Unicode Driver};option=0;database=quelle;server=" & QuelleServer & ";uid=" & _
+          ZentralWert("uid", "mysql") & ";pwd=" & ZentralWert("pwd", "") & ";"
+  If Err.Number <> 0 Then
+   Call Prot("quelle auf " & QuelleServer & ": " & Err.Description)
+   If wo = "" Then
+    MsgBox "Keine Verbindung zur Medical Office-Datenbank (" & fehlertext & ") und zu quelle: " & Err.Description
+   Else
+    MsgBox "Patient '" & pat & "' " & wo & " nicht gefunden, keine Verbindung zu quelle: " & Err.Description
+   End If
+   Exit Function
+  End If
+  On Error GoTo fehler
+  wo = IIf(wo = "", "in quelle.namen (keine Verbindung zu Medical Office: " & fehlertext & ")", wo & " und quelle.namen")
+  sql = "SELECT pat_id pid FROM namen WHERE nachname='" & SqlText(t(0)) & "' AND vorname='" & SqlText(t(1)) & _
+        "' AND DATE(gebdat)=DATE(" & gd & ")"
+  pid = EinePid(cn, sql)
+  Call Prot("quelle auf " & QuelleServer & ": " & sql & " -> '" & pid & "'")
+  cn.Close
+ End If
+ If pid = "" Then GoTo nichts
+ If pid = "mehrere" Then
+  MsgBox "Mehrere Patienten '" & pat & "' " & wo & ", bitte über die Schalterleiste aufrufen."
+  Exit Function
+ End If
+ MOPidZuName = pid
+ Exit Function
+nichts:
+ MsgBox "Patient '" & pat & "' " & IIf(wo = "", "", wo & " ") & "nicht gefunden."
+ Exit Function
+fehler:
+ Call Prot("Fehler " & Err.Number & ": " & Err.Description)
+ MsgBox "Fehler bei der Suche nach '" & pat & "' " & wo & ": " & Err.Description
+ MOPidZuName = ""
+End Function ' MOPidZuName
+
+' 11.10.26: Protokoll nach %TEMP%\FCAufruf.log (zur Fehlersuche; ohne Passwoerter), nur wenn diese Datei schon
+' existiert: zum Einschalten eine leere FCAufruf.log anlegen, zum Ausschalten loeschen
+Sub Prot(txt$)
+ Dim f%, Datei$
+ On Error Resume Next
+ Datei = Environ$("TEMP") & "\FCAufruf.log"
+ If Len(Dir$(Datei)) = 0 Then Exit Sub
+ f = FreeFile
+ Open Datei For Append As #f
+ Print #f, Format$(Now, "yyyy-mm-dd hh:nn:ss") & "  " & txt
+ Close #f
+End Sub ' Prot
+
+' erste Spalte des einzigen Treffers, "" ohne, "mehrere" bei mehreren
+Function EinePid$(cn As ADODB.Connection, sql$)
+ Dim rs As ADODB.Recordset
+ Set rs = cn.Execute(sql)
+ If Not rs.EOF Then
+  EinePid = CStr(rs.Fields(0).Value)
+  rs.MoveNext
+  If Not rs.EOF Then EinePid = "mehrere"
+ End If
+ rs.Close
+End Function ' EinePid
+
+Function SqlText$(s$)
+ SqlText = Replace$(Replace$(Trim$(s), "\", "\\"), "'", "\'")
+End Function ' SqlText
+
+Function ZugangWert$(Abschnitt$, Schluessel$)
+ Dim puf$, l&
+ puf = String$(1024, 0)
+ l = GetPrivateProfileString(Abschnitt, Schluessel, "", puf, Len(puf), ZugangDatei)
+ ZugangWert = Left$(puf, l)
+End Function ' ZugangWert
+
+' Eintrag schluessel=wert aus der zentralen Datei von DBVerb (wie LiesZentraleDatei in DBVerb.frm)
+Function ZentralWert$(Schluessel$, Vorgabe$)
+ Dim f%, ganz$, z, p&
+ ZentralWert = Vorgabe
+ On Error Resume Next
+ f = FreeFile
+ Open ZentralDatei For Input As #f
+ If Err.Number <> 0 Then Exit Function
+ If LOF(f) > 0 Then ganz = Input(LOF(f), f)
+ Close #f
+ ganz = Replace$(Replace$(ganz, vbCrLf, vbLf), vbCr, vbLf)
+ For Each z In Split(ganz, vbLf)
+  p = InStr(z, "=")
+  If p > 1 Then
+   If StrComp(Trim$(Left$(z, p - 1)), Schluessel, vbTextCompare) = 0 Then
+    ZentralWert = Mid$(z, p + 1)
+    Exit Function
+   End If
+  End If
+ Next z
+End Function ' ZentralWert
+
+Function RegWert$(Wert$, Vorgabe$)
+ On Error Resume Next
+ RegWert = CreateObject("WScript.Shell").RegRead(MORegStelle & Wert)
+ If RegWert = "" Then RegWert = Vorgabe
+End Function ' RegWert
 
 ' Ab hier unveraendert aus NVerb (Haupt.bas: FcEnsureInstalledAndConfigured bis FcSetPatFilterIncludeMask) uebernommen.
 ' Aenderungen dort bitte hier nachziehen.

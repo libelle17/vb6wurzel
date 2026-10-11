@@ -185,6 +185,11 @@ Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHalt
 Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
 ; offenes Hilfefenster (0 = keins)
 Global $gHilfe = 0
+; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
+Global $gAufrufe[0][4]
+; [Aufrufe] Protokoll=1: jede passende Taste mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
+; (im Hook nur gesammelt, geschrieben in der Hauptschleife)
+Global $gAufrufProtokoll = False, $gProtokoll = "", $gFokusInfo = ""
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
@@ -206,6 +211,7 @@ If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MORe
 TraySetToolTip("MOReiter: Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, B Labor, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
+AufrufeLaden()
 Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
 If Not HookErneuern() Then
 	MsgBox(16, "MOReiter", "Tastatur-Hook konnte nicht eingerichtet werden.", 10)
@@ -226,6 +232,7 @@ While 1
 	NummerPruefen()
 	EinblendungPruefen()
 	If $gHilfe Then HilfePruefen()
+	If $gProtokoll <> "" Then ProtokollSchreiben()
 	; Windows entfernt einen Hook stillschweigend, wenn er einmal zu langsam antwortet (z.B. bei hoher
 	; Last, Sperren, Aufwachen), das Programm liefe dann taub weiter; daher regelmaessig neu einhaengen
 	If TimerDiff($erneuert) > 5000 Then
@@ -321,6 +328,19 @@ Func HookAufgabe($vk)
 	; Esc allein im Briefversand: Abbrechen
 	If $vk = 0x1B And Not (Gedrueckt(0x10) Or Gedrueckt(0x11) Or Gedrueckt(0x12) Or Gedrueckt(0x5B) Or Gedrueckt(0x5C)) _
 			And BriefAktiv() Then Return "Brief:Abbrechen"
+	; Strg[+Umsch]+Buchstabe aus [Aufrufe], nur in Medical Office und nicht in einem Eingabefeld
+	If UBound($gAufrufe) > 0 And StrgAllein() Then
+		For $i = 0 To UBound($gAufrufe) - 1
+			If $vk = $gAufrufe[$i][1] And Gedrueckt(0x10) = $gAufrufe[$i][2] Then
+				Local $mo = MOAktiv(), $text = $mo ? TextFokus() : False
+				If $gAufrufProtokoll Then Protokoll($gAufrufe[$i][0] & ": " & ($mo ? "Medical Office" : "nicht Medical Office (" & _
+						_WinAPI_GetClassName(_WinAPI_GetForegroundWindow()) & " """ & _WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()) & """)") & _
+						($mo ? ", " & $gFokusInfo : "") & " -> " & (($mo And Not $text) ? "Aufruf" : "durchgelassen"))
+				If $mo And Not $text Then Return "Aufruf:" & $i
+				ExitLoop
+			EndIf
+		Next
+	EndIf
 	If Not StrgAlt() Then Return ""
 	Local $kalib = Gedrueckt(0x10)
 	If $vk = 0x44 And $kalib Then Return "Fensterliste" ; D
@@ -367,6 +387,28 @@ Func StrgAlt()
 	If $gLosGemeldet And TimerDiff($gLosZeit) > 10000 Then $gLosGemeldet = False
 	If $gLosGemeldet Then Return ($gGehaltenMod[0] Or $gGehaltenMod[1]) And $gGehaltenMod[2] And Not Gedrueckt(0xA5)
 	Return (Gedrueckt(0xA2) Or Gedrueckt(0xA3)) And Gedrueckt(0xA4) And Not Gedrueckt(0xA5)
+EndFunc
+
+; Strg ohne Alt und Windowstaste
+Func StrgAllein()
+	Return Gedrueckt(0x11) And Not (Gedrueckt(0x12) Or Gedrueckt(0x5B) Or Gedrueckt(0x5C))
+EndFunc
+
+; hat im Vordergrundfenster ein Eingabefeld den Fokus (blinkender Textcursor oder Klasse wie Edit, Memo,
+; Combo)? Dort behalten Strg+A, Strg+P usw. ihre gewohnte Bedeutung; $gFokusInfo beschreibt den Fokus
+Func TextFokus()
+	$gFokusInfo = "Fokus unbekannt"
+	Local $gti = DllStructCreate("dword cbSize;dword flags;hwnd hwndActive;hwnd hwndFocus;hwnd hwndCapture;" & _
+			"hwnd hwndMenuOwner;hwnd hwndMoveSize;hwnd hwndCaret;long left;long top;long right;long bottom")
+	DllStructSetData($gti, "cbSize", DllStructGetSize($gti))
+	Local $tid = _WinAPI_GetWindowThreadProcessId(_WinAPI_GetForegroundWindow(), 0)
+	Local $r = DllCall("user32.dll", "bool", "GetGUIThreadInfo", "dword", $tid, "struct*", $gti)
+	If @error Or Not $r[0] Then Return False
+	Local $f = DllStructGetData($gti, "hwndFocus"), $kl = $f ? _WinAPI_GetClassName($f) : ""
+	; 1 = GUI_CARETBLINKING; ein bloss angelegter, unsichtbarer Textcursor zaehlt nicht
+	Local $cursor = BitAND(DllStructGetData($gti, "flags"), 1) <> 0
+	$gFokusInfo = "Fokus " & ($f ? $kl : "keiner") & ($cursor ? ", Textcursor" : "")
+	Return $cursor Or ($f And StringRegExp($kl, "(?i)edit|memo|rich|combo"))
 EndFunc
 
 ; Alt ohne Strg gehalten (wie StrgAlt nach ModifierAus an den selbst mitverfolgten Tasten)
@@ -675,6 +717,7 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "Termine" Then Return Termine()
 	If $aufgabe = "Hilfe" Then Return Hilfe()
 	If $aufgabe = "Labor" Then Return Labor()
+	If StringLeft($aufgabe, 7) = "Aufruf:" Then Return Aufruf(Int(StringTrimLeft($aufgabe, 7)))
 	If $aufgabe = "Abhaken" Then Return Abhaken()
 	If $aufgabe = "BereichHoch" Then Return BereichWechsel(-1)
 	If $aufgabe = "BereichRunter" Then Return BereichWechsel(1)
@@ -862,14 +905,16 @@ Func FensterListe()
 	Local $liste = _WinAPI_EnumChildWindows($hWnd, False)
 	If Not @error Then
 		; INSTANCE zaehlt je Klasse in der Reihenfolge dieser Aufzaehlung
-		Local $nr = ObjCreate("Scripting.Dictionary")
+		Local $nr = ObjCreate("Scripting.Dictionary"), $hFokus = ControlGetHandle($hWnd, "", ControlGetFocus($hWnd))
+		TextFokus()
+		$txt &= $gFokusInfo & @CRLF
 		For $i = 1 To $liste[0][0]
 			Local $h = $liste[$i][0], $kl = $liste[$i][1]
 			$nr.Item($kl) = $nr.Item($kl) + 1
 			Local $p = WinGetPos($h)
 			If @error Then ContinueLoop
 			$txt &= "[CLASS:" & $kl & "; INSTANCE:" & $nr.Item($kl) & "]" _
-					& (BitAND(WinGetState($h), 2) ? "" : " (unsichtbar)") _
+					& (BitAND(WinGetState($h), 2) ? "" : " (unsichtbar)") & (($h = $hFokus) ? " (Fokus)" : "") _
 					& "  " & ($p[0] - $f[0]) & "," & ($p[1] - $f[1]) & " " & $p[2] & "x" & $p[3] _
 					& "  """ & StringLeft(_WinAPI_GetWindowText($h), 60) & """" & @CRLF
 		Next
@@ -1151,6 +1196,79 @@ EndFunc
 
 ; Wert aus der eigenen INI, sonst aus den Praxis-Vorgaben, sonst $def; geschrieben (Kalibrieren) wird
 ; immer nur in die eigene INI, so dass ein neu verteiltes MOReiter-Vorgaben.ini sie nicht ueberschreibt
+; [Aufrufe] aus der eigenen INI und MOReiter-Vorgaben.ini (die eigene geht vor) nach $gAufrufe; Schluessel
+; "Strg+P" bzw. "Strg+Umsch+P" (nur Buchstaben), Wert die Befehlszeile, {pat} wird zu "Nachname;Vorname;TT.MM.JJJJ"
+Func AufrufeLaden()
+	Local $n = 0, $quelle[2] = [$Ini, $IniVorgaben]
+	ReDim $gAufrufe[0][4]
+	For $datei In $quelle
+		Local $a = IniReadSection($datei, "Aufrufe")
+		If @error Then ContinueLoop
+		For $i = 1 To $a[0][0]
+			Local $m = StringRegExp($a[$i][0], "(?i)^Strg\+(Umsch\+)?([A-Z])$", 1)
+			If @error Or StringStripWS($a[$i][1], 3) = "" Then ContinueLoop
+			Local $vk = Asc(StringUpper($m[1])), $umsch = ($m[0] <> "")
+			Local $doppelt = False
+			For $j = 0 To $n - 1
+				If $gAufrufe[$j][1] = $vk And $gAufrufe[$j][2] = $umsch Then $doppelt = True
+			Next
+			If $doppelt Then ContinueLoop
+			ReDim $gAufrufe[$n + 1][4]
+			$gAufrufe[$n][0] = ($umsch ? "Strg+Umsch+" : "Strg+") & StringUpper($m[1])
+			$gAufrufe[$n][1] = $vk
+			$gAufrufe[$n][2] = $umsch
+			$gAufrufe[$n][3] = StringStripWS($a[$i][1], 3)
+			$n += 1
+		Next
+	Next
+	$gAufrufProtokoll = (Einst("Aufrufe", "Protokoll", "0") = "1")
+	If $gAufrufProtokoll Then Protokoll("MOReiter gestartet, " & $n & " Aufrufe eingerichtet")
+EndFunc
+
+Func Protokoll($txt)
+	$gProtokoll &= @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "  " & $txt & @CRLF
+EndFunc
+
+Func ProtokollSchreiben()
+	DirCreate(@AppDataDir & "\MOReiter")
+	; 1 = anhaengen, 128 = UTF-8 mit BOM
+	Local $fh = FileOpen(@AppDataDir & "\MOReiter\Aufrufe.log", 1 + 128)
+	If $fh <> -1 Then
+		FileWrite($fh, $gProtokoll)
+		FileClose($fh)
+	EndIf
+	$gProtokoll = ""
+EndFunc
+
+; Strg[+Umsch]+Buchstabe aus [Aufrufe]: Programm mit den Daten des geoeffneten Patienten starten
+Func Aufruf($i)
+	If $i < 0 Or $i >= UBound($gAufrufe) Then Return False
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	Local $befehl = $gAufrufe[$i][3]
+	If StringInStr($befehl, "{pat}") Then
+		; F6 (falls die Personalien fehlen) darf nicht als Strg+F6 ankommen
+		If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
+		Local $nach, $vor, $geb
+		If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+		$befehl = StringReplace($befehl, "{pat}", '"' & $nach & ";" & $vor & ";" & $geb & '"')
+	EndIf
+	Local $pid = Run($befehl), $fehler = @error
+	If $gAufrufProtokoll Then Protokoll($gAufrufe[$i][0] & ": " & $befehl & ($fehler ? " -> nicht gestartet" : " -> gestartet, Prozess " & $pid))
+	If $fehler Then Return Meldung($gAufrufe[$i][0] & ": Programm nicht gefunden: " & $befehl)
+	Return True
+EndFunc
+
+; Liste der eingerichteten Aufrufe fuer die Hilfe
+Func AufrufeText()
+	If UBound($gAufrufe) = 0 Then Return "(hier keine eingerichtet)"
+	Local $t = ""
+	For $i = 0 To UBound($gAufrufe) - 1
+		$t &= StringFormat("%-20s", $gAufrufe[$i][0]) & $gAufrufe[$i][3] & @CRLF
+	Next
+	Return StringTrimRight($t, 2)
+EndFunc
+
 Func Einst($sektion, $schluessel, $def)
 	Local $v = IniRead($Ini, $sektion, $schluessel, Chr(1))
 	If $v <> Chr(1) Then Return $v
@@ -1237,9 +1355,28 @@ Func AddOnEinrichten()
 		If TimerDiff($t) > 180000 Then Return Meldung("Tampermonkey wurde nicht hinzugefuegt")
 		Sleep(500)
 	WEnd
-	; Firefox und Tampermonkey kurz zu Ende einrichten lassen
-	Sleep(2000)
+	BegruessungSchliessen()
 	Return True
+EndFunc
+
+; nach dem Hinzufuegen oeffnet Tampermonkey seine Begruessungsseite auf tampermonkey.net, die erst um
+; Einwilligung in Werbung bittet: diesen Tab (und den von addons.mozilla.org) gleich wieder schliessen.
+; Erkannt am Titel des aktiven Tabs; bis 10 s warten, nach dem letzten Schliessen noch 3 s
+Func BegruessungSchliessen()
+	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
+	Local $t = TimerInit(), $zu = 0, $letzt = 0
+	While TimerDiff($t) < 10000 And $zu < 3
+		If $zu > 0 And TimerDiff($letzt) > 3000 Then ExitLoop
+		Local $h = WinGetHandle($muster)
+		If Not @error And WinActive($h) And StringInStr(FFTitel($h), "Tampermonkey") Then
+			Send("^w")
+			$zu += 1
+			$letzt = TimerInit()
+			Sleep(500)
+		EndIf
+		Sleep(200)
+	WEnd
+	Sleep(500)
 EndFunc
 
 ; oeffnet das Benutzerskript in einem neuen Tab (Tampermonkey zeigt dann seine Installationsseite) und
@@ -1488,6 +1625,7 @@ Func Hilfe()
 	Local $txt = FileRead($fh)
 	FileClose($fh)
 	$txt = StringRegExpReplace($txt, "\r?\n", @CRLF)
+	$txt = StringReplace($txt, "{AUFRUFE}", AufrufeText())
 	Local $b = @DesktopWidth, $h = @DesktopHeight
 	$gHilfe = GUICreate("MOReiter - Hilfe", $b, $h, 0, 0, $WS_POPUP, $WS_EX_TOPMOST)
 	GUISetBkColor(0xFFFFFF, $gHilfe)

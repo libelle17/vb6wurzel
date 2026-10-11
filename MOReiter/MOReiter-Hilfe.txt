@@ -59,6 +59,15 @@ Das Skript wird nur auf Seiten von onlinebefunde.labor-staber.de aktiv und erled
 den MOReiter hinter "#mor=" an die Adresse hängt.
 
 
+PROGRAMMAUFRUFE (Zusatzfunktion, [Aufrufe] in der INI)
+----------------------------------------------------------------------------------------------------
+Strg+Buchstabe bzw. Strg+Umsch+Buchstabe startet in jedem Fenster von Medical Office ein eigenes
+Programm mit Name, Vorname und Geburtsdatum des geöffneten Patienten, unabhängig von der
+Schalterleiste. Hat ein Eingabefeld den Fokus, behält die Taste ihre normale Bedeutung (z.B. Strg+A).
+Hier eingerichtet:
+{AUFRUFE}
+
+
 DIAGNOSEERFASSUNG
 ----------------------------------------------------------------------------------------------------
 Ist das Fenster "Diagnoseerfassung" aktiv, wählen dieselben Tasten (^ 1 2 ... F12, Ziffernblock,
@@ -135,6 +144,8 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               Skript=...         Adresse des Benutzerskripts (Voreinstellung: GitHub)
               AddOn=...          .xpi-Datei oder Adresse von Tampermonkey
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
+[Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
+              Protokoll=1        diese Tasten mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
 [Diagnosen]   Reihenfolge=Zeilen zeilenweise statt spaltenweise zählen
               KnopfFarbe, Toleranz   Farbe der Kurzwahl-Knöpfe
