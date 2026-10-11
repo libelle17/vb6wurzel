@@ -210,7 +210,7 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter: Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, B Labor, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
+TraySetToolTip("MOReiter " & Stand() & ": Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, B Labor, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 AufrufeLaden()
@@ -1264,6 +1264,13 @@ Func Aufruf($i)
 	Return True
 EndFunc
 
+; Stand des laufenden Programms: Aenderungszeit der exe (= Kompilierzeit, Kopieren erhaelt sie), TT.MM.JJJJ hh:mm
+Func Stand()
+	Local $t = FileGetTime(@AutoItExe, 0)
+	If @error Then Return "?"
+	Return $t[2] & "." & $t[1] & "." & $t[0] & " " & $t[3] & ":" & $t[4]
+EndFunc
+
 ; Liste der eingerichteten Aufrufe fuer die Hilfe
 Func AufrufeText()
 	If UBound($gAufrufe) = 0 Then Return "(hier keine eingerichtet)"
@@ -1693,6 +1700,7 @@ Func Hilfe()
 	FileClose($fh)
 	$txt = StringRegExpReplace($txt, "\r?\n", @CRLF)
 	$txt = StringReplace($txt, "{AUFRUFE}", AufrufeText())
+	$txt = "Stand " & Stand() & " (" & @AutoItExe & ")" & @CRLF & $txt
 	Local $b = @DesktopWidth, $h = @DesktopHeight
 	$gHilfe = GUICreate("MOReiter - Hilfe", $b, $h, 0, 0, $WS_POPUP, $WS_EX_TOPMOST)
 	GUISetBkColor(0xFFFFFF, $gHilfe)

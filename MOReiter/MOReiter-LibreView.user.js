@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.4
+// @version      1.5
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -119,9 +119,13 @@
 
   var UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-  function zumPatienten(a, id) {
+  // zum Patienten wie ein Mensch: auf den Treffer bzw. die Tabellenzeile $el klicken (LibreView leitet einen
+  // direkten Aufruf von /patient/<id>/... sonst zum Dashboard zurueck); erst wenn sich nach 5 s nichts tut,
+  // die Adresse laden
+  function zumPatienten(a, id, el) {
     titel(a, 'patient');
-    location.assign('/patient/' + id + '/reports');
+    if (el && einmal(a, 'patientKlick')) { el.click(); return; }
+    if ((!el || seit(a, 'patientKlick') > 5000) && einmal(a, 'patientAdresse')) location.assign('/patient/' + id + '/profile');
   }
 
   // --- Seiten ----------------------------------------------------------------------------------------
@@ -230,7 +234,7 @@
       var z = zeilen[i], id = (z.id.match(UUID) || [])[0];
       var zelle = function (c) { var e = z.querySelector('[data-col="' + c + '"]'); return e ? e.textContent : ''; };
       if (id && namePasst(a, zelle('lastName'), zelle('firstName')) && daten(zelle('dob')).indexOf(a.geb) >= 0) {
-        zumPatienten(a, id);
+        zumPatienten(a, id, z.querySelector('[data-col="lastName"] div') || z);
         return true;
       }
     }
@@ -259,7 +263,8 @@
     if (best) {
       for (var e = best; e && e !== ergebnis.parentNode; e = e.parentElement) {
         var kid = ((e.id || '') + ' ' + (e.getAttribute('href') || '')).match(UUID);
-        if (kid) { zumPatienten(a, kid[0]); return true; }
+        // Treffer: <div id="patient-result-button-<id>" role="button"> mit Name und Geburtsdatum
+        if (kid) { zumPatienten(a, kid[0], e); return true; }
       }
       var ziel = best.closest('a, button, li, [role="button"], [role="option"], [tabindex]') || best;
       titel(a, 'patient');
@@ -294,8 +299,14 @@
   function patient(a) {
     var m = location.pathname.match(/^\/patient\/([0-9a-f-]{36})(\/[a-z]+)?/i);
     if (!m) return false;
-    if (m[2] != '/reports') { zumPatienten(a, m[1]); return true; }
     titel(a, 'patient');
+    if (m[2] != '/reports') {
+      // Seitenleiste "Glukoseverlaufsdaten"
+      var nav = $('reports-nav-button-container');
+      if (nav && einmal(a, 'verlaufKlick')) nav.click();
+      else if (seit(a, 'verlaufKlick') > 5000 && einmal(a, 'verlaufAdresse')) location.assign('/patient/' + m[1] + '/reports');
+      return true;
+    }
     var b = $('pastGlucoseCard-report-button');
     if (b) {
       titel(a, 'fertig');
