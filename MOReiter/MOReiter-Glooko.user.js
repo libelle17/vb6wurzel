@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.1
+// @version      1.3
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
@@ -249,13 +249,21 @@
     return true;
   }
 
-  // Fenster "PDF erstellen": Knopf druecken, sobald aktiv
+  // Fenster "PDF erstellen": Knopf druecken, sobald aktiv; steht das Fenster 8 s spaeter noch ohne PDF da
+  // (Klick zu frueh, bevor Glooko bereit war), noch hoechstens zweimal
   function pdfFenster(a) {
     var b = $('[data-testid="button-pdf-create-pdf"]');
     if (!sichtbar(b)) return false;
     titel(a, 'patient');
-    if (aktiv(b) && einmal(a, 'pdfErstellt')) { klicke(b); titel(a, 'fertig'); }
-    else if (seit(a, 'pdfErstellt') >= 0) titel(a, 'fertig');
+    if (aktiv(b) && einmal(a, 'pdfErstellt')) { klicke(b); titel(a, 'fertig'); return true; }
+    if (seit(a, 'pdfErstellt') < 0) return true;
+    var n = a.schritte.pdfKlicks || 1;
+    if (aktiv(b) && n < 3 && seit(a, 'pdfErstellt') > 8000 * n) {
+      a.schritte.pdfKlicks = n + 1;
+      merken(a);
+      klicke(b);
+    }
+    titel(a, 'fertig');
     return true;
   }
 
@@ -277,6 +285,18 @@
     return namePasst(a, a.name, t.slice(0, t.length - n.length).join(' '));
   }
 
+  // juengste Uebertragung eines Geraets in der Zeile als JJJJMMTT, aus aria-label="Geraet, 02. Okt. 2025"; 0 = keine
+  function letzteUebertragung(tr) {
+    var st = 0, l = tr ? tr.querySelectorAll('[aria-label]') : [];
+    for (var i = 0; i < l.length; i++) {
+      daten(l[i].getAttribute('aria-label')).forEach(function (d) {
+        var t = d.split('.'), n = +(t[2] + t[1] + t[0]);
+        if (n > st) st = n;
+      });
+    }
+    return st;
+  }
+
   // Patientenliste: suchen, passende Zeile anklicken
   function suchTexte(a) {
     var l = [a.name, a.vor + ' ' + a.name], v = teile(a.vor);
@@ -288,13 +308,19 @@
     var namen = document.querySelectorAll('.PatientColumn_nameWrapper');
     if (!feld && !namen.length) return false;
     if (seit(a, 'zeileKlick') < 0) titel(a, 'suche');
+    // derselbe Patient steht oefter doppelt in der Liste: dann die Zeile mit der juengsten Uebertragung nehmen
+    var bester = null, besterStand = -1;
     for (var i = 0; i < namen.length; i++) {
       var knopf = namen[i], spalte = knopf.closest('.PatientColumn_columnWrapper') || knopf.parentElement;
       var geb = spalte && spalte.querySelector('.PatientColumn_leftColumnBottom');
       if (!geb || !listenNamePasst(a, knopf.textContent) || daten(geb.textContent).indexOf(a.geb) < 0) continue;
+      var st = letzteUebertragung(knopf.closest('tr'));
+      if (st > besterStand) { bester = knopf; besterStand = st; }
+    }
+    if (bester) {
       titel(a, 'patient');
-      if (einmal(a, 'zeileKlick')) klicke(knopf);
-      else if (seit(a, 'zeileKlick') > 5000 && einmal(a, 'zeileKlick2')) klicke(knopf);
+      if (einmal(a, 'zeileKlick')) klicke(bester);
+      else if (seit(a, 'zeileKlick') > 5000 && einmal(a, 'zeileKlick2')) klicke(bester);
       return true;
     }
     if (!feld) return true;
@@ -318,9 +344,12 @@
       }, 700);
       return true;
     }
+    // nichts Passendes: MOReiter meldet es; der Auftrag bleibt aber noch 3 min, damit es nach einer Auswahl von
+    // Hand (z.B. anderer Schreibweise) mit dem PDF weitergeht
     if (k >= suchTexte(a).length && seit(a, 'suche' + (suchTexte(a).length - 1)) > 5000 && seit(a, 'zeileKlick') < 0) {
+      einmal(a, 'nichts');
       titel(a, 'nichts');
-      erledigt();
+      if (seit(a, 'nichts') > 180000) erledigt();
     }
     return true;
   }
