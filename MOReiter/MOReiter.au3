@@ -1363,6 +1363,8 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				Return Meldung($s & ": kein Patient " & $nach & " " & $vor)
 			Case "keinedaten"
 				Return Meldung($s & ": fuer " & $nach & ", " & $vor & " keine Daten")
+			Case "ohnekennung"
+				Return Meldung($s & ": keine Kennung ([" & $s & "] Kennung= in der INI), bitte selbst anmelden")
 			Case "anmeldefehler"
 				Return Meldung($s & ": Anmeldung abgelehnt; bitte selbst anmelden (nicht wiederholt probieren, sonst Sperre)")
 			Case Else

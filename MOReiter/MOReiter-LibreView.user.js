@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.2
+// @version      1.3
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -18,6 +18,7 @@
 //               Anmeldung aus der Firefox-Liste)
 //   anmelden    Anmeldung abgeschickt (hoechstens einmal je Auftrag, sonst droht eine Sperre)
 //   anmeldefehler  LibreView hat E-Mail/Passwort abgelehnt
+//   ohnekennung keine Kennung vorgegeben: nicht automatisch anmelden
 //   zweifaktor  Zwei-Faktor-Anmeldung: Code per E-Mail angefordert
 //   code        Code-Seite: "14 Tage merken" angehakt, PC-Name eingetragen, der Mensch tippt den Code
 //   suche       angemeldet, Patient wird gesucht
@@ -137,7 +138,10 @@
     return true;
   }
 
-  // Anmeldung: hoechstens ein Versuch je Auftrag
+  // Anmeldung: hoechstens ein Versuch je Auftrag, und nur mit der vorgegebenen Kennung ([LibreView] Kennung=).
+  // Firefox traegt beim Laden (auch mehrmals) die erste gespeicherte Anmeldung ein, die eines anderen Benutzers
+  // sein kann: dann E-Mail ersetzen und Passwort leeren, bei jedem Takt. Abgeschickt wird erst, wenn E-Mail
+  // gleich der Kennung ist, ein Passwort drinsteht und sich beides 1 s nicht mehr geaendert hat.
   function anmelden(a) {
     var em = $('loginForm-email-input'), pw = $('loginForm-password-input'), b = $('loginForm-submit-button');
     if (!em || !pw || !b) return false;
@@ -146,24 +150,31 @@
       else titel(a, 'anmelden');
       return true;
     }
-    // Kennung vorgegeben ([LibreView] Kennung=): hat Firefox einen anderen Benutzer eingetragen, ihn samt
-    // Passwort ersetzen; die Firefox-Liste (Pfeil runter) zeigt dann nur die passende gespeicherte Anmeldung
-    if (a.kennung != '' && klein(em.value) != klein(a.kennung) && einmal(a, 'kennung')) {
+    if (a.kennung == '') { titel(a, 'ohnekennung'); erledigt(); return true; }
+    if (seit(a, 'loginSeite') < 0) einmal(a, 'loginSeite');
+    // Firefox erst eintragen lassen
+    if (seit(a, 'loginSeite') < 1500) { titel(a, 'anmelden'); return true; }
+    if (klein(em.value) != klein(a.kennung)) {
       setze(em, a.kennung);
       if (pw.value != '') setze(pw, '');
+      stand = '';
+      titel(a, 'anmelden');
+      return true;
     }
-    if (em.value != '' && pw.value != '') {
+    var jetzt = em.value + '\u0001' + pw.value;
+    if (jetzt != stand) { stand = jetzt; standSeit = Date.now(); }
+    if (pw.value != '' && Date.now() - standSeit >= 1000 && klein(em.value) == klein(a.kennung)) {
       einmal(a, 'anmelden');
       titel(a, 'anmelden');
       b.click();
       return true;
     }
-    // Firefox traegt gespeicherte Daten kurz nach dem Laden ein; erst danach nach der Liste fragen
-    if (seit(a, 'loginSeite') < 0) einmal(a, 'loginSeite');
-    else if (seit(a, 'loginSeite') > 700 && einmal(a, 'passwortFrage')) { em.focus(); }
-    titel(a, seit(a, 'passwortFrage') >= 0 ? 'passwort' : 'anmelden');
+    // ohne Passwort: E-Mail-Feld fokussieren, MOReiter waehlt die passende Anmeldung aus der Firefox-Liste
+    if (pw.value == '' && einmal(a, 'passwortFrage')) em.focus();
+    titel(a, pw.value == '' ? 'passwort' : 'anmelden');
     return true;
   }
+  var stand = '', standSeit = 0;
 
   // Zwei-Faktor, Schritt 1: Code per E-Mail anfordern
   function zweiFaktor(a) {
