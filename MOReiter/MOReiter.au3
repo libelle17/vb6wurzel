@@ -1565,6 +1565,8 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	If $code Then ToolTip("")
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
 	If Not $gemeldet Then Return SetExtended(1, False)
+	; PDF evtl. doch erstellt (Fertigmeldung verpasst): ein noch erscheinendes trotzdem ablegen
+	If $z = "enter" Or $z = "patient" Then AblageMerken($s, $nach, $vor)
 	Return Meldung($s & ": Zeitueberschreitung" & (($z = "") ? "" : " (zuletzt: " & $z & ")"))
 EndFunc
 

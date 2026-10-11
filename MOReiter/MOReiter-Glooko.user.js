@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.5
+// @version      1.6
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
@@ -240,8 +240,11 @@
   function pdfRahmen(a) {
     var f = $('iframe.PdfLoader_pdfContent, iframe[title="iframe-pdfdownload"]');
     if (!f || !f.src || seit(a, 'pdfErstellt') < 0) return false;
+    // erst "fertig" melden und MOReiter Zeit geben, es im Titel zu lesen: Firefox oeffnet ein heruntergeladenes
+    // PDF evtl. in einem neuen Tab, dann ist dieser Titel nicht mehr zu sehen
     titel(a, 'fertig');
-    if (einmal(a, 'heruntergeladen')) {
+    if (einmal(a, 'pdfDa')) return true;
+    if (seit(a, 'pdfDa') > 1500 && einmal(a, 'heruntergeladen')) {
       herunterladen(a, f.src);
       titel(a, 'gedruckt');
       erledigt();
