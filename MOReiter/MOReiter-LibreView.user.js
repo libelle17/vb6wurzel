@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.7
+// @version      1.8
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -23,14 +23,16 @@
 //   code        Code-Seite: "14 Tage merken" angehakt, PC-Name eingetragen, der Mensch tippt den Code
 //   suche       angemeldet, Patient wird gesucht
 //   patient     Patient gefunden, seine Seite wird geoeffnet
-//   fertig      Glukose-Berichte werden geoeffnet
-//   keinedaten  Patient ohne Glukosedaten
-//   liste       kein Patient mit passendem Geburtsdatum: Suchergebnis bleibt stehen
+//   fertig      Glukose-Berichte sind offen (MOReiter ist fertig); das Skript wartet weiter, bis "PDF
+//               drucken/speichern" aktiv ist, und drueckt ihn
+//   gedruckt    "PDF drucken/speichern" gedrueckt
+//   keinedaten  Patient ohne Glukosedaten (nach 90 s kein Knopf "Glukose-Berichte")
+//   liste       nach 60 s kein Patient mit passendem Namen und Geburtsdatum
 //   fehler ...  sonstiger Fehler
 (function () {
   'use strict';
   var schluessel = 'MOReiterLibreView';
-  var takt = 400, hoechstens = 10 * 60 * 1000;
+  var takt = 400, hoechstens = 30 * 60 * 1000;
 
   // --- Auftrag ---------------------------------------------------------------------------------------
   function teil(s) {
@@ -276,10 +278,15 @@
     return true;
   }
 
-  // Dashboard: Patient in der Tabelle, sonst ueber die Patientensuche
+  // Dashboard: Patient in der Tabelle (die LibreView erst beim Scrollen weiter laedt: daher selbst ans Ende
+  // scrollen, bis keine Zeilen mehr dazukommen) und zugleich ueber die Patientensuche (erst Nachname, dann
+  // "Vorname Nachname", dann "Nachname, Vorname"); aufgegeben wird nach 60 s
+  var suchFolge = [function (a) { return a.name; }, function (a) { return a.vor + ' ' + a.name; },
+                   function (a) { return a.name + ', ' + a.vor; }];
+  var zeilenZahl = -1, zeilenSeit = 0;
   function dashboard(a) {
     if (!/^\/dashboard/.test(location.pathname)) return false;
-    titel(a, 'suche');
+    if (seit(a, 'patientKlick') < 0) titel(a, 'suche');
     var zeilen = document.querySelectorAll('tr[id$="-table-cell-row"]');
     for (var i = 0; i < zeilen.length; i++) {
       var z = zeilen[i], id = (z.id.match(UUID) || [])[0];
@@ -289,42 +296,43 @@
         return true;
       }
     }
-    // Tabelle erst laden lassen
     if (seit(a, 'dashboard') < 0) { einmal(a, 'dashboard'); return true; }
+    // Tabelle erst laden lassen
     if (seit(a, 'dashboard') < 2500 && !zeilen.length) return true;
+    // weiterscrollen, solange neue Zeilen kommen
+    if (zeilen.length != zeilenZahl) { zeilenZahl = zeilen.length; zeilenSeit = Date.now(); }
+    if (zeilen.length && Date.now() - zeilenSeit < 4000) {
+      var sc = zeilen[zeilen.length - 1].parentElement;
+      while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight + 5 &&
+             /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+      if (sc && sc !== document.body) sc.scrollTop = sc.scrollHeight;
+      else zeilen[zeilen.length - 1].scrollIntoView({ block: 'end' });
+    }
+    // Patientensuche
     var huelle = $('main-header-patient-search-wrapper'), ein = $('main-header-patient-search-inner-input');
-    if (!huelle || !ein) return true;
-    if (einmal(a, 'suchen')) {
-      huelle.click();
-      // nur nach dem Nachnamen, das Geburtsdatum entscheidet unter den Treffern
-      setTimeout(function () { ein.focus(); setze(ein, a.name); }, 300);
-      return true;
-    }
-    // Treffer der Suche: das kleinste Element, dessen Text Nachname und Geburtsdatum enthaelt; traegt es
-    // (oder ein umgebendes) eine Patientenkennung, direkt dorthin, sonst darauf klicken
-    var ergebnis = document.querySelector('[class*="searchResults"]') || huelle;
-    var alle = ergebnis.querySelectorAll('*'), best = null, gesehen = 0;
-    for (var j = 0; j < alle.length; j++) {
-      var txt = alle[j].textContent;
-      if (klein(txt).indexOf(klein(a.name)) < 0) continue;
-      gesehen++;
-      if (daten(txt).indexOf(a.geb) < 0) continue;
-      if (!best || txt.length < best.textContent.length) best = alle[j];
-    }
-    if (best) {
-      for (var e = best; e && e !== ergebnis.parentNode; e = e.parentElement) {
-        var kid = ((e.id || '') + ' ' + (e.getAttribute('href') || '')).match(UUID);
-        // Treffer: <div id="patient-result-button-<id>" role="button"> mit Name und Geburtsdatum
-        if (kid) { zumPatienten(a, kid[0], e); return true; }
+    if (huelle && ein) {
+      var n = a.schritte.suchNr || 0;
+      if (n < suchFolge.length && (n == 0 || seit(a, 'suche' + (n - 1)) > 6000) && einmal(a, 'suche' + n)) {
+        a.schritte.suchNr = n + 1;
+        merken(a);
+        var text = suchFolge[n](a);
+        klicke(huelle);
+        setTimeout(function () { ein.focus(); setze(ein, text); }, 300);
+        return true;
       }
-      var ziel = best.closest('a, button, li, [role="button"], [role="option"], [tabindex]') || best;
-      titel(a, 'patient');
-      if (einmal(a, 'trefferKlick')) ziel.click();
-      return true;
+      // Treffer: <div id="patient-result-button-<id>" role="button"> mit Name und Geburtsdatum
+      var treffer = document.querySelectorAll('[id^="patient-result-button-"]');
+      for (var j = 0; j < treffer.length; j++) {
+        var t = treffer[j], kid = t.id.match(UUID);
+        if (kid && klein(t.textContent).indexOf(klein(a.name)) >= 0 && daten(t.textContent).indexOf(a.geb) >= 0) {
+          zumPatienten(a, kid[0], t);
+          return true;
+        }
+      }
     }
-    if (seit(a, 'suchen') > 8000) {
-      bericht(a, zeilen, ergebnis);
-      titel(a, gesehen ? 'liste' : 'nichts');
+    if (seit(a, 'dashboard') > 60000 && seit(a, 'patientKlick') < 0) {
+      bericht(a, zeilen, document.querySelector('[class*="searchResults"]') || document.body);
+      titel(a, 'liste');
       erledigt();
     }
     return true;
@@ -346,7 +354,8 @@
     console.log('MOReiter LibreView: Trefferliste\n' + kopie.outerHTML.replace(new RegExp(UUID.source, 'gi'), '<uuid>').slice(0, 20000));
   }
 
-  // Patientenseite: zu "Glukoseverlaufsdaten", dort "Glukose-Berichte"
+  // Patientenseite: zu "Glukoseverlaufsdaten", dort "Glukose-Berichte" (der Knopf kommt erst, wenn die Daten
+  // geladen sind, das kann dauern; ohne ihn nach 90 s "keinedaten")
   function patient(a) {
     var m = location.pathname.match(/^\/patient\/([0-9a-f-]{36})(\/[a-z]+)?/i);
     if (!m) return false;
@@ -358,18 +367,37 @@
       else if (seit(a, 'verlaufKlick') > 5000 && einmal(a, 'verlaufAdresse')) location.assign('/patient/' + m[1] + '/reports');
       return true;
     }
+    if (seit(a, 'patientSeite') < 0) einmal(a, 'patientSeite');
     var b = $('pastGlucoseCard-report-button');
-    if (b) {
-      titel(a, 'fertig');
-      erledigt();
-      b.click();
+    if (b && !b.disabled) {
+      if (einmal(a, 'berichtKlick')) klicke(b);
+      // wirkt der Klick nicht, nach 5 s noch einmal
+      else if (seit(a, 'berichtKlick') > 5000 && einmal(a, 'berichtKlick2')) klicke(b);
       return true;
     }
-    if (seit(a, 'patientSeite') < 0) einmal(a, 'patientSeite');
-    else if (seit(a, 'patientSeite') > 8000 && ($('glucose-history-Page') || $('patient-reports-list-view'))) {
-      titel(a, 'keinedaten');
-      erledigt();
+    if (seit(a, 'patientSeite') > 90000) { titel(a, 'keinedaten'); erledigt(); }
+    return true;
+  }
+
+  // Glukose-Berichte (/reports/<id>): MOReiter ist hier fertig; das Skript wartet noch, bis der Knopf
+  // "PDF drucken/speichern" aktiv ist (das kann 10 min dauern), und drueckt ihn
+  function berichte(a) {
+    if (!/^\/reports\//.test(location.pathname)) return false;
+    titel(a, 'fertig');
+    if (seit(a, 'berichtSeite') < 0) einmal(a, 'berichtSeite');
+    var b = $('reports-print-button');
+    if (b && !b.disabled && !b.hasAttribute('disabled')) {
+      // kurz stehen lassen, falls er beim Laden einzelner Seiten wieder inaktiv wird
+      if (seit(a, 'druckBereit') < 0) { einmal(a, 'druckBereit'); return true; }
+      if (seit(a, 'druckBereit') > 1500) {
+        klicke(b);
+        titel(a, 'gedruckt');
+        erledigt();
+      }
+      return true;
     }
+    if (a.schritte.druckBereit) { delete a.schritte.druckBereit; merken(a); }
+    if (seit(a, 'berichtSeite') > 20 * 60 * 1000) erledigt();
     return true;
   }
 
@@ -380,7 +408,7 @@
     if (Date.now() - a.beginn > hoechstens) { erledigt(); return; }
     if (!document.body) return;
     try {
-      land(a) || anmelden(a) || zweiFaktor(a) || codeSeite(a) || patient(a) || dashboard(a) ||
+      land(a) || anmelden(a) || zweiFaktor(a) || codeSeite(a) || berichte(a) || patient(a) || dashboard(a) ||
         titel(a, zustand || 'suche');
     } catch (e) {
       titel(a, 'fehler ' + e.message);
