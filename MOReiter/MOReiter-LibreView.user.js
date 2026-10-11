@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.1
+// @version      1.2
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -94,6 +94,13 @@
 
   var monate = ['januar', 'februar', 'maerz', 'april', 'mai', 'juni', 'juli', 'august', 'september',
                 'oktober', 'november', 'dezember'];
+  // Monat aus dem vollen oder abgekuerzten Namen (deutsch, sonst englisch), 0-11, -1 unbekannt
+  var monateEn = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  function monat(w) {
+    for (var i = 0; i < 12; i++) if (monate[i].indexOf(w) == 0 || w.indexOf(monate[i].slice(0, 3)) == 0 ||
+        w.indexOf(monateEn[i]) == 0) return i;
+    return -1;
+  }
   function zwei(n) { return (n < 10 ? '0' : '') + n; }
 
   // alle Datumsangaben eines Textes als TT.MM.JJJJ: T/M/JJJJ (LibreView-Tabelle, Tag zuerst),
@@ -101,11 +108,11 @@
   function daten(text) {
     var erg = [], m, re1 = /(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/g;
     while ((m = re1.exec(text))) erg.push(zwei(+m[1]) + '.' + zwei(+m[2]) + '.' + m[3]);
-    var t = klein(text).replace(/ä/g, 'ae'), re2 = /(\d{1,2})\.?\s+([a-z]+)\s+(\d{4})/g;
-    while ((m = re2.exec(t))) {
-      var i = monate.indexOf(m[2]);
-      if (i >= 0) erg.push(zwei(+m[1]) + '.' + zwei(i + 1) + '.' + m[3]);
-    }
+    // "1 Januar 1975", "1. Jan. 1975", "Jan 1, 1975"
+    var t = klein(text).replace(/ä/g, 'ae'), re2 = /(\d{1,2})\.?\s+([a-z]{3,})\.?,?\s+(\d{4})/g,
+        re3 = /\b([a-z]{3,})\.?\s+(\d{1,2}),?\s+(\d{4})/g;
+    while ((m = re2.exec(t))) { var i = monat(m[2]); if (i >= 0) erg.push(zwei(+m[1]) + '.' + zwei(i + 1) + '.' + m[3]); }
+    while ((m = re3.exec(t))) { var k = monat(m[1]); if (k >= 0) erg.push(zwei(+m[2]) + '.' + zwei(k + 1) + '.' + m[3]); }
     return erg;
   }
 
@@ -218,24 +225,49 @@
       setTimeout(function () { ein.focus(); setze(ein, a.name); }, 300);
       return true;
     }
-    // Treffer der Suche: Elemente mit Patientenkennung, deren Text Name und Geburtsdatum enthaelt
-    var ergebnis = huelle.querySelector('[class*="searchResults"]') || huelle;
-    var kand = ergebnis.querySelectorAll('[id], a[href]'), gesehen = 0;
-    for (var j = 0; j < kand.length; j++) {
-      var k = kand[j], kid = ((k.id || '') + ' ' + (k.getAttribute('href') || '')).match(UUID);
-      if (!kid) continue;
+    // Treffer der Suche: das kleinste Element, dessen Text Nachname und Geburtsdatum enthaelt; traegt es
+    // (oder ein umgebendes) eine Patientenkennung, direkt dorthin, sonst darauf klicken
+    var ergebnis = document.querySelector('[class*="searchResults"]') || huelle;
+    var alle = ergebnis.querySelectorAll('*'), best = null, gesehen = 0;
+    for (var j = 0; j < alle.length; j++) {
+      var txt = alle[j].textContent;
+      if (klein(txt).indexOf(klein(a.name)) < 0) continue;
       gesehen++;
-      var txt = k.textContent;
-      if (klein(txt).indexOf(klein(a.name)) >= 0 && daten(txt).indexOf(a.geb) >= 0) {
-        zumPatienten(a, kid[0]);
-        return true;
+      if (daten(txt).indexOf(a.geb) < 0) continue;
+      if (!best || txt.length < best.textContent.length) best = alle[j];
+    }
+    if (best) {
+      for (var e = best; e && e !== ergebnis.parentNode; e = e.parentElement) {
+        var kid = ((e.id || '') + ' ' + (e.getAttribute('href') || '')).match(UUID);
+        if (kid) { zumPatienten(a, kid[0]); return true; }
       }
+      var ziel = best.closest('a, button, li, [role="button"], [role="option"], [tabindex]') || best;
+      titel(a, 'patient');
+      if (einmal(a, 'trefferKlick')) ziel.click();
+      return true;
     }
     if (seit(a, 'suchen') > 8000) {
+      bericht(a, zeilen, ergebnis);
       titel(a, gesehen ? 'liste' : 'nichts');
       erledigt();
     }
     return true;
+  }
+
+  // fuer die Fehlersuche (Strg+Umsch+K in Firefox): Aufbau von Tabelle und Trefferliste, Namen und Ziffern
+  // unkenntlich (Buchstaben -> a, Ziffern -> 9)
+  function bericht(a, zeilen, ergebnis) {
+    var unk = function (s) { return s.replace(/[^\W\d_]/g, 'a').replace(/\d/g, '9'); };
+    var gleich = 0;
+    for (var i = 0; i < zeilen.length; i++) {
+      var n = zeilen[i].querySelector('[data-col="lastName"]');
+      if (n && klein(n.textContent) == klein(a.name)) gleich++;
+    }
+    console.log('MOReiter LibreView: Tabelle ' + zeilen.length + ' Zeilen, davon ' + gleich +
+      ' mit gleichem Nachnamen; gesuchtes Datum ' + unk(a.geb));
+    var kopie = ergebnis.cloneNode(true), w = document.createTreeWalker(kopie, NodeFilter.SHOW_TEXT), k;
+    while ((k = w.nextNode())) k.nodeValue = unk(k.nodeValue);
+    console.log('MOReiter LibreView: Trefferliste\n' + kopie.outerHTML.replace(new RegExp(UUID.source, 'gi'), '<uuid>').slice(0, 20000));
   }
 
   // Patientenseite: zu "Glukoseverlaufsdaten", dort "Glukose-Berichte"
