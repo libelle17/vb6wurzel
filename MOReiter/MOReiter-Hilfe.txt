@@ -25,6 +25,7 @@ Strg+Alt+Leertaste  Hauptmenü (drei Striche links oben)
 Strg+Alt+H          in der markierten Zeile der Karteikarte den hellblauen Pfeil nach oben anklicken
                     (in die ePA hochladen), im folgenden Fenster "Hochladen" drücken und einen danach
                     erscheinenden Leistungsdialog mit "Übernehmen" bestätigen
+Strg+Alt+Esc        MOReiter neu starten, z.B. wenn es in einer Aufgabe hängt und nicht mehr reagiert
 Strg+Alt+F1         diese Hilfe (die Hilfe von Medical Office selbst gibt es weiter mit Strg+F1)
 
 
@@ -162,7 +163,8 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               AddOn=...          .xpi-Datei oder Adresse von Tampermonkey
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
               Ablage=, Datei=    heruntergeladene PDFs des Patienten verschieben (s. PROGRAMMAUFRUFE)
-              Name=              dabei umbenennen ({vor}, {nach}, {TT}, {MM}, {JJJJ}), z.B. Glooko
+              Name=              dabei umbenennen ({vor}, {nach}, {geb} = Geburtsdatum, {TT}, {MM}, {JJJJ}),
+                                 z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf"
 [LibreView], [Dexcom], [Glooko]  wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
 [Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
               Protokoll=1        diese Tasten mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log

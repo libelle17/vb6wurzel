@@ -185,6 +185,8 @@ Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHalt
 ; Tastatur-Hook: der Rueckruf merkt sich nur die Aufgabe, ausgefuehrt wird sie in der Hauptschleife,
 ; weil Windows einen Hook, der zu lange braucht, stillschweigend abhaengt
 Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
+; Strg+Alt+Esc: MOReiter neu starten (NeustartPruefen), auch wenn es gerade in einer Aufgabe haengt
+Global $gNeustart = False
 ; offenes Hilfefenster (0 = keins)
 Global $gHilfe = 0
 ; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
@@ -199,14 +201,20 @@ Global $gAblagen[0][7], $gAblagenGeprueft = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
-If $CmdLine[0] > 1 And $CmdLine[1] = "Filter" Then
+If $CmdLine[0] > 0 And $CmdLine[1] = "Neustart" Then
+	; von NeustartPruefen gestartet: warten, bis sich die alte Instanz beendet hat
+	Local $seit = TimerInit()
+	While _Singleton("MOReiter_resident", 1) = 0
+		If TimerDiff($seit) > 15000 Then Exit
+		Sleep(200)
+	WEnd
+ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Filter" Then
 	Exit FilterWahl(Int($CmdLine[2]) - 1) ? 0 : 1
 ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Diagnose" Then
 	Exit DiagnoseWahl(Int($CmdLine[2]) - 1) ? 0 : 1
 ElseIf $CmdLine[0] > 0 Then
 	Exit Ausfuehren($CmdLine[1]) ? 0 : 1
-EndIf
-If _Singleton("MOReiter_resident", 1) = 0 Then ; laeuft schon
+ElseIf _Singleton("MOReiter_resident", 1) = 0 Then ; laeuft schon
 	; sonst merkt man nicht, dass noch eine alte Version mit alten Hotkeys aktiv ist
 ;	MsgBox(64, "MOReiter", "MOReiter laeuft bereits." & @CRLF & "Fuer eine neue Version die alte zuerst ueber das Tray-Menue beenden.", 10)
 	Exit
@@ -224,6 +232,8 @@ If Not HookErneuern() Then
 	Exit 1
 EndIf
 OnAutoItExitRegister("HookEntfernen")
+; Adlib laeuft auch waehrend der Sleeps in einer gerade laufenden Aufgabe
+AdlibRegister("NeustartPruefen", 250)
 Local $erneuert = TimerInit()
 ; kurzes Sleep, damit der Hook die Tastatur nicht spuerbar verzoegert
 While 1
@@ -306,6 +316,11 @@ Func TastenHook($nCode, $wParam, $lParam)
 					EndIf
 					If StringLen($gNummer) < 3 Then $gNummer &= $z
 				EndIf
+				Return 1
+			EndIf
+			; Strg+Alt+Esc in jedem Programm: neu starten; nicht ueber $gAufgabe, das wartet auf die laufende Aufgabe
+			If $vk = 0x1B And StrgAlt() Then
+				$gNeustart = True
 				Return 1
 			EndIf
 			; auch kuenstlich erzeugte Tasten (LLKHF_INJECTED) auswerten: RemotePC, TeamViewer u.ae.
@@ -1355,7 +1370,7 @@ EndFunc
 ; verschieben; nur Dateien, deren Name zu [Portal] Datei= passt (regulaerer Ausdruck, ganzer Name, gross/klein
 ; egal; {vor} und {nach} stehen fuer Vor- und Nachname, s. NameMuster, {TT}, {MM}, {JJJJ} fuer das heutige
 ; Datum); ohne Datei= wird nichts verschoben
-Func AblageMerken($s, $nach, $vor)
+Func AblageMerken($s, $nach, $vor, $geb)
 	Local $ziel = Einst($s, "Ablage", ""), $muster = Einst($s, "Datei", "")
 	If $ziel = "" Or $muster = "" Then Return
 	Local $erster = StringRegExpReplace(StringStripWS($vor, 3), "\s.*$", "")
@@ -1371,13 +1386,14 @@ Func AblageMerken($s, $nach, $vor)
 	$gAblagen[$n][3] = DownloadPdfs()
 	$gAblagen[$n][4] = ""
 	$gAblagen[$n][5] = "(?i)^" & $muster & "$"
-	; Name= : beim Verschieben so umbenennen (wenn das Portal den Namen selbst waehlt, z.B. Glooko "glooko-1.pdf");
-	; {vor}, {nach} ohne Leerzeichen und Zeichen, die in Dateinamen nicht erlaubt sind
+	; Name= : beim Verschieben so umbenennen, z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf";
+	; {geb} = Geburtsdatum TT.MM.JJJJ; Zeichen, die in Dateinamen nicht erlaubt sind, fallen weg
 	Local $name = Einst($s, "Name", "")
 	If $name <> "" Then
-		Local $weg = "[\s\\/:*?""<>|]+"
-		$name = StringReplace($name, "{vor}", StringRegExpReplace($vor, $weg, ""))
-		$name = StringReplace($name, "{nach}", StringRegExpReplace($nach, $weg, ""))
+		Local $weg = "[\\/:*?""<>|]+"
+		$name = StringReplace($name, "{vor}", StringStripWS(StringRegExpReplace($vor, $weg, ""), 7))
+		$name = StringReplace($name, "{nach}", StringStripWS(StringRegExpReplace($nach, $weg, ""), 7))
+		$name = StringReplace($name, "{geb}", $geb)
 		$name = StringReplace(StringReplace(StringReplace($name, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 	EndIf
 	$gAblagen[$n][6] = $name
@@ -1546,7 +1562,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				If $code Then ToolTip("")
 			; "gedruckt" kann "fertig" so schnell folgen, dass dieses nie im Titel zu sehen war
 			Case "fertig", "gedruckt"
-				AblageMerken($s, $nach, $vor)
+				AblageMerken($s, $nach, $vor, $geb)
 				Return True
 			Case "liste"
 				Return Meldung("Kein " & $nach & ", " & $vor & " mit Geburtsdatum " & $geb & ", Suchliste angezeigt")
@@ -1566,7 +1582,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
 	If Not $gemeldet Then Return SetExtended(1, False)
 	; PDF evtl. doch erstellt (Fertigmeldung verpasst): ein noch erscheinendes trotzdem ablegen
-	If $z = "enter" Or $z = "patient" Then AblageMerken($s, $nach, $vor)
+	If $z = "enter" Or $z = "patient" Then AblageMerken($s, $nach, $vor, $geb)
 	Return Meldung($s & ": Zeitueberschreitung" & (($z = "") ? "" : " (zuletzt: " & $z & ")"))
 EndFunc
 
@@ -2636,6 +2652,16 @@ EndFunc
 Func HinweisStehend($txt)
 	AdlibUnRegister("HinweisWeg")
 	ToolTip($txt, Default, Default, "MOReiter")
+EndFunc
+
+; Strg+Alt+Esc: eine neue Instanz starten (wartet, bis diese beendet ist) und diese beenden
+Func NeustartPruefen()
+	If Not $gNeustart Then Return
+	$gNeustart = False
+	ToolTip("MOReiter startet neu", Default, Default, "MOReiter")
+	Local $befehl = '"' & @AutoItExe & '"' & (@Compiled ? "" : ' "' & @ScriptFullPath & '"') & " Neustart"
+	If Not Run($befehl, @ScriptDir) Then Return Meldung("Neustart fehlgeschlagen")
+	Exit
 EndFunc
 
 Func HinweisWeg()
