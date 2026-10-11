@@ -1346,6 +1346,19 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 					Send("{ENTER}")
 				EndIf
 				$pw = True
+			Case "passworttippen"
+				; wie "passwort", aber Firefox oeffnet seine Liste erst bei echtem Tippen: das letzte Zeichen
+				; der Kennung nachtippen, dann den ersten (darauf gefilterten) Eintrag waehlen
+				Local $kennung = Einst($s, "Kennung", "")
+				If Not $pw And WinActive($hFF) And $kennung <> "" Then
+					Send("{END}")
+					Send(StringRight($kennung, 1), 1)
+					Sleep(700)
+					Send("{DOWN}")
+					Sleep(300)
+					Send("{ENTER}")
+				EndIf
+				$pw = True
 			Case "code"
 				; Zwei-Faktor-Anmeldung: der Mensch tippt den Code aus der Mail ein und bestaetigt
 				If Not $code Then

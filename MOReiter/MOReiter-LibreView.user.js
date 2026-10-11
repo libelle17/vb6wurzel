@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.3
+// @version      1.4
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -14,8 +14,8 @@
 // wechselt die Seiten meist ohne Neuladen, daher schaut das Skript laufend nach, welche Seite gerade zu
 // sehen ist, und erledigt dort den naechsten Schritt. Fortschritt im Seitentitel "MOR:Nr:Zustand":
 //   land        Wohnsitzland/Sprache gewaehlt
-//   passwort    Anmeldeseite ohne Passwort: E-Mail-Feld hat den Fokus (MOReiter waehlt die gespeicherte
-//               Anmeldung aus der Firefox-Liste)
+//   passworttippen  Anmeldeseite: im E-Mail-Feld (Fokus) steht die Kennung ohne ihr letztes Zeichen; MOReiter
+//               tippt es nach und waehlt die gespeicherte Anmeldung aus der Firefox-Liste
 //   anmelden    Anmeldung abgeschickt (hoechstens einmal je Auftrag, sonst droht eine Sperre)
 //   anmeldefehler  LibreView hat E-Mail/Passwort abgelehnt
 //   ohnekennung keine Kennung vorgegeben: nicht automatisch anmelden
@@ -154,8 +154,17 @@
     if (seit(a, 'loginSeite') < 0) einmal(a, 'loginSeite');
     // Firefox erst eintragen lassen
     if (seit(a, 'loginSeite') < 1500) { titel(a, 'anmelden'); return true; }
+    // Firefox oeffnet seine Liste der gespeicherten Anmeldungen nur bei echtem Tippen: daher die Kennung ohne
+    // ihr letztes Zeichen einsetzen; MOReiter tippt es auf "passworttippen" nach und waehlt dann den ersten
+    // (auf diese Kennung gefilterten) Eintrag der Liste
+    var ohneLetztes = a.kennung.slice(0, -1);
     if (klein(em.value) != klein(a.kennung)) {
-      setze(em, a.kennung);
+      if (klein(em.value) == klein(ohneLetztes) && pw.value == '') {
+        if (einmal(a, 'passwortFrage')) em.focus();
+        titel(a, 'passworttippen');
+        return true;
+      }
+      setze(em, ohneLetztes);
       if (pw.value != '') setze(pw, '');
       stand = '';
       titel(a, 'anmelden');
@@ -169,9 +178,9 @@
       b.click();
       return true;
     }
-    // ohne Passwort: E-Mail-Feld fokussieren, MOReiter waehlt die passende Anmeldung aus der Firefox-Liste
-    if (pw.value == '' && einmal(a, 'passwortFrage')) em.focus();
-    titel(a, pw.value == '' ? 'passwort' : 'anmelden');
+    // Kennung vollstaendig, aber (noch) kein Passwort: Firefox traegt es nach der Auswahl ein; kommt keins,
+    // bleibt es dabei (MOReiter meldet dann "bitte selbst anmelden")
+    titel(a, 'anmelden');
     return true;
   }
   var stand = '', standSeit = 0;
