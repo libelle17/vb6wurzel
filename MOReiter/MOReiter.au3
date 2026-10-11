@@ -1339,8 +1339,14 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	If Not $hFF Then Return False
 	Local $t = TimerInit(), $max = Int(Einst($s, "Zeit", $defLaborZeit)), $z = "", $pw = False, $code = False
 	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
+	Local $tippen = 0
 	While TimerDiff($t) < $max
-		$z = FFZustand($hFF, $nr, $z, ($z = "") ? 15000 : $max - TimerDiff($t))
+		Local $warte = ($z = "") ? 15000 : $max - TimerDiff($t)
+		; "passworttippen" bleibt stehen, wenn das Zeichen nicht im Feld ankam: nach 3 s noch einmal
+		If $z = "passworttippen" Then $warte = 3000
+		Local $neu = FFZustand($hFF, $nr, $z, $warte)
+		If $neu = "" And $z = "passworttippen" Then $neu = $z
+		$z = $neu
 		Switch $z
 			Case ""
 				ExitLoop
@@ -1357,7 +1363,10 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				; wie "passwort", aber Firefox oeffnet seine Liste erst bei echtem Tippen: das letzte Zeichen
 				; der Kennung nachtippen, dann den ersten (darauf gefilterten) Eintrag waehlen
 				Local $kennung = Einst($s, "Kennung", "")
-				If Not $pw And WinActive($hFF) And $kennung <> "" Then
+				If $tippen < 3 And WinActive($hFF) And $kennung <> "" Then
+					$tippen += 1
+					; das Skript setzt den Fokus ins Feld
+					Sleep(300)
 					Send("{END}")
 					Send(StringRight($kennung, 1), 1)
 					Sleep(700)
@@ -1653,6 +1662,15 @@ Func Einfuegen($txt)
 	Local $alt = ClipGet(), $fehler = @error
 	; @error 1 = leer, 2 = kein Text, 3/4 = nicht lesbar
 	If $fehler >= 2 Then
+		; anderes als Text (Bild, Dateien ...): alle Formate sichern und danach wiederherstellen
+		Local $sich = AblageSichern()
+		If Not @error Then
+			ClipPut($txt)
+			Send("^v")
+			Sleep(200)
+			AblageZurueck($sich)
+			Return
+		EndIf
 		Local $verz = Opt("SendKeyDelay", 0)
 		Send($txt, 1)
 		Opt("SendKeyDelay", $verz)
@@ -1664,6 +1682,58 @@ Func Einfuegen($txt)
 	Sleep(200)
 	If $fehler = 0 Then ClipPut($alt)
 	If $fehler = 1 Then ClipPut("")
+EndFunc
+
+; Inhalt der Zwischenablage in allen Formaten mit Speicherblock (Text, Bilder als DIB, Dateilisten, HTML ...)
+; als Array [Format, Daten]; GDI-Formate (Bitmap, Metafile, Palette) erzeugt Windows beim Zurueckschreiben aus
+; den uebrigen. @error, wenn die Zwischenablage nicht zu oeffnen war
+Func AblageSichern()
+	Local $erg[0][2]
+	Local $r = DllCall("user32.dll", "bool", "OpenClipboard", "hwnd", 0)
+	If @error Or Not $r[0] Then Return SetError(1, 0, $erg)
+	Local $fmt = 0, $n = 0
+	While 1
+		$r = DllCall("user32.dll", "uint", "EnumClipboardFormats", "uint", $fmt)
+		If @error Or $r[0] = 0 Then ExitLoop
+		$fmt = $r[0]
+		; CF_BITMAP, CF_METAFILEPICT, CF_PALETTE, CF_ENHMETAFILE, CF_OWNERDISPLAY, CF_DSP...
+		If $fmt = 2 Or $fmt = 3 Or $fmt = 9 Or $fmt = 14 Or ($fmt >= 0x80 And $fmt <= 0x8E) Then ContinueLoop
+		Local $h = DllCall("user32.dll", "handle", "GetClipboardData", "uint", $fmt)
+		If @error Or Not $h[0] Then ContinueLoop
+		Local $gr = DllCall("kernel32.dll", "ulong_ptr", "GlobalSize", "handle", $h[0])
+		If @error Or $gr[0] = 0 Then ContinueLoop
+		Local $p = DllCall("kernel32.dll", "ptr", "GlobalLock", "handle", $h[0])
+		If @error Or Not $p[0] Then ContinueLoop
+		Local $daten = DllStructGetData(DllStructCreate("byte[" & $gr[0] & "]", $p[0]), 1)
+		DllCall("kernel32.dll", "bool", "GlobalUnlock", "handle", $h[0])
+		ReDim $erg[$n + 1][2]
+		$erg[$n][0] = $fmt
+		$erg[$n][1] = $daten
+		$n += 1
+	WEnd
+	DllCall("user32.dll", "bool", "CloseClipboard")
+	If $n = 0 Then Return SetError(2, 0, $erg)
+	Return $erg
+EndFunc
+
+Func AblageZurueck($a)
+	Local $r = DllCall("user32.dll", "bool", "OpenClipboard", "hwnd", 0)
+	If @error Or Not $r[0] Then Return False
+	DllCall("user32.dll", "bool", "EmptyClipboard")
+	For $i = 0 To UBound($a) - 1
+		Local $n = BinaryLen($a[$i][1])
+		; 2 = GMEM_MOVEABLE
+		Local $h = DllCall("kernel32.dll", "handle", "GlobalAlloc", "uint", 2, "ulong_ptr", $n)
+		If @error Or Not $h[0] Then ContinueLoop
+		Local $p = DllCall("kernel32.dll", "ptr", "GlobalLock", "handle", $h[0])
+		If @error Or Not $p[0] Then ContinueLoop
+		DllStructSetData(DllStructCreate("byte[" & $n & "]", $p[0]), 1, $a[$i][1])
+		DllCall("kernel32.dll", "bool", "GlobalUnlock", "handle", $h[0])
+		; gehoert danach der Zwischenablage
+		DllCall("user32.dll", "handle", "SetClipboardData", "uint", $a[$i][0], "handle", $h[0])
+	Next
+	DllCall("user32.dll", "bool", "CloseClipboard")
+	Return True
 EndFunc
 
 ; Seitentitel ohne " - Mozilla Firefox"

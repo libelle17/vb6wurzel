@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.6
+// @version      1.7
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -186,7 +186,8 @@
     var ohneLetztes = a.kennung.slice(0, -1);
     if (klein(em.value) != klein(a.kennung)) {
       if (klein(em.value) == klein(ohneLetztes) && pw.value == '') {
-        if (einmal(a, 'passwortFrage')) em.focus();
+        // Fokus bei jedem Takt zurueckholen, sonst landet das nachgetippte Zeichen woanders
+        if (document.activeElement !== em) em.focus();
         titel(a, 'passworttippen');
         return true;
       }
@@ -198,6 +199,14 @@
     }
     var jetzt = em.value + '\u0001' + pw.value;
     if (jetzt != stand) { stand = jetzt; standSeit = Date.now(); }
+    // Kennung vollstaendig, aber nach 3 s noch kein Passwort (Firefox-Liste nicht aufgegangen): wieder ohne
+    // letztes Zeichen, MOReiter tippt erneut (hoechstens dreimal)
+    if (pw.value == '' && Date.now() - standSeit > 3000) {
+      setze(em, ohneLetztes);
+      stand = '';
+      titel(a, 'passworttippen');
+      return true;
+    }
     if (pw.value != '' && Date.now() - standSeit >= 1000 && klein(em.value) == klein(a.kennung)) {
       einmal(a, 'anmelden');
       titel(a, 'anmelden');
@@ -210,6 +219,26 @@
     return true;
   }
   var stand = '', standSeit = 0;
+
+  // Schutz vor ungewolltem Abschicken (z.B. Enter von MOReiter, wenn die Firefox-Liste nicht aufging), solange
+  // ein Auftrag laeuft: nur mit E-Mail = Kennung und Passwort; zaehlt sonst womoeglich als Fehlversuch
+  function abschickenErlaubt() {
+    var a = auftrag(), em = $('loginForm-email-input'), pw = $('loginForm-password-input');
+    if (!a || !em || !pw) return true;
+    return a.kennung != '' && klein(em.value) == klein(a.kennung) && pw.value != '';
+  }
+  function abschickenPruefen(ev) {
+    var t = ev.target;
+    var login = t && (t.id == 'loginForm-submit-button' || (t.closest && t.closest('#loginForm-submit-button')) ||
+      (ev.type == 'submit' && t.querySelector && t.querySelector('#loginForm-email-input')));
+    if (login && !abschickenErlaubt()) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      console.log('MOReiter LibreView: Anmelden ohne passende E-Mail/Passwort verhindert');
+    }
+  }
+  window.addEventListener('submit', abschickenPruefen, true);
+  window.addEventListener('click', abschickenPruefen, true);
 
   // Zwei-Faktor, Schritt 1: Code per E-Mail anfordern
   function zweiFaktor(a) {
