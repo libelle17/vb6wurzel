@@ -186,7 +186,7 @@ Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHalt
 ; weil Windows einen Hook, der zu lange braucht, stillschweigend abhaengt
 Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
 ; Strg+Alt+Esc: MOReiter neu starten (NeustartPruefen), auch wenn es gerade in einer Aufgabe haengt
-Global $gNeustart = False
+Global $gNeustart = False, $gHookAdlib = TimerInit()
 ; offenes Hilfefenster (0 = keins)
 Global $gHilfe = 0
 ; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
@@ -234,6 +234,9 @@ EndIf
 OnAutoItExitRegister("HookEntfernen")
 ; Adlib laeuft auch waehrend der Sleeps in einer gerade laufenden Aufgabe
 AdlibRegister("NeustartPruefen", 250)
+; Strg+Alt+Esc auch als Hotkey des Systems: haengt MOReiter in einer Aufgabe, hat Windows den Hook evtl.
+; schon abgehaengt (dann kaeme Alt+Esc, Fensterwechsel, durch); laeuft der Hook, schluckt er die Taste vorher
+HotKeySet("^!{ESC}", "NeustartTaste")
 Local $erneuert = TimerInit()
 ; kurzes Sleep, damit der Hook die Tastatur nicht spuerbar verzoegert
 While 1
@@ -2679,8 +2682,17 @@ Func HinweisStehend($txt)
 	ToolTip($txt, Default, Default, "MOReiter")
 EndFunc
 
-; Strg+Alt+Esc: eine neue Instanz starten (wartet, bis diese beendet ist) und diese beenden
+Func NeustartTaste()
+	$gNeustart = True
+EndFunc
+
+; Strg+Alt+Esc: eine neue Instanz starten (wartet, bis diese beendet ist) und diese beenden. Ausserdem den
+; Hook auch waehrend einer laufenden Aufgabe alle 5 s neu einhaengen (sonst nur in der Hauptschleife)
 Func NeustartPruefen()
+	If TimerDiff($gHookAdlib) > 5000 Then
+		HookErneuern()
+		$gHookAdlib = TimerInit()
+	EndIf
 	If Not $gNeustart Then Return
 	$gNeustart = False
 	ToolTip("MOReiter startet neu", Default, Default, "MOReiter")
