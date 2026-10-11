@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.3
+// @version      1.4
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
@@ -253,6 +253,7 @@
   // (Klick zu frueh, bevor Glooko bereit war), noch hoechstens zweimal
   function pdfFenster(a) {
     var b = $('[data-testid="button-pdf-create-pdf"]');
+    if (!sichtbar(b)) b = mitText('button', 'PDF erstellen');
     if (!sichtbar(b)) return false;
     titel(a, 'patient');
     if (aktiv(b) && einmal(a, 'pdfErstellt')) { klicke(b); titel(a, 'fertig'); return true; }
@@ -264,6 +265,18 @@
       klicke(b);
     }
     titel(a, 'fertig');
+    return true;
+  }
+
+  // Auswahlfenster nach dem Klick auf einen (doppelt eingetragenen) Patienten: "Daten anzeigen"; Knopf nur ueber
+  // seine Aufschrift bekannt
+  function auswahlFenster(a) {
+    var b = mitText('button, a, [role="button"]', 'Daten anzeigen');
+    if (!b) return false;
+    titel(a, 'patient');
+    if (!aktiv(b)) return true;
+    if (einmal(a, 'datenKlick')) klicke(b);
+    else if (seit(a, 'datenKlick') > 5000 && einmal(a, 'datenKlick2')) klicke(b);
     return true;
   }
 
@@ -362,7 +375,7 @@
     if (!document.body) return;
     try {
       cookies(a);
-      anmelden(a) || pdfRahmen(a) || pdfFenster(a) || patientSeite(a) || liste(a) || titel(a, zustand || 'suche');
+      anmelden(a) || pdfRahmen(a) || pdfFenster(a) || auswahlFenster(a) || patientSeite(a) || liste(a) || titel(a, zustand || 'suche');
     } catch (e) {
       titel(a, 'fehler ' + e.message);
       erledigt();
