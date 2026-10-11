@@ -1521,6 +1521,9 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 			ToolTip("")
 		EndIf
 		If $neu <> "" Then $gemeldet = True
+		; Fortschritt: nach jedem neuen Zustand noch mindestens 60 s, damit langsame Seiten (Glooko: Suche,
+		; Auswahl, PDF) nicht kurz vor dem letzten Schritt an Zeit= scheitern
+		If $neu <> "" And $neu <> $z And $max < TimerDiff($t) + 60000 Then $max = TimerDiff($t) + 60000
 		$z = $neu
 		Switch $z
 			Case ""
@@ -1568,10 +1571,17 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				EndIf
 			Case "enter"
 				; das Skript hat einem Knopf den Fokus gegeben, der nur auf eine echte Benutzeraktion reagiert
-				; (Glooko "PDF erstellen"); hoechstens dreimal, alle 6 s
-				If $enter < 3 And WinActive($hFF) Then
-					$enter += 1
-					Send("{ENTER}")
+				; (Glooko "PDF erstellen"); alle 6 s, hoechstens fuenfmal. Hat ein Popup (z.B. Kontextmenue)
+				; den Fokus, ist Firefox nicht aktiv: dann erst wieder aktivieren
+				If $enter < 5 Then
+					If Not WinActive($hFF) Then
+						WinActivate($hFF)
+						WinWaitActive($hFF, "", 1)
+					EndIf
+					If WinActive($hFF) Then
+						$enter += 1
+						Send("{ENTER}")
+					EndIf
 				EndIf
 			Case "anmelden", "suche", "land", "zweifaktor", "patient"
 				If $code Then ToolTip("")
