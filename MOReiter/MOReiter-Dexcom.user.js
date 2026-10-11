@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Dexcom
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.0
+// @version      1.1
 // @description  Dexcom Clarity (Praxis): Patient nach Name und Geburtsdatum suchen, dann Bericht speichern oder interaktive Berichte (Auftrag von MOReiter, Strg+D)
 // @match        https://clarity.dexcom.eu/*
 // @grant        none
@@ -101,10 +101,15 @@
     return null;
   }
 
+  // Vornamen: Bindestrich wie Leerzeichen; es genuegt, dass alle Teile des kuerzeren im laengeren vorkommen
+  // ("Hans-Peter" in MO passt zu "Hans Peter", "Hans" oder "Peter" im Portal); das Geburtsdatum entscheidet mit
+  function teile(s) { return klein(s).split(/[\s-]+/).filter(function (x) { return x != ''; }); }
   function namePasst(a, nach, vor) {
-    var n1 = klein(a.name), n2 = klein(nach), v1 = klein(a.vor), v2 = klein(vor);
-    if (n1 != n2) return false;
-    return v1 == v2 || v1.indexOf(v2 + ' ') == 0 || v2.indexOf(v1 + ' ') == 0;
+    if (teile(a.name).join(' ') != teile(nach).join(' ')) return false;
+    var v1 = teile(a.vor), v2 = teile(vor);
+    if (!v1.length || !v2.length) return false;
+    var kurz = v1.length <= v2.length ? v1 : v2, lang = kurz === v1 ? v2 : v1;
+    return kurz.every(function (x) { return lang.indexOf(x) >= 0; });
   }
 
   var monate = ['januar', 'februar', 'maerz', 'april', 'mai', 'juni', 'juli', 'august', 'september',
@@ -248,8 +253,13 @@
   }
 
   // Patientenliste: suchen, passende Zeile (Name "Nachname, Vorname", Geburtsdatum) anklicken
-  var suchFolge = [function (a) { return a.name; }, function (a) { return a.name + ', ' + a.vor; },
-                   function (a) { return a.vor + ' ' + a.name; }];
+  // Suchtexte: Nachname, "Nachname, Vorname", "Vorname Nachname", bei mehrteiligen Vornamen (Hans-Peter)
+  // noch "Nachname, Hans" und "Nachname, Peter"
+  function suchTexte(a) {
+    var l = [a.name, a.name + ', ' + a.vor, a.vor + ' ' + a.name], v = teile(a.vor);
+    if (v.length > 1) v.forEach(function (x) { l.push(a.name + ', ' + x.charAt(0).toUpperCase() + x.slice(1)); });
+    return l;
+  }
   function liste(a) {
     var feld = $('input[type="search"]');
     var zeilen = document.querySelectorAll('tr.patient-list-row, tr[data-testid="patient-list-row"]');
@@ -269,14 +279,14 @@
     if (!feld) return true;
     if (seit(a, 'liste') < 0) { einmal(a, 'liste'); return true; }
     var k = a.schritte.suchNr || 0;
-    if (k < suchFolge.length && (k == 0 || seit(a, 'suche' + (k - 1)) > 4000) && einmal(a, 'suche' + k)) {
+    if (k < suchTexte(a).length && (k == 0 || seit(a, 'suche' + (k - 1)) > 4000) && einmal(a, 'suche' + k)) {
       a.schritte.suchNr = k + 1;
       merken(a);
       feld.focus();
-      setze(feld, suchFolge[k](a));
+      setze(feld, suchTexte(a)[k]);
       return true;
     }
-    if (k >= suchFolge.length && seit(a, 'suche' + (suchFolge.length - 1)) > 5000 && seit(a, 'zeileKlick') < 0) {
+    if (k >= suchTexte(a).length && seit(a, 'suche' + (suchTexte(a).length - 1)) > 5000 && seit(a, 'zeileKlick') < 0) {
       titel(a, 'nichts');
       erledigt();
     }

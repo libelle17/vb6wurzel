@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.10
+// @version      1.11
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -105,10 +105,15 @@
   function klein(s) { return (s || '').toLocaleLowerCase('de').replace(/\s+/g, ' ').trim(); }
 
   // Vorname: "Hans Peter" in MO passt zu "Hans" in LibreView und umgekehrt
+  // Vornamen: Bindestrich wie Leerzeichen; es genuegt, dass alle Teile des kuerzeren im laengeren vorkommen
+  // ("Hans-Peter" in MO passt zu "Hans Peter", "Hans" oder "Peter" im Portal); das Geburtsdatum entscheidet mit
+  function teile(s) { return klein(s).split(/[\s-]+/).filter(function (x) { return x != ''; }); }
   function namePasst(a, nach, vor) {
-    var n1 = klein(a.name), n2 = klein(nach), v1 = klein(a.vor), v2 = klein(vor);
-    if (n1 != n2) return false;
-    return v1 == v2 || v1.indexOf(v2 + ' ') == 0 || v2.indexOf(v1 + ' ') == 0;
+    if (teile(a.name).join(' ') != teile(nach).join(' ')) return false;
+    var v1 = teile(a.vor), v2 = teile(vor);
+    if (!v1.length || !v2.length) return false;
+    var kurz = v1.length <= v2.length ? v1 : v2, lang = kurz === v1 ? v2 : v1;
+    return kurz.every(function (x) { return lang.indexOf(x) >= 0; });
   }
 
   var monate = ['januar', 'februar', 'maerz', 'april', 'mai', 'juni', 'juli', 'august', 'september',
@@ -283,8 +288,13 @@
   // Dashboard: Patient in der Tabelle (die LibreView erst beim Scrollen weiter laedt: daher selbst ans Ende
   // scrollen, bis keine Zeilen mehr dazukommen) und zugleich ueber die Patientensuche (erst Nachname, dann
   // "Vorname Nachname", dann "Nachname, Vorname"); aufgegeben wird nach 60 s
-  var suchFolge = [function (a) { return a.name; }, function (a) { return a.vor + ' ' + a.name; },
-                   function (a) { return a.name + ', ' + a.vor; }];
+  // Suchtexte: Nachname, "Vorname Nachname", "Nachname, Vorname", bei mehrteiligen Vornamen (Hans-Peter)
+  // noch "Hans Nachname" und "Peter Nachname"
+  function suchTexte(a) {
+    var l = [a.name, a.vor + ' ' + a.name, a.name + ', ' + a.vor], v = teile(a.vor);
+    if (v.length > 1) v.forEach(function (x) { l.push(x.charAt(0).toUpperCase() + x.slice(1) + ' ' + a.name); });
+    return l;
+  }
   var zeilenZahl = -1, zeilenSeit = 0;
   function dashboard(a) {
     if (!/^\/dashboard/.test(location.pathname)) return false;
@@ -314,10 +324,10 @@
     var huelle = $('main-header-patient-search-wrapper'), ein = $('main-header-patient-search-inner-input');
     if (huelle && ein) {
       var n = a.schritte.suchNr || 0;
-      if (n < suchFolge.length && (n == 0 || seit(a, 'suche' + (n - 1)) > 4000) && einmal(a, 'suche' + n)) {
+      if (n < suchTexte(a).length && (n == 0 || seit(a, 'suche' + (n - 1)) > 4000) && einmal(a, 'suche' + n)) {
         a.schritte.suchNr = n + 1;
         merken(a);
-        var text = suchFolge[n](a);
+        var text = suchTexte(a)[n];
         klicke(huelle);
         setTimeout(function () { ein.focus(); setze(ein, text); }, 300);
         return true;
@@ -334,7 +344,7 @@
     }
     // nicht in LibreView: Tabelle waechst nicht mehr und alle Suchen sind durch; spaetestens nach 60 s
     var fertigGesucht = zeilen.length && Date.now() - zeilenSeit > 4000 &&
-      seit(a, 'suche' + (suchFolge.length - 1)) > 4000;
+      seit(a, 'suche' + (suchTexte(a).length - 1)) > 4000;
     if ((fertigGesucht || seit(a, 'dashboard') > 60000) && seit(a, 'patientKlick') < 0) {
       bericht(a, zeilen, document.querySelector('[class*="searchResults"]') || document.body);
       titel(a, 'nichts');
