@@ -162,6 +162,7 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               AddOn=...          .xpi-Datei oder Adresse von Tampermonkey
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
               Ablage=, Datei=    heruntergeladene PDFs des Patienten verschieben (s. PROGRAMMAUFRUFE)
+              Name=              dabei umbenennen ({vor}, {nach}, {TT}, {MM}, {JJJJ}), z.B. Glooko
 [LibreView], [Dexcom], [Glooko]  wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
 [Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
               Protokoll=1        diese Tasten mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log

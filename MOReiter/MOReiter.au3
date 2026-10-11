@@ -195,7 +195,7 @@ Global $gAufrufProtokoll = False, $gProtokoll = "", $gFokusInfo = ""
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen
-Global $gAblagen[0][6], $gAblagenGeprueft = 0
+Global $gAblagen[0][7], $gAblagenGeprueft = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
@@ -1364,13 +1364,23 @@ Func AblageMerken($s, $nach, $vor)
 	; Herunterladedatum (heute)
 	$muster = StringReplace(StringReplace(StringReplace($muster, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 	Local $n = UBound($gAblagen)
-	ReDim $gAblagen[$n + 1][6]
+	ReDim $gAblagen[$n + 1][7]
 	$gAblagen[$n][0] = $s
 	$gAblagen[$n][1] = StringRegExpReplace($ziel, "\\$", "")
 	$gAblagen[$n][2] = TimerInit()
 	$gAblagen[$n][3] = DownloadPdfs()
 	$gAblagen[$n][4] = ""
 	$gAblagen[$n][5] = "(?i)^" & $muster & "$"
+	; Name= : beim Verschieben so umbenennen (wenn das Portal den Namen selbst waehlt, z.B. Glooko "glooko-1.pdf");
+	; {vor}, {nach} ohne Leerzeichen und Zeichen, die in Dateinamen nicht erlaubt sind
+	Local $name = Einst($s, "Name", "")
+	If $name <> "" Then
+		Local $weg = "[\s\\/:*?""<>|]+"
+		$name = StringReplace($name, "{vor}", StringRegExpReplace($vor, $weg, ""))
+		$name = StringReplace($name, "{nach}", StringRegExpReplace($nach, $weg, ""))
+		$name = StringReplace(StringReplace(StringReplace($name, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
+	EndIf
+	$gAblagen[$n][6] = $name
 EndFunc
 
 ; regulaerer Ausdruck fuer einen Namen, wie ihn ein Portal in Dateinamen schreiben kann: ae/oe/ue/ss oder
@@ -1416,9 +1426,9 @@ Func AblagenPruefen()
 				ContinueLoop
 			EndIf
 			If $gr = 0 Or TimerDiff(Number($alt[2])) < 3000 Then ContinueLoop
-			Local $ziel = AblageName($gAblagen[$i][1], $f)
+			Local $ziel = AblageName($gAblagen[$i][1], ($gAblagen[$i][6] = "") ? $f : $gAblagen[$i][6])
 			If FileMove($dl & "\" & $f, $ziel) Then
-				Hinweis($gAblagen[$i][0] & ": " & $f & " nach " & $gAblagen[$i][1] & " verschoben")
+				Hinweis($gAblagen[$i][0] & ": " & $f & " als " & $ziel & " abgelegt")
 				; fuer andere Auftraege nicht mehr neu
 				For $j = 0 To UBound($gAblagen) - 1
 					$gAblagen[$j][3] &= $f & "|"
@@ -1443,11 +1453,11 @@ EndFunc
 Func AblageWeg($i)
 	Local $n = UBound($gAblagen)
 	For $j = $i To $n - 2
-		For $k = 0 To 5
+		For $k = 0 To 6
 			$gAblagen[$j][$k] = $gAblagen[$j + 1][$k]
 		Next
 	Next
-	ReDim $gAblagen[$n - 1][6]
+	ReDim $gAblagen[$n - 1][7]
 EndFunc
 
 ; steht dieser PC in der Komma-Liste $liste (gross/klein egal)?
