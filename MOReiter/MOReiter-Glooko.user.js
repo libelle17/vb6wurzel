@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.0
+// @version      1.1
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
@@ -94,7 +94,9 @@
   function klicke(el) {
     try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
     var r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
-    var opt = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0, buttons: 1 };
+    // ohne "view": wegen @grant GM_* laeuft das Skript in Firefox abgeschottet, dort ist "window" nicht das
+    // Fenster der Seite, und der MouseEvent-Konstruktor lehnt es ab
+    var opt = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons: 1 };
     if (window.PointerEvent) el.dispatchEvent(new PointerEvent('pointerdown', Object.assign({ pointerId: 1, isPrimary: true }, opt)));
     el.dispatchEvent(new MouseEvent('mousedown', opt));
     opt.buttons = 0;
@@ -303,6 +305,17 @@
       merken(a);
       feld.focus();
       setze(feld, suchTexte(a)[k]);
+      // Glooko filtert die grosse Liste erst nach Enter (Abschicken des Suchformulars); die Vorschlagsliste
+      // unter dem Feld wird nicht gebraucht
+      setTimeout(function () {
+        var f = feld.form;
+        if (f && f.requestSubmit) f.requestSubmit();
+        else {
+          ['keydown', 'keypress', 'keyup'].forEach(function (t) {
+            feld.dispatchEvent(new KeyboardEvent(t, { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 }));
+          });
+        }
+      }, 700);
       return true;
     }
     if (k >= suchTexte(a).length && seit(a, 'suche' + (suchTexte(a).length - 1)) > 5000 && seit(a, 'zeileKlick') < 0) {
