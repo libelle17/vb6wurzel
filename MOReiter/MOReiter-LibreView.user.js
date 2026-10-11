@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.9
+// @version      1.10
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-LibreView.user.js
+// @downloadURL  https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-LibreView.user.js
 // @run-at       document-start
 // ==/UserScript==
 
@@ -27,7 +29,7 @@
 //               drucken/speichern" aktiv ist, und drueckt ihn
 //   gedruckt    "PDF drucken/speichern" gedrueckt
 //   keinedaten  Patient ohne Glukosedaten (nach 90 s kein Knopf "Glukose-Berichte")
-//   liste       nach 60 s kein Patient mit passendem Namen und Geburtsdatum
+//   nichts      Patient nicht in LibreView (Tabelle bis zum Ende und alle Suchen ohne Treffer)
 //   fehler ...  sonstiger Fehler
 (function () {
   'use strict';
@@ -312,7 +314,7 @@
     var huelle = $('main-header-patient-search-wrapper'), ein = $('main-header-patient-search-inner-input');
     if (huelle && ein) {
       var n = a.schritte.suchNr || 0;
-      if (n < suchFolge.length && (n == 0 || seit(a, 'suche' + (n - 1)) > 6000) && einmal(a, 'suche' + n)) {
+      if (n < suchFolge.length && (n == 0 || seit(a, 'suche' + (n - 1)) > 4000) && einmal(a, 'suche' + n)) {
         a.schritte.suchNr = n + 1;
         merken(a);
         var text = suchFolge[n](a);
@@ -330,9 +332,12 @@
         }
       }
     }
-    if (seit(a, 'dashboard') > 60000 && seit(a, 'patientKlick') < 0) {
+    // nicht in LibreView: Tabelle waechst nicht mehr und alle Suchen sind durch; spaetestens nach 60 s
+    var fertigGesucht = zeilen.length && Date.now() - zeilenSeit > 4000 &&
+      seit(a, 'suche' + (suchFolge.length - 1)) > 4000;
+    if ((fertigGesucht || seit(a, 'dashboard') > 60000) && seit(a, 'patientKlick') < 0) {
       bericht(a, zeilen, document.querySelector('[class*="searchResults"]') || document.body);
-      titel(a, 'liste');
+      titel(a, 'nichts');
       erledigt();
     }
     return true;
