@@ -78,6 +78,9 @@ Ordner erscheinendes PDF des Patienten dorthin (bis 30 Minuten lang); Datei= ist
 Ausdruck, {vor} und {nach} stehen für Vor- und Nachnamen (Umlaute auch als ae usw.), {TT} {MM}
 {JJJJ} für das heutige Datum.
 Läuft in einem LibreView-Tab noch ein Auftrag, öffnet ein neuer Aufruf einen eigenen Tab.
+Dexcom Clarity (z.B. Strg+D=Portal:Dexcom, Abschnitt [Dexcom]): Patient über die Suche nach Name und
+Geburtsdatum; auf den PCs in SpeichernAuf= "Bericht speichern oder drucken" mit Tage= und "Bericht
+speichern", sonst "Zu interaktiven Berichten wechseln".
 
 
 DIAGNOSEERFASSUNG
@@ -156,6 +159,8 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               Skript=...         Adresse des Benutzerskripts (Voreinstellung: GitHub)
               AddOn=...          .xpi-Datei oder Adresse von Tampermonkey
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
+              Ablage=, Datei=    heruntergeladene PDFs des Patienten verschieben (s. PROGRAMMAUFRUFE)
+[LibreView], [Dexcom] ...    wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
 [Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
               Protokoll=1        diese Tasten mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog

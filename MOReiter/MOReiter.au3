@@ -1295,7 +1295,7 @@ EndFunc
 ; Strg+Alt+B: Laborbefunde des Patienten im Firefox, ebenso andere Portale (Abschnitt $s in der INI, z.B.
 ; [LibreView], aufgerufen ueber [Aufrufe] Strg+L=Portal:LibreView). MOReiter waehlt den Tab mit dem Portal
 ; (oder einen neuen) und oeffnet dort die Portaladresse mit dem Auftrag "#mor=Nachname;Vorname;Geburtsdatum;
-; Kennung;Nr;PC-Name"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-<Abschnitt>.user.js
+; Kennung;Nr;PC-Name;Art;Tage"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-<Abschnitt>.user.js
 ; (Tampermonkey), das seinen Fortschritt im Seitentitel "MOR:Nr:Zustand" meldet.
 Func Labor()
 	Return Portal("Labor")
@@ -1450,6 +1450,14 @@ Func AblageWeg($i)
 	ReDim $gAblagen[$n - 1][6]
 EndFunc
 
+; steht dieser PC in der Komma-Liste $liste (gross/klein egal)?
+Func PCInListe($liste)
+	For $pc In StringSplit($liste, ",", 2)
+		If StringStripWS($pc, 3) <> "" And StringStripWS($pc, 3) = @ComputerName Then Return True
+	Next
+	Return False
+EndFunc
+
 ; Voreinstellungen je Portal: Seitentitel, Adresse des Benutzerskripts
 Func PortalTitel($s)
 	Return Einst($s, "Titel", ($s = "Labor") ? $defLaborTitel : $s)
@@ -1462,8 +1470,11 @@ EndFunc
 ; schickt den Auftrag ans Portal und verfolgt ihn; @extended = 1: keine Antwort vom Benutzerskript
 Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	Local $nr = Random(1000, 9999, 1)
+	; Art je PC: auf den in SpeichernAuf= genannten PCs "speichern" (z.B. Dexcom: Bericht als PDF), sonst Art=
+	Local $art = PCInListe(Einst($s, "SpeichernAuf", "")) ? "speichern" : Einst($s, "Art", "")
 	Local $url = $portal & "#mor=" & UrlKodiert($nach) & ";" & UrlKodiert($vor) & ";" & UrlKodiert($geb) & ";" _
-			& UrlKodiert(Einst($s, "Kennung", "")) & ";" & $nr & ";" & UrlKodiert(@ComputerName)
+			& UrlKodiert(Einst($s, "Kennung", "")) & ";" & $nr & ";" & UrlKodiert(@ComputerName) & ";" _
+			& UrlKodiert($art) & ";" & UrlKodiert(Einst($s, "Tage", ""))
 	Local $hFF = FirefoxOeffnen($url, PortalTitel($s), $s)
 	If Not $hFF Then Return False
 	Local $t = TimerInit(), $max = Int(Einst($s, "Zeit", $defLaborZeit)), $z = "", $pw = False, $code = False
