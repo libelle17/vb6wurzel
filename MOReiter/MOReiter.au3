@@ -1506,14 +1506,20 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	Local $t = TimerInit(), $max = Int(Einst($s, "Zeit", $defLaborZeit)), $z = "", $pw = False, $code = False
 	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
 	; $gemeldet: das Skript hat sich mindestens einmal gemeldet; laeuft danach die Zeit ab, fehlt es nicht
-	Local $tippen = 0, $gemeldet = False, $enter = 0
+	Local $tippen = 0, $gemeldet = False, $enter = 0, $liste = 0, $selbst = False
 	While TimerDiff($t) < $max
 		Local $warte = ($z = "") ? 15000 : $max - TimerDiff($t)
 		; "passworttippen" bleibt stehen, wenn das Zeichen nicht im Feld ankam: nach 3 s noch einmal
 		If $z = "passworttippen" Then $warte = 3000
 		If $z = "enter" Then $warte = 6000
+		If $z = "passwort" Then $warte = 3000
 		Local $neu = FFZustand($hFF, $nr, $z, $warte)
-		If $neu = "" And ($z = "passworttippen" Or $z = "enter") Then $neu = $z
+		If $neu = "" And ($z = "passworttippen" Or $z = "enter" Or $z = "passwort") Then $neu = $z
+		; Anmeldung geht weiter: Hinweis zum Selbst-Anmelden weg
+		If $selbst And $neu <> "passwort" And $neu <> "passworttippen" Then
+			$selbst = False
+			ToolTip("")
+		EndIf
 		If $neu <> "" Then $gemeldet = True
 		$z = $neu
 		Switch $z
@@ -1521,11 +1527,20 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				ExitLoop
 			Case "passwort"
 				; Firefox-Liste der gespeicherten Anmeldungen im Kennungsfeld aufklappen und die erste
-				; waehlen; das Skript schickt die Anmeldung ab, sobald das Passwort drinsteht
-				If Not $pw And WinActive($hFF) Then
-					Send("{DOWN}")
-					Sleep(300)
-					Send("{ENTER}")
+				; waehlen; das Skript schickt die Anmeldung ab, sobald das Passwort drinsteht. Die Liste
+				; erscheint nicht immer gleich: alle 3 s, hoechstens dreimal; dann den Menschen bitten
+				If $liste < 3 Then
+					If WinActive($hFF) Then
+						$liste += 1
+						Send("{DOWN}")
+						Sleep(300)
+						Send("{ENTER}")
+					EndIf
+				ElseIf Not $selbst Then
+					$selbst = True
+					$max = TimerDiff($t) + 180000
+					HinweisStehend($s & ": bitte im Firefox anmelden (gespeicherte Anmeldung aus der Liste unter ""Username"" waehlen); " & _
+							"danach geht es von selbst weiter")
 				EndIf
 				$pw = True
 			Case "passworttippen"
@@ -1578,7 +1593,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				Return Meldung($s & ": " & $z)
 		EndSwitch
 	WEnd
-	If $code Then ToolTip("")
+	If $code Or $selbst Then ToolTip("")
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
 	If Not $gemeldet Then Return SetExtended(1, False)
 	; PDF evtl. doch erstellt (Fertigmeldung verpasst): ein noch erscheinendes trotzdem ablegen
