@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.4
+// @version      1.5
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
@@ -20,7 +20,8 @@
 // erstellen", "PDF erstellen", das angezeigte PDF wird als VornameNachname_Glooko_TT-MM-JJJJ.pdf heruntergeladen
 // (MOReiter verschiebt es mit [Glooko] Ablage=/Datei=). Fortschritt im Seitentitel "MOR:Nr:Zustand":
 //   passwort / passworttippen / anmelden / anmeldefehler   Anmeldung (hoechstens ein Versuch je Auftrag)
-//   suche, patient, fertig (PDF wird erstellt, MOReiter ist fertig), gedruckt (heruntergeladen), nichts, fehler ...
+//   suche, patient, enter (MOReiter soll Enter druecken), fertig (PDF wird angezeigt), gedruckt (heruntergeladen),
+//   nichts, fehler ...
 (function () {
   'use strict';
   var schluessel = 'MOReiterGlooko';
@@ -249,22 +250,20 @@
     return true;
   }
 
-  // Fenster "PDF erstellen": Knopf druecken, sobald aktiv; steht das Fenster 8 s spaeter noch ohne PDF da
-  // (Klick zu frueh, bevor Glooko bereit war), noch hoechstens zweimal
+  // Fenster "PDF erstellen": Knopf druecken, sobald aktiv. Auf einen nachgebildeten Klick reagiert Glooko hier
+  // nicht immer (verlangt wohl eine echte Benutzeraktion): steht das Fenster 4 s spaeter noch ohne PDF da,
+  // bekommt der Knopf den Fokus und der Titel "enter", MOReiter drueckt dann echt Enter
   function pdfFenster(a) {
     var b = $('[data-testid="button-pdf-create-pdf"]');
     if (!sichtbar(b)) b = mitText('button', 'PDF erstellen');
     if (!sichtbar(b)) return false;
     titel(a, 'patient');
-    if (aktiv(b) && einmal(a, 'pdfErstellt')) { klicke(b); titel(a, 'fertig'); return true; }
-    if (seit(a, 'pdfErstellt') < 0) return true;
-    var n = a.schritte.pdfKlicks || 1;
-    if (aktiv(b) && n < 3 && seit(a, 'pdfErstellt') > 8000 * n) {
-      a.schritte.pdfKlicks = n + 1;
-      merken(a);
-      klicke(b);
+    if (!aktiv(b)) return true;
+    if (einmal(a, 'pdfErstellt')) { klicke(b); return true; }
+    if (seit(a, 'pdfErstellt') > 4000) {
+      if (document.activeElement !== b) b.focus();
+      titel(a, 'enter');
     }
-    titel(a, 'fertig');
     return true;
   }
 

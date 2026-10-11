@@ -1480,13 +1480,14 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	Local $t = TimerInit(), $max = Int(Einst($s, "Zeit", $defLaborZeit)), $z = "", $pw = False, $code = False
 	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
 	; $gemeldet: das Skript hat sich mindestens einmal gemeldet; laeuft danach die Zeit ab, fehlt es nicht
-	Local $tippen = 0, $gemeldet = False
+	Local $tippen = 0, $gemeldet = False, $enter = 0
 	While TimerDiff($t) < $max
 		Local $warte = ($z = "") ? 15000 : $max - TimerDiff($t)
 		; "passworttippen" bleibt stehen, wenn das Zeichen nicht im Feld ankam: nach 3 s noch einmal
 		If $z = "passworttippen" Then $warte = 3000
+		If $z = "enter" Then $warte = 6000
 		Local $neu = FFZustand($hFF, $nr, $z, $warte)
-		If $neu = "" And $z = "passworttippen" Then $neu = $z
+		If $neu = "" And ($z = "passworttippen" Or $z = "enter") Then $neu = $z
 		If $neu <> "" Then $gemeldet = True
 		$z = $neu
 		Switch $z
@@ -1524,9 +1525,17 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 					$max = TimerDiff($t) + 300000
 					HinweisStehend($s & ": bitte den Code aus der Mail eingeben und ""Bestaetigen und Anmelden"" druecken")
 				EndIf
+			Case "enter"
+				; das Skript hat einem Knopf den Fokus gegeben, der nur auf eine echte Benutzeraktion reagiert
+				; (Glooko "PDF erstellen"); hoechstens dreimal, alle 6 s
+				If $enter < 3 And WinActive($hFF) Then
+					$enter += 1
+					Send("{ENTER}")
+				EndIf
 			Case "anmelden", "suche", "land", "zweifaktor", "patient"
 				If $code Then ToolTip("")
-			Case "fertig"
+			; "gedruckt" kann "fertig" so schnell folgen, dass dieses nie im Titel zu sehen war
+			Case "fertig", "gedruckt"
 				AblageMerken($s, $nach, $vor)
 				Return True
 			Case "liste"
