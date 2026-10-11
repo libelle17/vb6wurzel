@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Dexcom
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.2
+// @version      1.3
 // @description  Dexcom Clarity (Praxis): Patient nach Name und Geburtsdatum suchen, dann Bericht speichern oder interaktive Berichte (Auftrag von MOReiter, Strg+D)
 // @match        https://clarity.dexcom.eu/*
 // @grant        none
@@ -203,10 +203,18 @@
   window.addEventListener('submit', abschickenPruefen, true);
   window.addEventListener('click', abschickenPruefen, true);
 
-  // Fenster "Bericht speichern oder drucken": Zeitraum, dann "Bericht speichern"; danach warten, bis erstellt
+  // Fenster "Bericht speichern oder drucken" (Patientenliste) bzw. "Herunterladen" (interaktive Berichte), beide
+  // gleich aufgebaut: Zeitraum, dann "Bericht speichern"; danach warten, bis erstellt. Gesucht wird im Fenster,
+  // die interaktiven Berichte haben dahinter eine eigene Zeitraumleiste
   function berichtFenster(a) {
-    var h = mitText('h1', 'Bericht speichern oder drucken');
+    var h = mitText('h1', 'Bericht speichern oder drucken') || mitText('h1', 'Herunterladen');
     if (!h) return false;
+    var fenster = h.closest('dialog-window, .dialog-window, .modal-dialog, [role="dialog"]') || h.parentElement || document;
+    function imFenster(sel, text) {
+      var l = fenster.querySelectorAll(sel);
+      for (var i = 0; i < l.length; i++) if ((!text || klein(l[i].textContent) == klein(text)) && sichtbar(l[i])) return l[i];
+      return null;
+    }
     if (seit(a, 'gespeichert') >= 0) {
       titel(a, 'fertig');
       if (/Ihr Bericht wurde erstellt/i.test(document.body.innerText)) { titel(a, 'gedruckt'); erledigt(); freigeben(); }
@@ -215,15 +223,15 @@
     titel(a, 'patient');
     var tage = a.tage;
     if (tage && !a.schritte.zeitraum) {
-      var leiste = $('.date-range-picker__bar');
-      var knopf = mitText('button.btn-sm', tage);
+      var leiste = imFenster('.date-range-picker__bar');
+      var knopf = imFenster('button.btn-sm', tage) || mitText('button.btn-sm', tage);
       if (knopf) { klicke(knopf); einmal(a, 'zeitraum'); return true; }
       if (leiste && einmal(a, 'zeitraumAuf')) { klicke(leiste); return true; }
       // Auswahl nicht zu finden: nach 5 s mit dem voreingestellten Zeitraum weiter
       if (seit(a, 'zeitraumAuf') < 5000) return true;
       einmal(a, 'zeitraum');
     }
-    var sp = mitText('button', 'Bericht speichern');
+    var sp = imFenster('button', 'Bericht speichern');
     if (aktiv(sp) && (!tage || seit(a, 'zeitraum') > 1000)) {
       einmal(a, 'gespeichert');
       klicke(sp);
