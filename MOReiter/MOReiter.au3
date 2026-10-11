@@ -237,6 +237,8 @@ AdlibRegister("NeustartPruefen", 250)
 ; Strg+Alt+Esc auch als Hotkey des Systems: haengt MOReiter in einer Aufgabe, hat Windows den Hook evtl.
 ; schon abgehaengt (dann kaeme Alt+Esc, Fensterwechsel, durch); laeuft der Hook, schluckt er die Taste vorher
 HotKeySet("^!{ESC}", "NeustartTaste")
+; der Hinweis der alten Instanz verschwindet mit ihr: hier 3 s lang bestaetigen
+If $CmdLine[0] > 0 And $CmdLine[1] = "Neustart" Then Hinweis("MOReiter neu gestartet")
 Local $erneuert = TimerInit()
 ; kurzes Sleep, damit der Hook die Tastatur nicht spuerbar verzoegert
 While 1
