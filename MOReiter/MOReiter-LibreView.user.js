@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.0
+// @version      1.1
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -139,7 +139,12 @@
       else titel(a, 'anmelden');
       return true;
     }
-    if (em.value == '' && a.kennung != '') setze(em, a.kennung);
+    // Kennung vorgegeben ([LibreView] Kennung=): hat Firefox einen anderen Benutzer eingetragen, ihn samt
+    // Passwort ersetzen; die Firefox-Liste (Pfeil runter) zeigt dann nur die passende gespeicherte Anmeldung
+    if (a.kennung != '' && klein(em.value) != klein(a.kennung) && einmal(a, 'kennung')) {
+      setze(em, a.kennung);
+      if (pw.value != '') setze(pw, '');
+    }
     if (em.value != '' && pw.value != '') {
       einmal(a, 'anmelden');
       titel(a, 'anmelden');

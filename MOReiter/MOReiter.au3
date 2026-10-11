@@ -1458,25 +1458,45 @@ Func FirefoxTab($adr)
 EndFunc
 
 ; ist das Add-on Tampermonkey in einem der Firefox-Profile des Benutzers eingeschaltet? Massgeblich ist
-; extensions.json ("active"), die .xpi kann auch von einem abgeschalteten oder entfernten Add-on stammen
+; extensions.json ("active"), die .xpi kann auch von einem abgeschalteten oder entfernten Add-on stammen.
+; Profile: alle Ordner unter Profiles\ und alle in profiles.ini genannten (auch ausserhalb, IsRelative=0)
 Func TampermonkeyDa()
-	Local $pfad = @AppDataDir & "\Mozilla\Firefox\Profiles\"
-	Local $such = FileFindFirstFile($pfad & "*")
-	If $such = -1 Then Return False
-	Local $da = False
-	While Not $da
-		Local $d = FileFindNextFile($such)
-		If @error Then ExitLoop
-		If Not @extended Then ContinueLoop
-		Local $j = FileRead($pfad & $d & "\extensions.json")
-		Local $p = StringInStr($j, '"id":"firefox@tampermonkey.net"')
-		If $p = 0 Then ContinueLoop
-		; "active" folgt im selben Eintrag nach ein paar hundert Zeichen
-		Local $a = StringRegExp(StringMid($j, $p, 4000), '"active":(true|false)', 1)
-		If Not @error And $a[0] = "true" Then $da = True
-	WEnd
-	FileClose($such)
-	Return $da
+	Local $basis = @AppDataDir & "\Mozilla\Firefox\", $verz = ""
+	Local $such = FileFindFirstFile($basis & "Profiles\*")
+	If $such <> -1 Then
+		While 1
+			Local $d = FileFindNextFile($such)
+			If @error Then ExitLoop
+			If @extended Then $verz &= "|" & $basis & "Profiles\" & $d
+		WEnd
+		FileClose($such)
+	EndIf
+	Local $abschn = IniReadSectionNames($basis & "profiles.ini")
+	If Not @error Then
+		For $i = 1 To $abschn[0]
+			Local $pfad = IniRead($basis & "profiles.ini", $abschn[$i], "Path", "")
+			If $pfad = "" Then ContinueLoop
+			$pfad = StringReplace($pfad, "/", "\")
+			If IniRead($basis & "profiles.ini", $abschn[$i], "IsRelative", "1") = "1" Then $pfad = $basis & $pfad
+			$verz &= "|" & $pfad
+		Next
+	EndIf
+	For $v In StringSplit(StringTrimLeft($verz, 1), "|", 2)
+		If $v <> "" And TampermonkeyAktiv($v & "\extensions.json") Then Return True
+	Next
+	Return False
+EndFunc
+
+; steht Tampermonkey in dieser extensions.json mit "active":true? Gesucht wird im ganzen Eintrag, bis zum
+; naechsten Add-on ({"id":...), da defaultLocale mit langen Mitwirkendenlisten davor stehen kann
+Func TampermonkeyAktiv($datei)
+	Local $j = FileRead($datei)
+	If @error Then Return False
+	Local $p = StringInStr($j, '"id":"firefox@tampermonkey.net"')
+	If $p = 0 Then Return False
+	Local $ende = StringInStr($j, '{"id":"', 0, 1, $p + 10)
+	Local $eintrag = ($ende > 0) ? StringMid($j, $p, $ende - $p) : StringMid($j, $p)
+	Return StringInStr($eintrag, '"active":true') > 0
 EndFunc
 
 ; eine Firefox-Unternehmensrichtlinie zu Tampermonkey (distribution\policies.json, frueher von NVerb angelegt)
