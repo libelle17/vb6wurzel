@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.5
+// @version      1.6
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -82,6 +82,20 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  // Klick wie mit der Maus: Element in den sichtbaren Bereich holen, dann pointer-/mousedown, -up und click an
+  // seiner Mitte (manche Listen reagieren nur auf mousedown, element.click() allein liefe dann ins Leere)
+  function klicke(el) {
+    try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
+    var r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    var opt = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0, buttons: 1 };
+    if (window.PointerEvent) el.dispatchEvent(new PointerEvent('pointerdown', Object.assign({ pointerId: 1, isPrimary: true }, opt)));
+    el.dispatchEvent(new MouseEvent('mousedown', opt));
+    opt.buttons = 0;
+    if (window.PointerEvent) el.dispatchEvent(new PointerEvent('pointerup', Object.assign({ pointerId: 1, isPrimary: true }, opt)));
+    el.dispatchEvent(new MouseEvent('mouseup', opt));
+    el.dispatchEvent(new MouseEvent('click', opt));
+  }
+
   function sichtbar(el) { return !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)); }
 
   function klein(s) { return (s || '').toLocaleLowerCase('de').replace(/\s+/g, ' ').trim(); }
@@ -124,8 +138,16 @@
   // die Adresse laden
   function zumPatienten(a, id, el) {
     titel(a, 'patient');
-    if (el && einmal(a, 'patientKlick')) { el.click(); return; }
-    if ((!el || seit(a, 'patientKlick') > 5000) && einmal(a, 'patientAdresse')) location.assign('/patient/' + id + '/profile');
+    if (el && einmal(a, 'patientKlick')) {
+      console.log('MOReiter LibreView: Klick auf <' + el.tagName.toLowerCase() + ' id="' +
+        (el.id || '').replace(new RegExp(UUID.source, 'gi'), '<uuid>') + '" class="' + el.className + '">');
+      klicke(el);
+      return;
+    }
+    if ((!el || seit(a, 'patientKlick') > 5000) && einmal(a, 'patientAdresse')) {
+      console.log('MOReiter LibreView: Klick ohne Wirkung, lade /patient/<uuid>/profile');
+      location.assign('/patient/' + id + '/profile');
+    }
   }
 
   // --- Seiten ----------------------------------------------------------------------------------------
@@ -303,7 +325,7 @@
     if (m[2] != '/reports') {
       // Seitenleiste "Glukoseverlaufsdaten"
       var nav = $('reports-nav-button-container');
-      if (nav && einmal(a, 'verlaufKlick')) nav.click();
+      if (nav && einmal(a, 'verlaufKlick')) klicke(nav);
       else if (seit(a, 'verlaufKlick') > 5000 && einmal(a, 'verlaufAdresse')) location.assign('/patient/' + m[1] + '/reports');
       return true;
     }
