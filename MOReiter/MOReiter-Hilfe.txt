@@ -72,6 +72,12 @@ MOReiter-LibreView.user.js, das MOReiter bei Bedarf zur Installation anbietet. L
 den im Firefox gespeicherten Daten (höchstens ein Versuch); fehlt die 14-Tage-Freigabe, fordert das
 Skript den Code per E-Mail an, hakt "14 Tage merken" an und trägt den PC-Namen ein; den Code selbst
 eintippen und "Bestätigen und Anmelden" drücken, dann geht es zu den Glukose-Berichten des Patienten.
+Sobald "PDF drucken/speichern" aktiv ist, drückt das Skript ihn. Mit Ablage=<Ordner> und
+Datei=<Muster> im Abschnitt des Portals (auch [Labor]) verschiebt MOReiter ein danach im Download-
+Ordner erscheinendes PDF des Patienten dorthin (bis 30 Minuten lang); Datei= ist ein regulärer
+Ausdruck, {vor} und {nach} stehen für Vor- und Nachnamen (Umlaute auch als ae usw.), {TT} {MM}
+{JJJJ} für das heutige Datum.
+Läuft in einem LibreView-Tab noch ein Auftrag, öffnet ein neuer Aufruf einen eigenen Tab.
 
 
 DIAGNOSEERFASSUNG

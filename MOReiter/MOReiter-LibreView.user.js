@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.8
+// @version      1.9
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -393,6 +393,9 @@
         klicke(b);
         titel(a, 'gedruckt');
         erledigt();
+        // solange "fertig"/"gedruckt" im Titel steht, nimmt MOReiter fuer einen neuen Auftrag einen neuen Tab
+        // (der Download soll nicht abbrechen); nach 60 s ist der Tab wieder frei
+        setTimeout(function () { if (/^MOR:\d+:gedruckt/.test(document.title)) document.title = 'LibreView'; }, 60000);
       }
       return true;
     }

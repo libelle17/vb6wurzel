@@ -192,6 +192,10 @@ Global $gAufrufe[0][4]
 ; [Aufrufe] Protokoll=1: jede passende Taste mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
 ; (im Hook nur gesammelt, geschrieben in der Hauptschleife)
 Global $gAufrufProtokoll = False, $gProtokoll = "", $gFokusInfo = ""
+; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
+; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
+; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen
+Global $gAblagen[0][6], $gAblagenGeprueft = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
@@ -235,6 +239,7 @@ While 1
 	EinblendungPruefen()
 	If $gHilfe Then HilfePruefen()
 	If $gProtokoll <> "" Then ProtokollSchreiben()
+	If UBound($gAblagen) And TimerDiff($gAblagenGeprueft) > 2000 Then AblagenPruefen()
 	; Windows entfernt einen Hook stillschweigend, wenn er einmal zu langsam antwortet (z.B. bei hoher
 	; Last, Sperren, Aufwachen), das Programm liefe dann taub weiter; daher regelmaessig neu einhaengen
 	If TimerDiff($erneuert) > 5000 Then
@@ -1321,6 +1326,130 @@ Func Portal($s)
 	Return $r
 EndFunc
 
+; Download-Ordner des Benutzers (Shell-Ordner "Downloads", sonst %USERPROFILE%\Downloads)
+Func DownloadOrdner()
+	Local $d = RegRead("HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders", _
+			"{374DE290-123F-4565-9164-39C4925E467B}")
+	If $d <> "" Then
+		Local $e = DllCall("kernel32.dll", "dword", "ExpandEnvironmentStringsW", "wstr", $d, "wstr", "", "dword", 32767)
+		If Not @error And $e[0] Then $d = $e[2]
+	EndIf
+	If $d = "" Or Not FileExists($d) Then $d = @UserProfileDir & "\Downloads"
+	Return StringRegExpReplace($d, "\\$", "")
+EndFunc
+
+; Namen der PDFs im Download-Ordner als "|a.pdf|b.pdf|"
+Func DownloadPdfs()
+	Local $erg = "|", $such = FileFindFirstFile(DownloadOrdner() & "\*.pdf")
+	If $such = -1 Then Return $erg
+	While 1
+		Local $f = FileFindNextFile($such)
+		If @error Then ExitLoop
+		If Not @extended Then $erg &= $f & "|"
+	WEnd
+	FileClose($such)
+	Return $erg
+EndFunc
+
+; nach "fertig": ein danach im Download-Ordner neu erscheinendes PDF des Patienten nach [Portal] Ablage=
+; verschieben; nur Dateien, deren Name zu [Portal] Datei= passt (regulaerer Ausdruck, ganzer Name, gross/klein
+; egal; {vor} und {nach} stehen fuer Vor- und Nachname, s. NameMuster, {TT}, {MM}, {JJJJ} fuer das heutige
+; Datum); ohne Datei= wird nichts verschoben
+Func AblageMerken($s, $nach, $vor)
+	Local $ziel = Einst($s, "Ablage", ""), $muster = Einst($s, "Datei", "")
+	If $ziel = "" Or $muster = "" Then Return
+	Local $erster = StringRegExpReplace(StringStripWS($vor, 3), "\s.*$", "")
+	$muster = StringReplace($muster, "{vor}", "(?:" & NameMuster($vor) & "|" & NameMuster($erster) & ")")
+	$muster = StringReplace($muster, "{nach}", "(?:" & NameMuster($nach) & ")")
+	; Herunterladedatum (heute)
+	$muster = StringReplace(StringReplace(StringReplace($muster, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
+	Local $n = UBound($gAblagen)
+	ReDim $gAblagen[$n + 1][6]
+	$gAblagen[$n][0] = $s
+	$gAblagen[$n][1] = StringRegExpReplace($ziel, "\\$", "")
+	$gAblagen[$n][2] = TimerInit()
+	$gAblagen[$n][3] = DownloadPdfs()
+	$gAblagen[$n][4] = ""
+	$gAblagen[$n][5] = "(?i)^" & $muster & "$"
+EndFunc
+
+; regulaerer Ausdruck fuer einen Namen, wie ihn ein Portal in Dateinamen schreiben kann: ae/oe/ue/ss oder
+; a/o/u statt Umlaut bzw. sz, Leerzeichen und Bindestrich auch weggelassen oder als Unterstrich
+Func NameMuster($name)
+	Local $erg = "", $z = StringSplit(StringStripWS($name, 3), "", 2)
+	For $c In $z
+		Switch $c
+			Case ChrW(228), ChrW(196)
+				$erg &= "(?:" & ChrW(228) & "|ae|a)"
+			Case ChrW(246), ChrW(214)
+				$erg &= "(?:" & ChrW(246) & "|oe|o)"
+			Case ChrW(252), ChrW(220)
+				$erg &= "(?:" & ChrW(252) & "|ue|u)"
+			Case ChrW(223)
+				$erg &= "(?:" & ChrW(223) & "|ss)"
+			Case " ", "-"
+				$erg &= "[ _-]?"
+			Case Else
+				$erg &= StringRegExp($c, "[A-Za-z0-9]") ? $c : "\" & $c
+		EndSwitch
+	Next
+	Return $erg
+EndFunc
+
+; in der Hauptschleife alle 2 s: neues, fertig geschriebenes PDF (keine .part-Datei mehr, Groesse 3 s
+; unveraendert) verschieben; je Auftrag eines, hoechstens 30 min lang
+Func AblagenPruefen()
+	$gAblagenGeprueft = TimerInit()
+	Local $dl = DownloadOrdner(), $jetzt = DownloadPdfs()
+	For $i = UBound($gAblagen) - 1 To 0 Step -1
+		If TimerDiff($gAblagen[$i][2]) > 30 * 60000 Then
+			AblageWeg($i)
+			ContinueLoop
+		EndIf
+		For $f In StringSplit(StringTrimLeft(StringTrimRight($jetzt, 1), 1), "|", 2)
+			If $f = "" Or StringInStr($gAblagen[$i][3], "|" & $f & "|") Then ContinueLoop
+			If Not StringRegExp($f, $gAblagen[$i][5]) Then ContinueLoop
+			If FileExists($dl & "\" & $f & ".part") Then ContinueLoop
+			Local $gr = FileGetSize($dl & "\" & $f), $alt = StringSplit($gAblagen[$i][4], ";", 2)
+			If UBound($alt) < 3 Or $alt[0] <> $f Or Number($alt[1]) <> $gr Then
+				$gAblagen[$i][4] = $f & ";" & $gr & ";" & TimerInit()
+				ContinueLoop
+			EndIf
+			If $gr = 0 Or TimerDiff(Number($alt[2])) < 3000 Then ContinueLoop
+			Local $ziel = AblageName($gAblagen[$i][1], $f)
+			If FileMove($dl & "\" & $f, $ziel) Then
+				Hinweis($gAblagen[$i][0] & ": " & $f & " nach " & $gAblagen[$i][1] & " verschoben")
+				; fuer andere Auftraege nicht mehr neu
+				For $j = 0 To UBound($gAblagen) - 1
+					$gAblagen[$j][3] &= $f & "|"
+				Next
+				AblageWeg($i)
+			EndIf
+			ExitLoop
+		Next
+	Next
+EndFunc
+
+; Zielname, bei schon vorhandener Datei mit " (2)", " (3)" ...
+Func AblageName($verz, $f)
+	Local $ziel = $verz & "\" & $f, $stamm = StringRegExpReplace($f, "(?i)\.pdf$", ""), $k = 2
+	While FileExists($ziel)
+		$ziel = $verz & "\" & $stamm & " (" & $k & ").pdf"
+		$k += 1
+	WEnd
+	Return $ziel
+EndFunc
+
+Func AblageWeg($i)
+	Local $n = UBound($gAblagen)
+	For $j = $i To $n - 2
+		For $k = 0 To 5
+			$gAblagen[$j][$k] = $gAblagen[$j + 1][$k]
+		Next
+	Next
+	ReDim $gAblagen[$n - 1][6]
+EndFunc
+
 ; Voreinstellungen je Portal: Seitentitel, Adresse des Benutzerskripts
 Func PortalTitel($s)
 	Return Einst($s, "Titel", ($s = "Labor") ? $defLaborTitel : $s)
@@ -1387,6 +1516,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 			Case "anmelden", "suche", "land", "zweifaktor", "patient"
 				If $code Then ToolTip("")
 			Case "fertig"
+				AblageMerken($s, $nach, $vor)
 				Return True
 			Case "liste"
 				Return Meldung("Kein " & $nach & ", " & $vor & " mit Geburtsdatum " & $geb & ", Suchliste angezeigt")
@@ -1623,6 +1753,9 @@ Func FirefoxOeffnen($url, $titel, $s)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
 	; Portalseite oder eine mit dem Fortschritt des Benutzerskripts
 	Local $LaborTitel = "^(\Q" & $titel & "\E|MOR:)"
+	; dort wartet das Benutzerskript noch (z.B. auf "PDF drucken/speichern") bzw. laeuft der Download: nicht
+	; stoeren, statt dessen einen neuen Tab
+	Local $belegt = "^MOR:\d+:(fertig|gedruckt)\b"
 	Local $h = WinGetHandle($muster)
 	If @error Then
 		ShellExecute("firefox.exe", '"' & $url & '"')
@@ -1632,14 +1765,14 @@ Func FirefoxOeffnen($url, $titel, $s)
 	EndIf
 	WinActivate($h)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
-	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel)
+	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel) And Not StringRegExp(WinGetTitle($h), $belegt)
 	If Not $gefunden Then
 		Local $n = Int(Einst($s, "Tabs", $defLaborTabs)), $vorher = ""
 		For $i = 1 To $n
 			Send(($i = 1) ? "^9" : "^{PGUP}")
 			Sleep(80)
 			Local $tt = WinGetTitle($h)
-			$gefunden = StringRegExp($tt, $LaborTitel)
+			$gefunden = StringRegExp($tt, $LaborTitel) And Not StringRegExp($tt, $belegt)
 			; gefunden, oder Titel unveraendert: ganz links angekommen (bzw. zwei gleiche Tabs, selten)
 			If $gefunden Or $tt = $vorher Then ExitLoop
 			$vorher = $tt
