@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Dexcom
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.1
+// @version      1.2
 // @description  Dexcom Clarity (Praxis): Patient nach Name und Geburtsdatum suchen, dann Bericht speichern oder interaktive Berichte (Auftrag von MOReiter, Strg+D)
 // @match        https://clarity.dexcom.eu/*
 // @grant        none
@@ -18,7 +18,8 @@
 //   passwort / passworttippen / anmelden / anmeldefehler   Anmeldung (hoechstens ein Versuch je Auftrag)
 //   suche       angemeldet, Patient wird gesucht
 //   patient     Patient gefunden, sein Fenster ist offen
-//   fertig      interaktive Berichte geoeffnet bzw. "Bericht speichern" gedrueckt (MOReiter ist fertig);
+//   fertig      interaktive Berichte geoeffnet und "Herunterladen" gedrueckt bzw. "Bericht speichern" gedrueckt
+//               (MOReiter ist fertig);
 //               beim Speichern wartet das Skript noch, bis der Bericht erstellt ist
 //   gedruckt    Bericht erstellt, Download laeuft
 //   nichts      Patient nicht gefunden
@@ -245,10 +246,18 @@
       if (bericht && einmal(a, 'berichtKlick')) klicke(bericht);
     } else if (interaktiv && einmal(a, 'interaktivKlick')) {
       klicke(interaktiv);
-      titel(a, 'fertig');
-      erledigt();
-      freigeben();
     }
+    return true;
+  }
+
+  // interaktive Berichte: in der Symbolleiste ueber dem Bericht "Herunterladen" druecken; oeffnet sich dann
+  // "Bericht speichern oder drucken", erledigt das berichtFenster, sonst ist der Auftrag nach 30 s zu Ende
+  function berichtSeite(a) {
+    var b = $('.report-icon-bar__download-icon-button');
+    if (!sichtbar(b) || seit(a, 'interaktivKlick') < 0) return false;
+    titel(a, 'fertig');
+    if (aktiv(b) && einmal(a, 'herunterladenKlick')) klicke(b);
+    else if (seit(a, 'herunterladenKlick') > 30000) { erledigt(); freigeben(); }
     return true;
   }
 
@@ -301,7 +310,7 @@
     if (!document.body) return;
     try {
       cookies(a);
-      anmelden(a) || berichtFenster(a) || patientFenster(a) || liste(a) || titel(a, zustand || 'suche');
+      anmelden(a) || berichtFenster(a) || berichtSeite(a) || patientFenster(a) || liste(a) || titel(a, zustand || 'suche');
     } catch (e) {
       titel(a, 'fehler ' + e.message);
       erledigt();
