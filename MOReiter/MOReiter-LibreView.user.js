@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.12
+// @version      1.13
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -141,8 +141,13 @@
   }
 
   // "Letzte verfuegbare Daten" als Zeitpunkt (ms): T/M/JJJJ, "Heute", "Gestern", "vor einem Tag", "vor 6 Tagen",
-  // "vor 3 Stunden"; 0 = keine Daten
+  // "vor 3 Stunden"; 0 = keine Daten. Ein Datum in der Zukunft (Lesegeraet mit falscher Uhr) zaehlt nur 1, also
+  // hinter jedem echten Datum
   function datenStand(text) {
+    var st = datenStandRoh(text);
+    return st > Date.now() + 86400000 ? 1 : st;
+  }
+  function datenStandRoh(text) {
     var t = klein(text), heute = new Date(), m;
     heute.setHours(12, 0, 0, 0);
     var tage = function (n) { return heute.getTime() - n * 86400000; };
@@ -359,14 +364,21 @@
         setTimeout(function () { ein.focus(); setze(ein, text); }, 300);
         return true;
       }
-      // Treffer: <div id="patient-result-button-<id>" role="button"> mit Name und Geburtsdatum
-      var treffer = document.querySelectorAll('[id^="patient-result-button-"]');
+      // Treffer: <div id="patient-result-button-<id>" role="button"> mit Name und Geburtsdatum; mehrere gleiche
+      // (doppelt eingetragen): der mit den juengsten Daten laut Tabellenzeile <id>-table-cell-row, sonst der erste
+      var treffer = document.querySelectorAll('[id^="patient-result-button-"]'), tBester = null, tId = '', tStand = -1;
       for (var j = 0; j < treffer.length; j++) {
         var t = treffer[j], kid = t.id.match(UUID);
         if (kid && klein(t.textContent).indexOf(klein(a.name)) >= 0 && daten(t.textContent).indexOf(a.geb) >= 0) {
-          zumPatienten(a, kid[0], t);
-          return true;
+          var tz = document.getElementById(kid[0] + '-table-cell-row');
+          var tl = tz && tz.querySelector('[data-col="lastAvailableData"]');
+          var ts = tl ? datenStand(tl.textContent) : 0;
+          if (ts > tStand) { tBester = t; tId = kid[0]; tStand = ts; }
         }
+      }
+      if (tBester) {
+        zumPatienten(a, tId, tBester);
+        return true;
       }
     }
     // nicht in LibreView: Tabelle waechst nicht mehr und alle Suchen sind durch; spaetestens nach 60 s
