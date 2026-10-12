@@ -197,7 +197,7 @@ Global $gAufrufProtokoll = False, $gProtokoll = "", $gFokusInfo = ""
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen
-Global $gAblagen[0][7], $gAblagenGeprueft = 0
+Global $gAblagen[0][8], $gAblagenGeprueft = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 
@@ -1384,7 +1384,7 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	; Herunterladedatum (heute)
 	$muster = StringReplace(StringReplace(StringReplace($muster, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 	Local $n = UBound($gAblagen)
-	ReDim $gAblagen[$n + 1][7]
+	ReDim $gAblagen[$n + 1][8]
 	$gAblagen[$n][0] = $s
 	$gAblagen[$n][1] = StringRegExpReplace($ziel, "\\$", "")
 	$gAblagen[$n][2] = TimerInit()
@@ -1399,17 +1399,61 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 		$name = StringReplace($name, "{vor}", StringStripWS(StringRegExpReplace($vor, $weg, ""), 7))
 		$name = StringReplace($name, "{nach}", StringStripWS(StringRegExpReplace($nach, $weg, ""), 7))
 		$name = StringReplace($name, "{geb}", $geb)
-		; {von}, {bis}: Zeitraum des Berichts, falls das Skript ihn gemeldet hat; sonst entfaellt "{von}-{bis}"
-		Local $zr = StringRegExp($zeitraum, "^(\d\d\.\d\d\.\d{4})-(\d\d\.\d\d\.\d{4})$", 1)
-		If @error Then
-			$name = StringRegExpReplace($name, "\s*\{von\}\s*-\s*\{bis\}", "")
-			$name = StringReplace(StringReplace($name, "{von}", ""), "{bis}", "")
-		Else
-			$name = StringReplace(StringReplace($name, "{von}", $zr[0]), "{bis}", $zr[1])
-		EndIf
+		; {von}, {bis} (Zeitraum des Berichts) erst beim Verschieben: aus dem PDF, sonst vom Skript
 		$name = StringReplace(StringReplace(StringReplace($name, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 	EndIf
 	$gAblagen[$n][6] = $name
+	$gAblagen[$n][7] = $zeitraum
+EndFunc
+
+; setzt den Zeitraum "TT.MM.JJJJ-TT.MM.JJJJ" fuer {von}, {bis} ein; ohne ihn entfaellt "{von}-{bis}"
+Func NameMitZeitraum($name, $zeitraum)
+	Local $zr = StringRegExp($zeitraum, "^(\d\d\.\d\d\.\d{4})-(\d\d\.\d\d\.\d{4})$", 1)
+	If @error Then
+		$name = StringRegExpReplace($name, "\s*\{von\}\s*-\s*\{bis\}", "")
+		Return StringReplace(StringReplace($name, "{von}", ""), "{bis}", "")
+	EndIf
+	Return StringReplace(StringReplace($name, "{von}", $zr[0]), "{bis}", $zr[1])
+EndFunc
+
+; Zeitraum des Berichts von der ersten Seite des PDFs als "TT.MM.JJJJ-TT.MM.JJJJ", "" wenn nicht zu finden;
+; braucht pdftotext.exe (Xpdf-Werkzeuge) unter [Allgemein] PdfText=. Erkannt werden z.B.
+; "Do. 10. Sep. 2026 - Fr. 9. Okt. 2026" (Dexcom), "10 Jan 2024 - 6 Feb 2024" (Libre),
+; "Fr, 19. Sep. 2025 - Do, 02. Okt. 2025" (Glooko) und "19.09.2025 - 02.10.2025"
+Func PdfZeitraum($datei)
+	Local $exe = Einst("Allgemein", "PdfText", "")
+	If $exe = "" Or Not FileExists($exe) Then Return ""
+	; 2 = $STDOUT_CHILD
+	Local $pid = Run('"' & $exe & '" -l 1 -enc UTF-8 "' & $datei & '" -', "", @SW_HIDE, 2)
+	If Not $pid Then Return ""
+	Local $bin = Binary(""), $t = TimerInit()
+	While TimerDiff($t) < 15000
+		$bin &= StdoutRead($pid, False, True)
+		If @error Then ExitLoop
+		Sleep(50)
+	WEnd
+	If ProcessExists($pid) Then ProcessClose($pid)
+	Local $txt = BinaryToString($bin, 4)
+	; beide Daten in derselben Zeile (sonst naehme es z.B. bei Glooko das Geburtsdatum davor)
+	Local $m = StringRegExp($txt, "(\d{1,2})\.(\d{1,2})\.(\d{4})[ \t]*[^\d\r\n]{1,3}[ \t]*(\d{1,2})\.(\d{1,2})\.(\d{4})", 1)
+	If Not @error Then Return StringFormat("%02d.%02d.%04d-%02d.%02d.%04d", $m[0], $m[1], $m[2], $m[3], $m[4], $m[5])
+	$m = StringRegExp($txt, "(\d{1,2})\.?\s+([^\s\d.,]{3,})\.?\s+(\d{4})[^\d\r\n]{1,15}?(\d{1,2})\.?\s+([^\s\d.,]{3,})\.?\s+(\d{4})", 3)
+	For $i = 0 To UBound($m) - 6 Step 6
+		Local $m1 = MonatNr($m[$i + 1]), $m2 = MonatNr($m[$i + 4])
+		If $m1 And $m2 Then Return StringFormat("%02d.%02d.%04d-%02d.%02d.%04d", $m[$i], $m1, $m[$i + 2], $m[$i + 3], $m2, $m[$i + 5])
+	Next
+	Return ""
+EndFunc
+
+; Monat 1-12 aus einem deutschen oder englischen Namen bzw. seiner Abkuerzung, 0 = keiner
+Func MonatNr($w)
+	$w = StringLower(StringReplace($w, ChrW(228), "ae"))
+	Local $l = StringSplit("jan|feb|mae|apr|mai|jun|jul|aug|sep|okt|nov|dez", "|", 2)
+	Local $e = StringSplit("jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec", "|", 2)
+	For $i = 0 To 11
+		If StringLeft($w, 3) = $l[$i] Or StringLeft($w, 3) = $e[$i] Then Return $i + 1
+	Next
+	Return 0
 EndFunc
 
 ; regulaerer Ausdruck fuer einen Namen, wie ihn ein Portal in Dateinamen schreiben kann: ae/oe/ue/ss oder
@@ -1455,7 +1499,12 @@ Func AblagenPruefen()
 				ContinueLoop
 			EndIf
 			If $gr = 0 Or TimerDiff(Number($alt[2])) < 3000 Then ContinueLoop
-			Local $ziel = AblageName($gAblagen[$i][1], ($gAblagen[$i][6] = "") ? $f : $gAblagen[$i][6])
+			Local $neu = $gAblagen[$i][6]
+			If $neu <> "" Then
+				Local $zr = StringInStr($neu, "{von}") ? PdfZeitraum($dl & "\" & $f) : ""
+				$neu = NameMitZeitraum($neu, ($zr = "") ? $gAblagen[$i][7] : $zr)
+			EndIf
+			Local $ziel = AblageName($gAblagen[$i][1], ($neu = "") ? $f : $neu)
 			If FileMove($dl & "\" & $f, $ziel) Then
 				Hinweis($gAblagen[$i][0] & ": " & $f & " als " & $ziel & " abgelegt")
 				; fuer andere Auftraege nicht mehr neu
@@ -1482,11 +1531,11 @@ EndFunc
 Func AblageWeg($i)
 	Local $n = UBound($gAblagen)
 	For $j = $i To $n - 2
-		For $k = 0 To 6
+		For $k = 0 To 7
 			$gAblagen[$j][$k] = $gAblagen[$j + 1][$k]
 		Next
 	Next
-	ReDim $gAblagen[$n - 1][7]
+	ReDim $gAblagen[$n - 1][8]
 EndFunc
 
 ; steht dieser PC in der Komma-Liste $liste (gross/klein egal)?
