@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.6
+// @version      1.7
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
@@ -216,6 +216,10 @@
   window.addEventListener('submit', abschickenPruefen, true);
   window.addEventListener('click', abschickenPruefen, true);
 
+  // Zeitraum des Berichts an die Fertigmeldung haengen ("fertig|TT.MM.JJJJ-TT.MM.JJJJ"), MOReiter setzt ihn in
+  // den Dateinamen ein
+  function mitZeitraum(a, z) { return a.zeitraum ? z + '|' + a.zeitraum : z; }
+
   // das angezeigte PDF (iframe) unter festem Namen herunterladen
   function pdfName(a) {
     var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -242,11 +246,11 @@
     if (!f || !f.src || seit(a, 'pdfErstellt') < 0) return false;
     // erst "fertig" melden und MOReiter Zeit geben, es im Titel zu lesen: Firefox oeffnet ein heruntergeladenes
     // PDF evtl. in einem neuen Tab, dann ist dieser Titel nicht mehr zu sehen
-    titel(a, 'fertig');
+    titel(a, mitZeitraum(a, 'fertig'));
     if (einmal(a, 'pdfDa')) return true;
     if (seit(a, 'pdfDa') > 1500 && einmal(a, 'heruntergeladen')) {
       herunterladen(a, f.src);
-      titel(a, 'gedruckt');
+      titel(a, mitZeitraum(a, 'gedruckt'));
       erledigt();
       freigeben();
     }
@@ -261,6 +265,10 @@
     if (!sichtbar(b)) b = mitText('button', 'PDF erstellen');
     if (!sichtbar(b)) return false;
     titel(a, 'patient');
+    // Zeitraum aus dem Fenster ("Zeitraum: 2 Wochen 19.09.2025 - 02.10.2025"; das Geburtsdatum davor hat
+    // nur zwei Jahresziffern)
+    var w = $('[class*="PdfWizard_container"]'), d = w ? daten(w.textContent) : [];
+    if (d.length >= 2 && a.zeitraum != d[0] + '-' + d[1]) { a.zeitraum = d[0] + '-' + d[1]; merken(a); }
     if (!aktiv(b)) return true;
     if (einmal(a, 'pdfErstellt')) { klicke(b); return true; }
     if (seit(a, 'pdfErstellt') > 4000) {

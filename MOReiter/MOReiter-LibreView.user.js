@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.13
+// @version      1.14
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -437,7 +437,8 @@
   // "PDF drucken/speichern" aktiv ist (das kann 10 min dauern), und drueckt ihn
   function berichte(a) {
     if (!/^\/reports\//.test(location.pathname)) return false;
-    titel(a, 'fertig');
+    if (!a.zeitraum) { var zr = berichtZeitraum(); if (zr) { a.zeitraum = zr; merken(a); } }
+    titel(a, mitZeitraum(a, 'fertig'));
     if (seit(a, 'berichtSeite') < 0) einmal(a, 'berichtSeite');
     var b = $('reports-print-button');
     if (b && !b.disabled && !b.hasAttribute('disabled')) {
@@ -445,7 +446,7 @@
       if (seit(a, 'druckBereit') < 0) { einmal(a, 'druckBereit'); return true; }
       if (seit(a, 'druckBereit') > 1500) {
         klicke(b);
-        titel(a, 'gedruckt');
+        titel(a, mitZeitraum(a, 'gedruckt'));
         erledigt();
         // solange "fertig"/"gedruckt" im Titel steht, nimmt MOReiter fuer einen neuen Auftrag einen neuen Tab
         // (der Download soll nicht abbrechen); nach 60 s ist der Tab wieder frei
@@ -456,6 +457,25 @@
     if (a.schritte.druckBereit) { delete a.schritte.druckBereit; merken(a); }
     if (seit(a, 'berichtSeite') > 20 * 60 * 1000) erledigt();
     return true;
+  }
+
+  // Zeitraum des Berichts an die Fertigmeldung haengen ("fertig|TT.MM.JJJJ-TT.MM.JJJJ"), MOReiter setzt ihn in
+  // den Dateinamen ein
+  function mitZeitraum(a, z) { return a.zeitraum ? z + '|' + a.zeitraum : z; }
+
+  // Zeitraum aus den Berichtsseiten (iframes, z.B. "28 Tage | 16 Jun 2026 - 13 Jul 2026"); "" falls nicht lesbar
+  function berichtZeitraum() {
+    var f = document.querySelectorAll('iframe[title="reportFrame"]');
+    for (var i = 0; i < f.length; i++) {
+      try {
+        var t = f[i].contentDocument.body.innerText;
+        var m = t.match(/(\d{1,2}\.?\s+[^\s\d]{3,}\.?\s+\d{4})\s*[-\u2013]\s*(\d{1,2}\.?\s+[^\s\d]{3,}\.?\s+\d{4})/);
+        if (!m) continue;
+        var v = daten(m[1])[0], b = daten(m[2])[0];
+        if (v && b) return v + '-' + b;
+      } catch (e) {}
+    }
+    return '';
   }
 
   // --- Ablauf ----------------------------------------------------------------------------------------

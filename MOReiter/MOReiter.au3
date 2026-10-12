@@ -1375,7 +1375,7 @@ EndFunc
 ; verschieben; nur Dateien, deren Name zu [Portal] Datei= passt (regulaerer Ausdruck, ganzer Name, gross/klein
 ; egal; {vor} und {nach} stehen fuer Vor- und Nachname, s. NameMuster, {TT}, {MM}, {JJJJ} fuer das heutige
 ; Datum); ohne Datei= wird nichts verschoben
-Func AblageMerken($s, $nach, $vor, $geb)
+Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	Local $ziel = Einst($s, "Ablage", ""), $muster = Einst($s, "Datei", "")
 	If $ziel = "" Or $muster = "" Then Return
 	Local $erster = StringRegExpReplace(StringStripWS($vor, 3), "\s.*$", "")
@@ -1399,6 +1399,14 @@ Func AblageMerken($s, $nach, $vor, $geb)
 		$name = StringReplace($name, "{vor}", StringStripWS(StringRegExpReplace($vor, $weg, ""), 7))
 		$name = StringReplace($name, "{nach}", StringStripWS(StringRegExpReplace($nach, $weg, ""), 7))
 		$name = StringReplace($name, "{geb}", $geb)
+		; {von}, {bis}: Zeitraum des Berichts, falls das Skript ihn gemeldet hat; sonst entfaellt "{von}-{bis}"
+		Local $zr = StringRegExp($zeitraum, "^(\d\d\.\d\d\.\d{4})-(\d\d\.\d\d\.\d{4})$", 1)
+		If @error Then
+			$name = StringRegExpReplace($name, "\s*\{von\}\s*-\s*\{bis\}", "")
+			$name = StringReplace(StringReplace($name, "{von}", ""), "{bis}", "")
+		Else
+			$name = StringReplace(StringReplace($name, "{von}", $zr[0]), "{bis}", $zr[1])
+		EndIf
 		$name = StringReplace(StringReplace(StringReplace($name, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 	EndIf
 	$gAblagen[$n][6] = $name
@@ -1511,7 +1519,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	Local $t = TimerInit(), $max = Int(Einst($s, "Zeit", $defLaborZeit)), $z = "", $pw = False, $code = False
 	; Zwischenstaende abwarten; bleibt jede Meldung aus, laeuft das Benutzerskript nicht
 	; $gemeldet: das Skript hat sich mindestens einmal gemeldet; laeuft danach die Zeit ab, fehlt es nicht
-	Local $tippen = 0, $gemeldet = False, $enter = 0, $liste = 0, $selbst = False
+	Local $tippen = 0, $gemeldet = False, $enter = 0, $liste = 0, $selbst = False, $zeitraum = ""
 	While TimerDiff($t) < $max
 		Local $warte = ($z = "") ? 15000 : $max - TimerDiff($t)
 		; "passworttippen" bleibt stehen, wenn das Zeichen nicht im Feld ankam: nach 3 s noch einmal
@@ -1519,6 +1527,12 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 		If $z = "enter" Then $warte = 6000
 		If $z = "passwort" Then $warte = 3000
 		Local $neu = FFZustand($hFF, $nr, $z, $warte)
+		; "fertig|TT.MM.JJJJ-TT.MM.JJJJ": Zeitraum des Berichts fuer den Dateinamen (Name= {von}, {bis})
+		Local $strich = StringInStr($neu, "|")
+		If $strich Then
+			$zeitraum = StringMid($neu, $strich + 1)
+			$neu = StringLeft($neu, $strich - 1)
+		EndIf
 		If $neu = "" And ($z = "passworttippen" Or $z = "enter" Or $z = "passwort") Then $neu = $z
 		; Anmeldung geht weiter: Hinweis zum Selbst-Anmelden weg
 		If $selbst And $neu <> "passwort" And $neu <> "passworttippen" Then
@@ -1592,7 +1606,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				If $code Then ToolTip("")
 			; "gedruckt" kann "fertig" so schnell folgen, dass dieses nie im Titel zu sehen war
 			Case "fertig", "gedruckt"
-				AblageMerken($s, $nach, $vor, $geb)
+				AblageMerken($s, $nach, $vor, $geb, $zeitraum)
 				Return True
 			Case "liste"
 				Return Meldung("Kein " & $nach & ", " & $vor & " mit Geburtsdatum " & $geb & ", Suchliste angezeigt")
@@ -1612,7 +1626,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	If $pw Then Return Meldung("Bitte im Firefox anmelden (kein gespeichertes Passwort?)")
 	If Not $gemeldet Then Return SetExtended(1, False)
 	; PDF evtl. doch erstellt (Fertigmeldung verpasst): ein noch erscheinendes trotzdem ablegen
-	If $z = "enter" Or $z = "patient" Then AblageMerken($s, $nach, $vor, $geb)
+	If $z = "enter" Or $z = "patient" Then AblageMerken($s, $nach, $vor, $geb, $zeitraum)
 	Return Meldung($s & ": Zeitueberschreitung" & (($z = "") ? "" : " (zuletzt: " & $z & ")"))
 EndFunc
 

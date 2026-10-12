@@ -163,8 +163,9 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               AddOn=...          .xpi-Datei oder Adresse von Tampermonkey
               Zeit=30000, Tabs=5   ms für alles; so viele Firefox-Tabs von rechts her durchsuchen
               Ablage=, Datei=    heruntergeladene PDFs des Patienten verschieben (s. PROGRAMMAUFRUFE)
-              Name=              dabei umbenennen ({vor}, {nach}, {geb} = Geburtsdatum, {TT}, {MM}, {JJJJ}),
-                                 z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf"
+              Name=              dabei umbenennen ({vor}, {nach}, {geb} = Geburtsdatum, {von}, {bis} = Zeitraum
+                                 des Berichts, {TT}, {MM}, {JJJJ} = heute), z.B. "{nach}, {vor}, {geb},
+                                 Glooko {von}-{bis}, erst. {TT}.{MM}.{JJJJ}.pdf"
 [LibreView], [Dexcom], [Glooko]  wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
 [Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
               Protokoll=1        diese Tasten mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log

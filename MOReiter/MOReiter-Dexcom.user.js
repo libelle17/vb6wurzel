@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Dexcom
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.4
+// @version      1.5
 // @description  Dexcom Clarity (Praxis): Patient nach Name und Geburtsdatum suchen, dann Bericht speichern oder interaktive Berichte (Auftrag von MOReiter, Strg+D)
 // @match        https://clarity.dexcom.eu/*
 // @grant        none
@@ -223,8 +223,8 @@
       return null;
     }
     if (seit(a, 'gespeichert') >= 0) {
-      titel(a, 'fertig');
-      if (/Ihr Bericht wurde erstellt/i.test(document.body.innerText)) { titel(a, 'gedruckt'); erledigt(); freigeben(); }
+      titel(a, mitZeitraum(a, 'fertig'));
+      if (/Ihr Bericht wurde erstellt/i.test(document.body.innerText)) { titel(a, mitZeitraum(a, 'gedruckt')); erledigt(); freigeben(); }
       return true;
     }
     titel(a, 'patient');
@@ -240,12 +240,19 @@
     }
     var sp = imFenster('button', 'Bericht speichern');
     if (aktiv(sp) && (!tage || seit(a, 'zeitraum') > 1000)) {
+      // eingestellter Zeitraum, z.B. "Sa. 17. Apr. 2021 - Fr. 30. Apr. 2021"
+      var zr = imFenster('.date-range-picker__date-range'), d = zr ? daten(zr.textContent) : [];
+      if (d.length >= 2) a.zeitraum = d[0] + '-' + d[1];
       einmal(a, 'gespeichert');
       klicke(sp);
-      titel(a, 'fertig');
+      titel(a, mitZeitraum(a, 'fertig'));
     }
     return true;
   }
+
+  // Zeitraum des Berichts an die Fertigmeldung haengen ("fertig|TT.MM.JJJJ-TT.MM.JJJJ"), MOReiter setzt ihn in
+  // den Dateinamen ein
+  function mitZeitraum(a, z) { return a.zeitraum ? z + '|' + a.zeitraum : z; }
 
   // nach dem Download ist der Tab nach 60 s wieder frei fuer MOReiter
   function freigeben() {
