@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.11
+// @version      1.12
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -138,6 +138,24 @@
     while ((m = re2.exec(t))) { var i = monat(m[2]); if (i >= 0) erg.push(zwei(+m[1]) + '.' + zwei(i + 1) + '.' + m[3]); }
     while ((m = re3.exec(t))) { var k = monat(m[1]); if (k >= 0) erg.push(zwei(+m[2]) + '.' + zwei(k + 1) + '.' + m[3]); }
     return erg;
+  }
+
+  // "Letzte verfuegbare Daten" als Zeitpunkt (ms): T/M/JJJJ, "Heute", "Gestern", "vor einem Tag", "vor 6 Tagen",
+  // "vor 3 Stunden"; 0 = keine Daten
+  function datenStand(text) {
+    var t = klein(text), heute = new Date(), m;
+    heute.setHours(12, 0, 0, 0);
+    var tage = function (n) { return heute.getTime() - n * 86400000; };
+    if (/heute|stunde|minute|sekunde/.test(t)) return tage(0);
+    if (/gestern/.test(t)) return tage(1);
+    if ((m = t.match(/vor (einem|einer|\d+) (tag|woche|monat)/))) {
+      var n = /^\d+$/.test(m[1]) ? +m[1] : 1;
+      return tage(n * (m[2] == 'tag' ? 1 : m[2] == 'woche' ? 7 : 30));
+    }
+    var d = daten(text)[0];
+    if (!d) return 0;
+    var p = d.split('.');
+    return new Date(+p[2], +p[1] - 1, +p[0], 12).getTime();
   }
 
   var UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -300,13 +318,22 @@
     if (!/^\/dashboard/.test(location.pathname)) return false;
     if (seit(a, 'patientKlick') < 0) titel(a, 'suche');
     var zeilen = document.querySelectorAll('tr[id$="-table-cell-row"]');
+    // derselbe Patient steht oefter mehrfach in der Tabelle: dann die Zeile mit den juengsten "Letzte verfuegbare
+    // Daten"; beim ersten Treffer noch 1,5 s warten, bis die Nachbarzeilen geladen sind
+    var bester = null, besterId = '', besterStand = -1;
     for (var i = 0; i < zeilen.length; i++) {
       var z = zeilen[i], id = (z.id.match(UUID) || [])[0];
       var zelle = function (c) { var e = z.querySelector('[data-col="' + c + '"]'); return e ? e.textContent : ''; };
       if (id && namePasst(a, zelle('lastName'), zelle('firstName')) && daten(zelle('dob')).indexOf(a.geb) >= 0) {
-        zumPatienten(a, id, z.querySelector('[data-col="lastName"] div') || z);
-        return true;
+        var st = datenStand(zelle('lastAvailableData'));
+        if (st > besterStand) { bester = z; besterId = id; besterStand = st; }
       }
+    }
+    if (bester) {
+      if (seit(a, 'trefferGesehen') < 0) einmal(a, 'trefferGesehen');
+      if (seit(a, 'trefferGesehen') < 1500 && seit(a, 'patientKlick') < 0) { titel(a, 'patient'); return true; }
+      zumPatienten(a, besterId, bester.querySelector('[data-col="lastName"] div') || bester);
+      return true;
     }
     if (seit(a, 'dashboard') < 0) { einmal(a, 'dashboard'); return true; }
     // Tabelle erst laden lassen

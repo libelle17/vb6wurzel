@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Dexcom
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.3
+// @version      1.4
 // @description  Dexcom Clarity (Praxis): Patient nach Name und Geburtsdatum suchen, dann Bericht speichern oder interaktive Berichte (Auftrag von MOReiter, Strg+D)
 // @match        https://clarity.dexcom.eu/*
 // @grant        none
@@ -130,6 +130,13 @@
     var t = klein(text).replace(/ä/g, 'ae'), re2 = /(\d{1,2})\.?\s+([a-z]{3,})\.?,?\s+(\d{4})/g;
     while ((m = re2.exec(t))) { var i = monat(m[2]); if (i >= 0) erg.push(zwei(+m[1]) + '.' + zwei(i + 1) + '.' + m[3]); }
     return erg;
+  }
+
+  // TT.MM.JJJJ als vergleichbare Zahl JJJJMMTT, 0 = keins
+  function datumZahl(d) {
+    if (!d) return 0;
+    var t = d.split('.');
+    return +(t[2] + t[1] + t[0]);
   }
 
   // --- Seiten ----------------------------------------------------------------------------------------
@@ -282,15 +289,21 @@
     var zeilen = document.querySelectorAll('tr.patient-list-row, tr[data-testid="patient-list-row"]');
     if (!feld && !zeilen.length) return false;
     if (seit(a, 'zeileKlick') < 0) titel(a, 'suche');
+    // derselbe Patient steht oefter doppelt in der Liste: dann die Zeile mit dem juengsten "Letzter Upload"
+    var bester = null, besterN = null, besterStand = -1;
     for (var i = 0; i < zeilen.length; i++) {
       var z = zeilen[i], n = z.querySelector('.patient-list__patient-name'), d = z.querySelector('.patient-list__dob');
       if (!n || !d) continue;
       var teile = n.textContent.split(',');
       if (teile.length < 2 || !namePasst(a, teile[0], teile.slice(1).join(','))) continue;
       if (daten(d.textContent).indexOf(a.geb) < 0) continue;
+      var up = z.querySelector('.patient-list__last-upload'), st = up ? datumZahl(daten(up.textContent)[0]) : 0;
+      if (st > besterStand) { bester = z; besterN = n; besterStand = st; }
+    }
+    if (bester) {
       titel(a, 'patient');
-      if (einmal(a, 'zeileKlick')) klicke(n);
-      else if (seit(a, 'zeileKlick') > 5000 && einmal(a, 'zeileKlick2')) klicke(z);
+      if (einmal(a, 'zeileKlick')) klicke(besterN);
+      else if (seit(a, 'zeileKlick') > 5000 && einmal(a, 'zeileKlick2')) klicke(bester);
       return true;
     }
     if (!feld) return true;
