@@ -131,6 +131,11 @@ braucht dafür nicht offen zu sein). Der Laufzettel öffnet dazu einen Link "mor
 beim Start für den Benutzer anmeldet; Firefox fragt beim ersten Mal, ob er MOReiter öffnen darf
 ("immer erlauben" anhaken). Die so gestartete zweite MOReiter-Instanz beendet sich, sobald die PDFs
 abgelegt sind.
+Die PDFs der Zuckerportale ordnet MOReiter danach gleich ein wie DokimpKurz ([Dokumente] Einordnen=1):
+Sicherheitskopie nach p:\eingelesen\<Jahr>, Einträge in quelle (tmbrie, dokprotlist, dokprotinh; Mitarbeiter
+und Autor = PC-Name) und Verschieben nach p:\dok\<Pat_id>. Die Patientennummer kommt vom Laufzettel oder aus
+Medical Office (Name und Geburtsdatum müssen eindeutig sein); klappt etwas nicht, bleibt die Datei mit einer
+Meldung in p:\ liegen.
 
 
 DIAGNOSEERFASSUNG

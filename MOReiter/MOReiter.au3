@@ -201,13 +201,14 @@ Global $gComFehler = "", $gComHandler = ObjEvent("AutoIt.Error", "ComFehler")
 Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
-; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen
-Global $gAblagen[0][8], $gAblagenGeprueft = 0
+; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
+; (Nachname, Vorname, Geburtsdatum durch @LF getrennt, fuer DokEinordnen)
+Global $gAblagen[0][9], $gAblagenGeprueft = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 ; Aufruf ueber einen Link "moreiter:..." (Patientenlaufzettel, s. LinkAufruf): Patient und Markierungen aus dem
 ; Link statt aus Medical Office
-Global $gLink = False, $gLinkNach = "", $gLinkVor = "", $gLinkGeb = "", $gLinkMark[0]
+Global $gLink = False, $gLinkNach = "", $gLinkVor = "", $gLinkGeb = "", $gLinkPid = "", $gLinkMark[0]
 
 If $CmdLine[0] > 0 And $CmdLine[1] = "Neustart" Then
 	; von NeustartPruefen gestartet: warten, bis sich die alte Instanz beendet hat
@@ -2540,7 +2541,7 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	; Herunterladedatum (heute)
 	$muster = StringReplace(StringReplace(StringReplace($muster, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 	Local $n = UBound($gAblagen)
-	ReDim $gAblagen[$n + 1][8]
+	ReDim $gAblagen[$n + 1][9]
 	$gAblagen[$n][0] = $s
 	$gAblagen[$n][1] = StringRegExpReplace($ziel, "\\$", "")
 	$gAblagen[$n][2] = TimerInit()
@@ -2549,6 +2550,7 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	$gAblagen[$n][5] = "(?i)^" & $muster & "$"
 	$gAblagen[$n][6] = AblageNeuerName($s, $nach, $vor, $geb)
 	$gAblagen[$n][7] = $zeitraum
+	$gAblagen[$n][8] = $nach & @LF & $vor & @LF & $geb
 EndFunc
 
 ; Name= : beim Verschieben so umbenennen, z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf";
@@ -2657,13 +2659,16 @@ Func AblagenPruefen()
 				ContinueLoop
 			EndIf
 			If $gr = 0 Or TimerDiff(Number($alt[2])) < 3000 Then ContinueLoop
-			Local $neu = $gAblagen[$i][6]
+			Local $neu = $gAblagen[$i][6], $zeit = $gAblagen[$i][7]
 			If $neu <> "" Then
 				Local $zr = StringInStr($neu, "{von}") ? PdfZeitraum($dl & "\" & $f) : ""
-				$neu = NameMitZeitraum($neu, ($zr = "") ? $gAblagen[$i][7] : $zr)
+				If $zr <> "" Then $zeit = $zr
+				$neu = NameMitZeitraum($neu, $zeit)
 			EndIf
 			Local $ziel = AblageName($gAblagen[$i][1], ($neu = "") ? $f : $neu)
 			If FileMove($dl & "\" & $f, $ziel) Then
+				Local $pat = StringSplit($gAblagen[$i][8], @LF, 2)
+				If UBound($pat) = 3 Then $ziel = DokEinordnen($gAblagen[$i][0], $ziel, $pat[0], $pat[1], $pat[2], $zeit)
 				Hinweis($gAblagen[$i][0] & ": " & $f & " als " & $ziel & " abgelegt")
 				; fuer andere Auftraege nicht mehr neu
 				For $j = 0 To UBound($gAblagen) - 1
@@ -2689,11 +2694,11 @@ EndFunc
 Func AblageWeg($i)
 	Local $n = UBound($gAblagen)
 	For $j = $i To $n - 2
-		For $k = 0 To 7
+		For $k = 0 To UBound($gAblagen, 2) - 1
 			$gAblagen[$j][$k] = $gAblagen[$j + 1][$k]
 		Next
 	Next
-	ReDim $gAblagen[$n - 1][8]
+	ReDim $gAblagen[$n - 1][9]
 EndFunc
 
 ; steht dieser PC in der Komma-Liste $liste (gross/klein egal)?
@@ -2892,8 +2897,128 @@ Func PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
 		Sleep(500)
 	WEnd
 	If Not FileExists($ziel) Then Return Meldung($s & ": " & $ziel & " nicht angekommen (evtl. unter anderem Namen gespeichert)")
+	; fertig geschrieben abwarten (Groesse 2 s unveraendert), dann wie DokimpKurz einordnen
+	Local $gr = -1
+	$t = TimerInit()
+	While TimerDiff($t) < 30000
+		Sleep(2000)
+		If FileGetSize($ziel) = $gr And $gr > 0 Then ExitLoop
+		$gr = FileGetSize($ziel)
+	WEnd
+	$ziel = DokEinordnen($s, $ziel, $nach, $vor, $geb, $zeitraum)
 	Hinweis($s & ": als " & $ziel & " abgelegt")
 	Return True
+EndFunc
+
+; [Portal] Einordnen=1 (sonst [Dokumente] Einordnen=): ein abgelegtes PDF gleich wie mit DokimpKurz weiter
+; einordnen: Sicherheitskopie nach [Dokumente] Eingelesen=\Jahr, Eintrag in quelle (tmbrie, dokprotlist,
+; dokprotinh, dokprotvz; Mitarbeiter und Autor = PC-Name), dann nach [Dokumente] Dok=\Pat_id verschieben. Die
+; Patientennummer kommt vom Laufzettel-Link oder aus Medical Office (Name und Geburtsdatum eindeutig). Klappt etwas
+; nicht, bleibt die Datei in der Ablage (Hinweis, eine schon angelegte Sicherheitskopie wird wieder geloescht);
+; liefert den Pfad, unter dem die Datei jetzt liegt
+Func DokEinordnen($s, $datei, $nach, $vor, $geb, $zeitraum)
+	If Einst($s, "Einordnen", Einst("Dokumente", "Einordnen", "0")) <> "1" Then Return $datei
+	Local $pid = $gLinkPid
+	If $pid = "" Then
+		$pid = MOPatNr($nach, $vor, $geb)
+		If @error Then Return DokNicht($s, $datei, "Patientennummer nicht eindeutig (" & $pid & ")")
+	EndIf
+	Local $name = StringRegExpReplace($datei, "^.*\\", ""), $von = "", $bis = ""
+	; Zeitraum des Berichts: sein Ende ist das Quelldatum und bestimmt das Jahr der Sicherheitskopie
+	Local $zr = StringRegExp($zeitraum, "^(\d\d)\.(\d\d)\.(\d{4})-(\d\d)\.(\d\d)\.(\d{4})$", 1)
+	If Not @error Then
+		$von = $zr[2] & "-" & $zr[1] & "-" & $zr[0]
+		$bis = $zr[5] & "-" & $zr[4] & "-" & $zr[3]
+	EndIf
+	Local $svz = StringRegExpReplace(Einst("Dokumente", "Eingelesen", "p:\eingelesen"), "\\$", "") & "\" & (($bis = "") ? @YEAR : StringLeft($bis, 4))
+	Local $dvz = StringRegExpReplace(Einst("Dokumente", "Dok", "p:\dok"), "\\$", "") & "\" & $pid
+	If Not FileExists($svz) Then DirCreate($svz)
+	If Not FileExists($dvz) Then DirCreate($dvz)
+	Local $kopie = AblageName($svz, $name)
+	If Not FileCopy($datei, $kopie) Then Return DokNicht($s, $datei, "Sicherheitskopie nach " & $svz & " fehlgeschlagen")
+	Local $fehler = DokEintragen($s, $pid, $datei, $kopie, $svz, $nach, $vor, $geb, $von, $bis)
+	If $fehler <> "" Then
+		FileDelete($kopie)
+		Return DokNicht($s, $datei, $fehler)
+	EndIf
+	Local $ziel = AblageName($dvz, $name)
+	If Not FileMove($datei, $ziel) Then Return DokNicht($s, $datei, "Verschieben nach " & $dvz & " fehlgeschlagen (eingetragen und gesichert ist sie)")
+	Return $ziel
+EndFunc
+
+Func DokNicht($s, $datei, $grund)
+	MsgBox(48, "MOReiter", $s & ": " & $datei & @CRLF & "nicht eingeordnet: " & $grund, 60)
+	Return $datei
+EndFunc
+
+; die Eintraege, die DokimpKurz beim Einordnen in quelle macht, alle oder keiner (Transaktion); "" oder der Fehler
+Func DokEintragen($s, $pid, $datei, $kopie, $svz, $nach, $vor, $geb, $von, $bis)
+	Local $cn = DBVerbinden("quelle")
+	If @error Then Return $cn
+	$gComFehler = ""
+	$cn.BeginTrans
+	If $gComFehler <> "" Then Return DokZu($cn, "Datenbankfehler: " & $gComFehler)
+	Local $name = StringRegExpReplace($kopie, "^.*\\", ""), $pc = StringLeft(@ComputerName, 15), $t = FileGetTime($datei, 0, 1)
+	Local $laend = StringMid($t, 1, 4) & "-" & StringMid($t, 5, 2) & "-" & StringMid($t, 7, 2) & " " & StringMid($t, 9, 2) & ":" & StringMid($t, 11, 2) & ":" & StringMid($t, 13, 2)
+	Local $d = StringSplit($geb, ".", 2), $gr = FileGetSize($datei), $jetzt = @YEAR & @MON & @MDAY & @HOUR & @MIN & @SEC
+	Local $p = Int($pid), $l = "'" & $laend & "'"
+	; Verzeichnis der Sicherheitskopie
+	Local $f = ""
+	Local $vz = DokWert($cn, "SELECT id FROM dokprotvz WHERE Verzeichnis='" & SqlText($svz) & "'")
+	If @error Then Return DokZu($cn, $vz)
+	If $vz = "" Then
+		$f = DokSql($cn, "INSERT INTO dokprotvz(Verzeichnis) VALUES('" & SqlText($svz) & "')")
+		If $f <> "" Then Return DokZu($cn, $f)
+		$vz = DokWert($cn, "SELECT LAST_INSERT_ID()")
+		If @error Then Return DokZu($cn, $vz)
+	EndIf
+	; Behandlungsfall wie DokimpKurz: der zur Aenderungszeit laufende, sonst der letzte davor, sonst der letzte
+	$f = DokSql($cn, "INSERT INTO tmbrie(fid,pat_id,tm_pat_id,zeitpunkt,quelldatum,Pfad,Art,NAME,Autor,AktZeit,DokGroe,DokAenD,StByte,qs,qt) VALUES(" & _
+			"COALESCE((SELECT MAX(fid) FROM faelle WHERE pat_id=" & $p & " AND " & $l & " BETWEEN bhfb AND bhfe1)," & _
+			"(SELECT MAX(fid) FROM faelle WHERE pat_id=" & $p & " AND " & $l & ">bhfb),(SELECT MAX(fid) FROM faelle WHERE pat_id=" & $p & "))," & _
+			$p & ",pidtm(" & $p & "),'" & $jetzt & "'," & (($bis = "") ? "NOW()" : "'" & $bis & "'") & ",'" & SqlText($kopie) & "','pdf','" & _
+			SqlText($name) & "','" & SqlText($pc) & "',NOW()," & $gr & "," & $l & ",-11,zqsort(" & $l & "),zquart(" & $l & "))")
+	If $f <> "" Then Return DokZu($cn, $f)
+	$f = DokSql($cn, "INSERT INTO dokprotlist(kPatN,ntum,nImp,urspnm,Patientenname,Gebdat,Ort,Pat_ID,urspName,datName,lAend,groesse,Typ," & _
+			"Mitarbeiter,PC,Benutzer,eingetragen,ZielVZID) VALUES(0,1,0,0,'" & SqlText(StringLeft($nach & ", " & $vor, 50)) & "','" & _
+			$d[2] & "-" & $d[1] & "-" & $d[0] & "','',"  & $p & ",'" & SqlText($name) & "','" & SqlText($name) & "'," & $l & "," & $gr & _
+			",'pdf','" & SqlText($pc) & "','" & SqlText($pc) & "','" & SqlText(StringLeft(@UserName, 15)) & "','" & $jetzt & "'," & $vz & ")")
+	If $f <> "" Then Return DokZu($cn, $f)
+	Local $id = DokWert($cn, "SELECT LAST_INSERT_ID()")
+	If @error Then Return DokZu($cn, $id)
+	$f = DokSql($cn, "INSERT INTO dokprotinh(dplbez,nr,Inhalt" & (($bis = "") ? "" : ",von,bis") & ") VALUES(" & $id & ",0,'" & SqlText($s) & "'" & _
+			(($bis = "") ? "" : ",'" & $von & "','" & $bis & "'") & ")")
+	Return DokZu($cn, $f)
+EndFunc
+
+; fuehrt $sql aus; "" oder der Fehler
+Func DokSql($cn, $sql)
+	$gComFehler = ""
+	$cn.Execute($sql)
+	Return ($gComFehler = "") ? "" : "Datenbankfehler: " & $gComFehler
+EndFunc
+
+; erster Wert der ersten Zeile, "" ohne Zeile; bei Fehler @error und der Fehler
+Func DokWert($cn, $sql)
+	$gComFehler = ""
+	Local $rs = $cn.Execute($sql), $w = ""
+	If $gComFehler <> "" Or Not IsObj($rs) Then Return SetError(1, 0, "Datenbankfehler: " & $gComFehler)
+	If Not $rs.EOF Then $w = String($rs.Fields(0).Value)
+	$rs.Close
+	Return $w
+EndFunc
+
+; Transaktion abschliessen (ohne Fehler) bzw. zuruecknehmen, Verbindung schliessen
+Func DokZu($cn, $fehler)
+	$gComFehler = ""
+	If $fehler = "" Then
+		$cn.CommitTrans
+		If $gComFehler <> "" Then $fehler = "Datenbankfehler: " & $gComFehler
+	Else
+		$cn.RollbackTrans
+	EndIf
+	$cn.Close
+	Return $fehler
 EndFunc
 
 ; True, wenn Firefox (prefs.js des zuletzt benutzten Profils) zuletzt auf "Als PDF speichern" gedruckt hat
@@ -3111,7 +3236,7 @@ Func UrlKodiert($s)
 	Return $r
 EndFunc
 
-; Link "moreiter:Zucker;Nachname;Vorname;TT.MM.JJJJ;Markierung|Markierung..." vom Patientenlaufzettel (Klick
+; Link "moreiter:Zucker[:Pat_id];Nachname;Vorname;TT.MM.JJJJ;Markierung|Markierung..." vom Patientenlaufzettel (Klick
 ; auf eine Zucker-Markierung bzw. Alt+Z fuer alle): wie Strg+Z, aber mit dem Patienten und den Markierungen aus
 ; dem Link, also ohne Medical Office; die Teile sind percent-codiert (Windows-1252 wie die Seite). Danach wartet
 ; diese Instanz, bis die abgerufenen PDFs abgelegt sind, und laesst die letzte Meldung noch lesen
@@ -3132,7 +3257,10 @@ Func LinkAusfuehren($url)
 	Local $t = StringSplit(StringRegExpReplace(StringRegExpReplace($url, "(?i)^moreiter:/*", ""), "/+$", ""), ";", 2)
 	If UBound($t) < 5 Then Return Meldung("MOReiter-Link unvollstaendig: " & $url)
 	; nur dieser Befehl: eine fremde Seite soll ueber den Link keine Befehlszeilen starten koennen
-	If UrlDekodiert($t[0]) <> "Zucker" Then Return Meldung("MOReiter-Link: unbekannter Befehl " & UrlDekodiert($t[0]))
+	; "Zucker:Pat_id" (neuere Laufzettel), sonst sucht DokEinordnen die Patientennummer in Medical Office
+	Local $bef = StringRegExp(UrlDekodiert($t[0]), "^Zucker(?::(\d+))?$", 1)
+	If @error Then Return Meldung("MOReiter-Link: unbekannter Befehl " & UrlDekodiert($t[0]))
+	If UBound($bef) > 0 Then $gLinkPid = String($bef[0])
 	$gLinkNach = StringStripWS(UrlDekodiert($t[1]), 3)
 	$gLinkVor = StringStripWS(UrlDekodiert($t[2]), 3)
 	$gLinkGeb = UrlDekodiert($t[3])
