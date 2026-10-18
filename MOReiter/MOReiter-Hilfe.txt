@@ -84,6 +84,39 @@ Geburtsdatum; auf den PCs in SpeichernAuf= "Bericht speichern oder drucken" mit 
 speichern", sonst "Zu interaktiven Berichten wechseln".
 Glooko (z.B. Strg+G=Portal:Glooko, Abschnitt [Glooko]): Patient über die Suche, "PDF-Bericht erstellen",
 "PDF erstellen"; das PDF wird als VornameNachname_Glooko_TT-MM-JJJJ.pdf heruntergeladen.
+YourLoops (z.B. Strg+Y=Portal:YourLoops, Abschnitt [YourLoops]): "Verbinden", Anmeldung bei Diabeloop;
+beim Code aus der Mail hakt das Skript "Dieses Gerät 30 Tage lang speichern" an, den Code selbst eintippen
+und "Fortfahren" drücken. Dann Patient über die Suche, "Download-Bericht" mit Tage= (Voreinstellung 90 =
+3 Monate) als PDF.
+Strg+S=SmartPix: startet die Accu-Chek Smart Pix Software (oder holt sie nach vorn; läuft sie nach dem
+Schließen nur noch versteckt im Infobereich, wird sie beendet und neu gestartet), öffnet die
+Patientenliste, sucht nach dem Geburtsdatum und wählt den Patienten, wenn genau einer übrig bleibt;
+sonst bleibt die Liste (nach Geburtsdatum bzw. Nachname gefiltert) zum Auswählen stehen. Fand sich
+nur der Nachname: den richtigen Patienten anklicken und nochmal Strg+S (geht auch in der Patientenliste),
+dann trägt MOReiter ihm über "Patientendaten bearbeiten" das Geburtsdatum ein (nur wenn der Name passt
+und das Geburtsdatum dort fehlt), bei fehlender Patienten-ID auch die Patientennummer aus Medical
+Office, und wählt ihn. Findet sich weder das Geburtsdatum noch der Nachname (oder haben alle mit diesem
+Nachnamen ein anderes Geburtsdatum), legt MOReiter den Patienten
+über "Neuer Patient..." mit Name, Geburtsdatum und Patientennummer an und wählt ihn.
+Strg+Umsch+S=SmartPixListe: geht die ganze Patientenliste von Smart Pix durch (je Patient "Patientendaten
+bearbeiten", etwa 2 s, Abbruch mit Esc). Ja = Probelauf: schreibt alle Patienten mit Abgleich gegen
+Medical Office und quelle (Verstorbene mit "zzz" vorm Nachnamen zählen mit) nach SmartPix-Patienten.csv
+in "Dokumente"; fehlt das Geburtsdatum und ist es dort eindeutig, steht es unter Vorschlag, fehlt die
+Patienten-ID und ist die Patientennummer zu Name und Geburtsdatum eindeutig, steht sie unter
+Vorschlag-ID, dann mit Eintragen=j. Dabei zählen nur Patienten, deren erster Behandlungsfall nicht
+nach dem letzten Auslesen in Smart Pix begann; passen dann mehrere (z.B. gleicher Nachname und erster
+Vorname), gibt es kein Eintragen=j, auch der Echtlauf übergeht sie ohne Rückfrage. Sterne o.ä. vor dem
+Namen zählen beim Vergleich nicht. Nach Ja fragt MOReiter noch, ob die eindeutigen Vorschläge gleich beim Lesen
+eingetragen werden sollen (ohne Rückfragen, für einen unbeaufsichtigten Lauf); die CSV entsteht dann
+trotzdem und zeigt in der Spalte Eintragen "eingetragen" bzw. "Fehler". Daneben entsteht
+SmartPix-Patienten-pruefen.csv mit den Patienten, die weder in Medical Office noch in quelle gefunden
+wurden oder zu denen mehrere passen (Spalte Grund, mit den Patientennummern). Nein = Eintragen: trägt die Vorschläge der Zeilen mit Eintragen=j
+ein (Spalte vorher nach Belieben auf n ändern) und protokolliert das in
+SmartPix-Patienten-eingetragen.csv.
+Strg+Z=Zucker: liest die Markierungen des Patienten aus der Datenbank von Medical Office und ruft für
+jede Zucker-Markierung das passende Portal bzw. Programm auf, mehrere nacheinander (z.B. "Libre-Handy"
+und "Omnipod 5 Glooko": erst LibreView, dann Glooko). Welche Markierung wohin führt, steht in [Zucker].
+Die Zugangsdaten zur Datenbank kommen aus der Zugang.ini von Dateilese.
 
 
 DIAGNOSEERFASSUNG
@@ -167,8 +200,17 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               Name=              dabei umbenennen ({vor}, {nach}, {geb} = Geburtsdatum, {von}, {bis} = Zeitraum
                                  des Berichts, {TT}, {MM}, {JJJJ} = heute), z.B. "{nach}, {vor}, {geb},
                                  Glooko {von}-{bis}, erst. {TT}.{MM}.{JJJJ}.pdf"
-[LibreView], [Dexcom], [Glooko]  wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
+[LibreView], [Dexcom], [Glooko], [YourLoops]  wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
 [Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
+              Strg+Z=Zucker      Portale nach den Markierungen des Patienten (s. [Zucker])
+[SmartPix]    Programm=, Knopf=, Suche=, Zeile=, Bearbeiten=   Programm und Klickstellen (x,y im
+                                 Fensterinneren)
+[SmartPixListe] Datei=, Max=, Kante=   Strg+Umsch+S (s. MOReiter-Vorgaben.ini); quelle braucht
+                                 [quelle] uid=, pwd= in der Zugang.ini
+[Zucker]      Libre=Portal:LibreView   Markierung, deren Text "Libre" enthält: dieser Befehl (Portal:...,
+                                 Befehlszeile oder Taste aus [Aufrufe] wie Strg+S); leer = kein Abruf
+[Allgemein]   Zugang=...\Zugang.ini   Zugangsdaten zur Datenbank von Medical Office ([medoff] uid, pwd);
+              MOPort=2020        Server aus der Registry von Dateilese (MOServer, sonst wser; MORes, wres)
               Protokoll=1        diese Tasten mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
 [Hochladen]   Warten=300, LeistungWarten=1500   ms bis "Hochladen" bzw. auf den Leistungsdialog
 [Diagnosen]   Reihenfolge=Zeilen zeilenweise statt spaltenweise zählen

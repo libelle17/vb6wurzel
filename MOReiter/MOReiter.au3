@@ -194,6 +194,11 @@ Global $gAufrufe[0][4]
 ; [Aufrufe] Protokoll=1: jede passende Taste mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
 ; (im Hook nur gesammelt, geschrieben in der Hauptschleife)
 Global $gAufrufProtokoll = False, $gProtokoll = "", $gFokusInfo = ""
+; Beschreibung des letzten COM-Fehlers (ADODB); ohne Handler wuerde jeder COM-Fehler das Programm beenden
+Global $gComFehler = "", $gComHandler = ObjEvent("AutoIt.Error", "ComFehler")
+; Patient (Nachname|Vorname|Geburtsdatum), den Strg+S in Smart Pix nur ueber den Nachnamen fand: ein zweites
+; Strg+S binnen 10 min traegt dem angeklickten Patienten das Geburtsdatum ein
+Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen
@@ -364,6 +369,8 @@ Func HookAufgabe($vk)
 						_WinAPI_GetClassName(_WinAPI_GetForegroundWindow()) & " """ & _WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()) & """)") & _
 						($mo ? ", " & $gFokusInfo : "") & " -> " & (($mo And Not $text) ? "Aufruf" : "durchgelassen"))
 				If $mo And Not $text Then Return "Aufruf:" & $i
+				; Strg+S auch in der Patientenliste von Smart Pix (Geburtsdatum nachtragen)
+				If $gAufrufe[$i][3] = "SmartPix" And SmartPixListeAktiv() Then Return "Aufruf:" & $i
 				ExitLoop
 			EndIf
 		Next
@@ -1274,8 +1281,20 @@ Func Aufruf($i)
 	Local $hMO = WinGetHandle($MOFenster)
 	If @error Then Return MOStarten()
 	Local $befehl = $gAufrufe[$i][3]
+	; Strg+Z=Zucker: alle Portale bzw. Programme nach den Zucker-Markierungen des Patienten
+	If $befehl = "Zucker" Then Return Zucker()
+	Return AufrufBefehl($gAufrufe[$i][0], $befehl)
+EndFunc
+
+; fuehrt einen Befehl aus [Aufrufe] bzw. [Zucker] aus: "Portal:Abschnitt" oder eine Befehlszeile mit {pat}
+Func AufrufBefehl($name, $befehl)
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
 	; Portal im Firefox mit eigenem Benutzerskript, z.B. Strg+L=Portal:LibreView
 	If StringLeft($befehl, 7) = "Portal:" Then Return Portal(StringStripWS(StringTrimLeft($befehl, 7), 3))
+	; Accu-Chek Smart Pix Software: Patient in der Patientenliste suchen und waehlen
+	If $befehl = "SmartPix" Then Return SmartPix()
+	If $befehl = "SmartPixListe" Then Return SmartPixListe()
 	If StringInStr($befehl, "{pat}") Then
 		; F6 (falls die Personalien fehlen) darf nicht als Strg+F6 ankommen
 		If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
@@ -1284,9 +1303,1135 @@ Func Aufruf($i)
 		$befehl = StringReplace($befehl, "{pat}", '"' & $nach & ";" & $vor & ";" & $geb & '"')
 	EndIf
 	Local $pid = Run($befehl), $fehler = @error
-	If $gAufrufProtokoll Then Protokoll($gAufrufe[$i][0] & ": " & $befehl & ($fehler ? " -> nicht gestartet" : " -> gestartet, Prozess " & $pid))
-	If $fehler Then Return Meldung($gAufrufe[$i][0] & ": Programm nicht gefunden: " & $befehl)
+	If $gAufrufProtokoll Then Protokoll($name & ": " & $befehl & ($fehler ? " -> nicht gestartet" : " -> gestartet, Prozess " & $pid))
+	If $fehler Then Return Meldung($name & ": Programm nicht gefunden: " & $befehl)
 	Return True
+EndFunc
+
+; Strg+Z ([Aufrufe] Strg+Z=Zucker): Markierungen des geoeffneten Patienten aus der Datenbank von Medical Office
+; lesen und fuer jede, deren Text einen Schluessel aus [Zucker] enthaelt (z.B. Libre=Portal:LibreView, auch
+; "Libre Lesegeraet"), dessen Befehl ausfuehren: Portal:Abschnitt, eine Befehlszeile oder eine Taste aus
+; [Aufrufe] wie Strg+S; mehrere nacheinander, jeden Befehl nur einmal
+Func Zucker()
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
+	Local $nach, $vor, $geb
+	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	HinweisStehend("Markierungen von " & $vor & " " & $nach & " werden gelesen ...")
+	Local $mark = MOMarkierungen($nach, $vor, $geb)
+	If @error Then Return Meldung($mark)
+	If UBound($mark) = 0 Then Return Meldung($vor & " " & $nach & ": keine Markierungen in Medical Office")
+	; Schluessel aus [Zucker], eigene INI vor den Vorgaben, in der Reihenfolge der Datei
+	Local $regeln[0][2], $quelle[2] = [$Ini, $IniVorgaben]
+	For $datei In $quelle
+		Local $a = IniReadSection($datei, "Zucker")
+		If @error Then ContinueLoop
+		For $i = 1 To $a[0][0]
+			Local $k = StringStripWS($a[$i][0], 3), $neu = True
+			For $j = 0 To UBound($regeln) - 1
+				If $regeln[$j][0] = $k Then $neu = False
+			Next
+			If Not $neu Then ContinueLoop
+			ReDim $regeln[UBound($regeln) + 1][2]
+			$regeln[UBound($regeln) - 1][0] = $k
+			$regeln[UBound($regeln) - 1][1] = StringStripWS($a[$i][1], 3)
+		Next
+	Next
+	; je Markierung die erste passende Regel; leerer Befehl = bewusst kein Abruf
+	Local $befehle[0][2], $ohne = ""
+	For $m In $mark
+		Local $treffer = -1
+		For $j = 0 To UBound($regeln) - 1
+			If StringInStr($m, $regeln[$j][0]) Then
+				$treffer = $j
+				ExitLoop
+			EndIf
+		Next
+		If $treffer < 0 Then ContinueLoop
+		If $regeln[$treffer][1] = "" Then
+			$ohne &= ", " & $m
+			ContinueLoop
+		EndIf
+		Local $da = False
+		For $j = 0 To UBound($befehle) - 1
+			If $befehle[$j][1] = $regeln[$treffer][1] Then $da = True
+		Next
+		If $da Then ContinueLoop
+		ReDim $befehle[UBound($befehle) + 1][2]
+		$befehle[UBound($befehle) - 1][0] = $m
+		$befehle[UBound($befehle) - 1][1] = $regeln[$treffer][1]
+	Next
+	If UBound($befehle) = 0 Then Return Meldung($vor & " " & $nach & ": keine abrufbare Zucker-Markierung" & _
+			(($ohne = "") ? "" : " (ohne Abruf: " & StringTrimLeft($ohne, 2) & ")"))
+	Local $n = UBound($befehle)
+	For $j = 0 To $n - 1
+		Local $b = $befehle[$j][1], $name = "Strg+Z " & ($j + 1) & "/" & $n & " (" & $befehle[$j][0] & ")"
+		Hinweis($name & ": " & $b)
+		Sleep(1000)
+		; Verweis auf eine Taste aus [Aufrufe], z.B. Strg+S fuer Smart Pix
+		If StringRegExp($b, "(?i)^Strg\+(Umsch\+)?[A-Z]$") Then
+			Local $gef = False
+			For $i = 0 To UBound($gAufrufe) - 1
+				If StringUpper($gAufrufe[$i][0]) = StringUpper($b) Then
+					AufrufBefehl($name, $gAufrufe[$i][3])
+					$gef = True
+					ExitLoop
+				EndIf
+			Next
+			If Not $gef Then Meldung($name & ": " & $b & " ist in [Aufrufe] nicht eingerichtet")
+		Else
+			AufrufBefehl($name, $b)
+		EndIf
+		; die Meldung des vorigen Abrufs soll lesbar bleiben
+		If $j < $n - 1 Then Sleep(2000)
+	Next
+	If $ohne <> "" Then Hinweis("Ohne Abruf: " & StringTrimLeft($ohne, 2))
+	Return True
+EndFunc
+
+; [Aufrufe] Strg+S=SmartPix: Accu-Chek Smart Pix Software ([SmartPix] Programm=) starten bzw. nach vorn holen,
+; "Patientenliste oeffnen" anklicken, im Feld "Suchen" das Geburtsdatum eingeben und, wenn genau ein Patient
+; uebrig bleibt, ihn per Doppelklick waehlen; sonst bleibt die Liste (nach Geburtsdatum, ersatzweise nach
+; Nachname gefiltert) zum Waehlen stehen. Das Qt-Programm hat keine Controls, deshalb wird an festen Stellen
+; relativ zum Fensterinneren geklickt ([SmartPix] Knopf=, Suche=, Zeile= als x,y; negatives y = vom unteren Rand)
+; und am Bildschirm nach dunkler Schrift in der Spalte Nachname gesehen
+; Ohne Treffer beim Geburtsdatum wird nach dem Nachnamen gefiltert; den richtigen Patienten anklicken und nochmal
+; Strg+S (auch in der Patientenliste): dann wird ihm das Geburtsdatum eingetragen, wenn der Name passt und es fehlt
+Func SmartPix()
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
+	Local $nach, $vor, $geb
+	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	; zweites Strg+S nach einer Suche nach dem Nachnamen: der in der Liste angeklickte Patient bekommt das Geburtsdatum
+	Local $nachtrag = ($gSmartPixNachtrag = $nach & "|" & $vor & "|" & $geb And TimerDiff($gSmartPixNachtragZeit) < 600000)
+	$gSmartPixNachtrag = ""
+	Local $hListe = SmartPixListeOeffnen()
+	Local $warDa = @extended
+	If Not $hListe Then Return False
+	If $nachtrag And $warDa Then Return SmartPixNachtragen($hListe, $nach, $vor, $geb)
+	Local $n = SmartPixSuche($hListe, $geb), $perName = False
+	If $n = 0 Then
+		$n = SmartPixSuche($hListe, $nach)
+		$perName = True
+	EndIf
+	If $n < 0 Then Return False
+	; weder Geburtsdatum noch Nachname: nach einer zweiten, langsameren Suche neu anlegen
+	If $n = 0 Then
+		Sleep(1500)
+		$n = SmartPixSuche($hListe, $geb, 2)
+		$perName = False
+		If $n = 0 Then
+			$n = SmartPixSuche($hListe, $nach, 2)
+			$perName = True
+		EndIf
+		If $n < 0 Then Return False
+		If $n = 0 Then Return SmartPixNeu($hListe, $nach, $vor, $geb)
+	EndIf
+	; nur andere Patienten mit diesem Nachnamen, alle mit (anderem) Geburtsdatum: der Gesuchte fehlt, also anlegen
+	If $perName And Not SmartPixOhneGeb($hListe) Then Return SmartPixNeu($hListe, $nach, $vor, $geb)
+	If $n = 1 And Not $perName Then
+		If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 2) Then Return False
+		If Not SmartPixWeg($hListe, 10000) Then Return Meldung("Smart Pix: Patient nicht gewaehlt, bitte selbst ""Auswaehlen""")
+		Hinweis("Smart Pix: " & $vor & " " & $nach & ", " & $geb)
+		Return True
+	EndIf
+	If $perName Then
+		$gSmartPixNachtrag = $nach & "|" & $vor & "|" & $geb
+		$gSmartPixNachtragZeit = TimerInit()
+		HinweisStehend("Smart Pix: kein Eintrag mit " & $geb & ", " & ($n = 1 ? "ein" : "mehrere") & " mit Nachname " & $nach & _
+				": bitte " & $vor & " " & $nach & " anklicken und nochmal Strg+S, dann wird das Geburtsdatum dort eingetragen" & _
+				" (oder selbst waehlen)")
+		AdlibRegister("HinweisWeg", 15000)
+		Return True
+	EndIf
+	HinweisStehend("Smart Pix: mehrere Patienten mit " & $geb & ": bitte " & $vor & " " & $nach & " selbst waehlen")
+	AdlibRegister("HinweisWeg", 8000)
+	Return True
+EndFunc
+
+; startet Smart Pix bzw. holt es nach vorn und oeffnet die Patientenliste; Handle der aktiven Liste (@extended = 1,
+; wenn sie schon offen war) oder 0 nach einer Meldung
+Func SmartPixListeOeffnen()
+	Local $haupt = "[TITLE:Accu-Chek Smart Pix Software; CLASS:Qt5QWindowIcon]"
+	Local $liste = "[TITLE:Patientenliste; CLASS:Qt5QWindowIcon]"
+	; Qt legt zu jedem Titel auch unsichtbare Fenster an, daher nur sichtbare zaehlen
+	Local $hListe = SmartPixFenster($liste), $warDa = ($hListe <> 0)
+	If Not $hListe Then
+		Local $hHaupt = SmartPixFenster($haupt)
+		If Not $hHaupt And SmartPixFenster($haupt, False) Then
+			; nach dem Schliessen laeuft Smart Pix versteckt im Infobereich weiter und laesst sich nicht mehr
+			; zeigen (nur leerer Rahmen): dann beenden und neu starten; nur Smart Pix selbst, nicht etwa das
+			; "Accu-Chek Smart Pix Connection Framework" im Infobereich
+			HinweisStehend("Smart Pix laeuft versteckt im Infobereich, wird neu gestartet ...")
+			Local $pl = ProcessList(SmartPixExe())
+			For $i = 1 To $pl[0][0]
+				ProcessClose($pl[$i][1])
+				ProcessWaitClose($pl[$i][1], 10)
+			Next
+			If SmartPixFenster($haupt, False) Then Return Meldung("Smart Pix laesst sich nicht beenden, bitte ueber das Symbol im Infobereich beenden")
+			Sleep(1000)
+		EndIf
+		If Not $hHaupt Then
+			Local $exe = Einst("SmartPix", "Programm", "C:\AccuChek\SPIXSW\Accu-Chek Smart Pix Software.exe")
+			If Not FileExists($exe) Then Return Meldung("Smart Pix nicht gefunden: " & $exe & " ([SmartPix] Programm=)")
+			HinweisStehend("Smart Pix wird gestartet ...")
+			Run('"' & $exe & '"', StringLeft($exe, StringInStr($exe, "\", 0, -1) - 1))
+			If @error Then Return Meldung("Smart Pix liess sich nicht starten: " & $exe)
+			Local $t = TimerInit()
+			While Not $hHaupt And TimerDiff($t) < 90000
+				SmartPixInfoWeg()
+				Sleep(500)
+				$hHaupt = SmartPixFenster($haupt)
+			WEnd
+			If Not $hHaupt Then Return Meldung("Smart Pix: Hauptfenster nach 90 s nicht da")
+			Sleep(2000)
+		EndIf
+		; beim Start kann noch "Wichtige Informationen" kommen und den Fokus nehmen: bis 10 s versuchen
+		Local $t2 = TimerInit()
+		Do
+			SmartPixInfoWeg()
+			WinActivate($hHaupt)
+			If WinWaitActive($hHaupt, "", 1) Then ExitLoop
+		Until TimerDiff($t2) > 10000
+		If Not WinActive($hHaupt) Then Return Meldung("Smart Pix laesst sich nicht nach vorn holen")
+		Sleep(500)
+		HinweisStehend("Smart Pix: Patientenliste wird geoeffnet ...")
+		If Not SmartPixKlick($hHaupt, Einst("SmartPix", "Knopf", "256,20"), 1) Then Return False
+		; die Liste braucht beim ersten Mal etwa 10 s
+		Local $t3 = TimerInit(), $warten = Int(Einst("SmartPix", "Warten", "30")) * 1000
+		While Not $hListe And TimerDiff($t3) < $warten
+			Sleep(500)
+			$hListe = SmartPixFenster($liste)
+		WEnd
+		If Not $hListe Then Return Meldung("Smart Pix: Patientenliste nicht erschienen")
+	EndIf
+	WinActivate($hListe)
+	If Not WinWaitActive($hListe, "", 5) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
+	Sleep(500)
+	Return SetExtended($warDa ? 1 : 0, $hListe)
+EndFunc
+
+; True, wenn die Patientenliste von Smart Pix das aktive Fenster ist (fuer den Tastatur-Hook, daher ohne Warten)
+Func SmartPixListeAktiv()
+	Local $h = _WinAPI_GetForegroundWindow()
+	Return _WinAPI_GetClassName($h) = "Qt5QWindowIcon" And _WinAPI_GetWindowText($h) = "Patientenliste"
+EndFunc
+
+; True, wenn das Fenster innerhalb $ms zu oder unsichtbar ist (Qt versteckt Fenster womoeglich nur)
+Func SmartPixWeg($h, $ms)
+	Local $t = TimerInit()
+	While WinExists($h) And BitAND(WinGetState($h), 2)
+		If TimerDiff($t) > $ms Then Return False
+		Sleep(250)
+	WEnd
+	Return True
+EndFunc
+
+; zweites Strg+S: dem in der Liste angeklickten Patienten fehlt das Geburtsdatum; nach Pruefung des Namens wird
+; es in "Patientendaten bearbeiten" eingetragen, ebenso eine fehlende Patienten-ID (Patientennummer aus Medical
+; Office), und der Patient dann ueber die Suche nach dem Geburtsdatum gewaehlt
+Func SmartPixNachtragen($hListe, $nach, $vor, $geb)
+	; Nummer vorher holen, damit der Dialog nicht waehrend der Datenbankabfrage offen steht
+	Local $nrFehler = ""
+	Local $nr = MOPatNr($nach, $vor, $geb)
+	If @error Then
+		$nrFehler = $nr
+		$nr = ""
+	EndIf
+	Local $alt = ClipGet(), $f[4], $fehler = "", $neu = ""
+	Local $hDlg = SmartPixDialog($hListe, $f)
+	If Not $hDlg Then
+		ClipPut($alt)
+		Return False
+	EndIf
+	Local $gebNeu = ($f[2] = "") ? $geb : "", $idNeu = ($f[3] = "") ? $nr : ""
+	If Not SmartPixNamePasst($f[0], $f[1], $nach, $vor) Then
+		$fehler = "angeklickt ist " & $f[1] & " " & $f[0] & ", nicht " & $vor & " " & $nach
+		SmartPixDialogZu($hDlg)
+	ElseIf $f[2] <> "" And $f[2] <> $geb Then
+		$fehler = $f[1] & " " & $f[0] & " hat dort schon das Geburtsdatum " & $f[2]
+		SmartPixDialogZu($hDlg)
+	ElseIf $gebNeu = "" And $idNeu = "" Then
+		SmartPixDialogZu($hDlg)
+	ElseIf Not SmartPixSetzen($hDlg, $gebNeu, $idNeu) Then
+		$fehler = "Geburtsdatum bzw. Patienten-ID liessen sich nicht eintragen"
+	Else
+		$neu = (($gebNeu <> "") ? "Geburtsdatum" : "") & (($gebNeu <> "" And $idNeu <> "") ? " und " : "") & _
+				(($idNeu <> "") ? "Patienten-ID " & $idNeu : "") & " eingetragen, "
+	EndIf
+	ClipPut($alt)
+	If $fehler <> "" Then Return Meldung("Smart Pix: " & $fehler)
+	If $nrFehler <> "" And $f[3] = "" Then $neu &= "(Patientennummer nicht gefunden: " & $nrFehler & ") "
+	; jetzt findet die Suche nach dem Geburtsdatum den Patienten
+	If SmartPixSuche($hListe, $geb) = 1 And SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 2) And SmartPixWeg($hListe, 10000) Then
+		Hinweis("Smart Pix: " & $neu & $vor & " " & $nach & ", " & $geb & " gewaehlt")
+	Else
+		Hinweis("Smart Pix: " & $neu & $vor & " " & $nach & ", bitte selbst waehlen")
+	EndIf
+	Return True
+EndFunc
+
+; True, wenn in der gefilterten Liste ein Patient ohne Geburtsdatum steht (dunkle Schrift in der Spalte Nachname,
+; keine in der Spalte Geburtsdatum, [SmartPix] GebSpalte= als x von,bis im Fensterinneren) oder wenn die Liste
+; bis unten reicht und darunter noch mehr stehen koennten (dann vorsichtshalber auch True)
+Func SmartPixOhneGeb($hListe)
+	Local $z = SmartPixPunkt($hListe, Einst("SmartPix", "Zeile", "60,88"))
+	If @error Then Return True
+	Local $unten = SmartPixPunkt($hListe, "0,-125"), $hoehe = Int(Einst("SmartPix", "Zeilenhoehe", "28"))
+	Local $sp = StringSplit(Einst("SmartPix", "GebSpalte", "370,455"), ",", 2)
+	If UBound($sp) <> 2 Then Return True
+	Local $g1 = SmartPixPunkt($hListe, Int($sp[0]) & ",0"), $g2 = SmartPixPunkt($hListe, Int($sp[1]) & ",0"), $y
+	Opt("PixelCoordMode", 1)
+	For $y = $z[1] To $unten[1] - $hoehe / 2 Step $hoehe
+		; letzte ganze Zeile belegt: es koennten weitere Patienten folgen
+		If $y + $hoehe > $unten[1] - $hoehe / 2 Then
+			PixelSearch($z[0] - 36, $y - 8, $z[0] + 790, $y + 8, 0x606060, 0x60)
+			Return Not @error
+		EndIf
+		PixelSearch($z[0] - 36, $y - 8, $z[0] + 120, $y + 8, 0x303030, 0x30)
+		If @error Then ContinueLoop
+		PixelSearch($g1[0], $y - 8, $g2[0], $y + 8, 0x303030, 0x30)
+		If @error Then Return True
+	Next
+	Return False
+EndFunc
+
+; Patient weder ueber Geburtsdatum noch ueber Nachname gefunden (bzw. nur andere mit Geburtsdatum): ueber
+; "Neuer Patient..." anlegen mit Nachname,
+; Vorname, Geburtsdatum und (wenn in Medical Office eindeutig) der Patientennummer als Patienten-ID, jedes Feld
+; zurueckgelesen; danach ueber die Suche nach dem Geburtsdatum waehlen
+Func SmartPixNeu($hListe, $nach, $vor, $geb)
+	Local $nrFehler = ""
+	Local $nr = MOPatNr($nach, $vor, $geb)
+	If @error Then
+		$nrFehler = $nr
+		$nr = ""
+	EndIf
+	Local $dlg = "[TITLE:Patientendaten bearbeiten; CLASS:Qt5QWindowIcon]", $alt = ClipGet(), $fehler = ""
+	HinweisStehend("Smart Pix: " & $vor & " " & $nach & " nicht in der Patientenliste, wird angelegt ...")
+	WinActivate($hListe)
+	If Not WinWaitActive($hListe, "", 3) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Neu", "710,-76"), 1) Then Return False
+	Local $t = TimerInit(), $h = 0
+	While Not $h And TimerDiff($t) < 10000
+		Sleep(200)
+		$h = SmartPixFenster($dlg)
+	WEnd
+	If Not $h Then Return Meldung("Smart Pix: ""Neuer Patient"" nicht erschienen ([SmartPix] Neu=)")
+	WinActivate($h)
+	If Not WinWaitActive($h, "", 3) Then
+		SmartPixDialogZu($h)
+		Return Meldung("Smart Pix: ""Neuer Patient"" nicht aktiv")
+	EndIf
+	Sleep(Int(Einst("SmartPix", "DialogWarten", "500")))
+	; leerer Nachname: wirklich der Dialog fuer einen neuen Patienten
+	If SmartPixFeld() <> "" Then
+		$fehler = "der Dialog ist nicht leer"
+	Else
+		Send($nach, 1)
+		If SmartPixFeld() <> $nach Then $fehler = "Nachname"
+	EndIf
+	If $fehler = "" Then
+		Send("{TAB}")
+		Send($vor, 1)
+		If SmartPixFeld() <> $vor Then $fehler = "Vorname"
+	EndIf
+	If $fehler = "" Then
+		Send("{TAB}{HOME}")
+		Send(StringRegExpReplace($geb, "\D", ""), 1)
+		If SmartPixDatum(SmartPixFeld()) <> $geb Then $fehler = "Geburtsdatum"
+	EndIf
+	If $fehler = "" And $nr <> "" Then
+		Send("{TAB}")
+		Send($nr, 1)
+		If SmartPixFeld() <> $nr Then $fehler = "Patienten-ID"
+	EndIf
+	If $fehler = "" And Not WinActive($h) Then $fehler = "Dialog nicht mehr aktiv"
+	If $fehler = "" Then
+		Local $ok = Einst("SmartPix", "OK", "")
+		If $ok = "" Then
+			Send("{ENTER}")
+		ElseIf Not SmartPixKlick($h, $ok, 1) Then
+			$fehler = "OK"
+		EndIf
+		If $fehler = "" And Not SmartPixWeg($h, 5000) Then $fehler = "OK"
+	EndIf
+	ClipPut($alt)
+	If $fehler <> "" Then
+		SmartPixDialogZu($h)
+		Return Meldung("Smart Pix: neuer Patient nicht angelegt (" & $fehler & "), bitte selbst ""Neuer Patient...""")
+	EndIf
+	Local $info = ($nr = "") ? " (ohne Patienten-ID: " & $nrFehler & ")" : ", Patienten-ID " & $nr
+	If SmartPixSuche($hListe, $geb) = 1 And SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 2) And SmartPixWeg($hListe, 10000) Then
+		Hinweis("Smart Pix: " & $vor & " " & $nach & ", " & $geb & " neu angelegt und gewaehlt" & $info)
+	Else
+		Hinweis("Smart Pix: " & $vor & " " & $nach & ", " & $geb & " neu angelegt" & $info & ", bitte selbst waehlen")
+	EndIf
+	Return True
+EndFunc
+
+; oeffnet "Patientendaten bearbeiten" zum markierten Patienten der Liste und liest ueber die Zwischenablage
+; Nachname, Vorname, Geburtsdatum (TT.MM.JJJJ, "" wenn leer), Patienten-ID und mit $mitDatei den Dateinamen nach
+; $f; Handle des Dialogs (der Cursor steht dann in der Patienten-ID) oder 0 nach einer Meldung
+Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
+	Local $dlg = "[TITLE:Patientendaten bearbeiten; CLASS:Qt5QWindowIcon]"
+	WinActivate($hListe)
+	If Not WinWaitActive($hListe, "", 3) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Bearbeiten", "849,-76"), 1) Then Return 0
+	Local $t = TimerInit(), $h = 0
+	While Not $h And TimerDiff($t) < 10000
+		Sleep(200)
+		$h = SmartPixFenster($dlg)
+	WEnd
+	If Not $h Then Return Meldung("Smart Pix: ""Patientendaten bearbeiten"" nicht erschienen ([SmartPix] Bearbeiten=)")
+	WinActivate($h)
+	If Not WinWaitActive($h, "", 3) Then
+		SmartPixDialogZu($h)
+		Return Meldung("Smart Pix: ""Patientendaten bearbeiten"" nicht aktiv")
+	EndIf
+	Sleep(Int(Einst("SmartPix", "DialogWarten", "500")))
+	; beim Oeffnen steht der Cursor im Nachnamen, mit Tab folgen Vorname, Geburtsdatum, Patienten-ID
+	$f[0] = SmartPixFeld()
+	Send("{TAB}")
+	$f[1] = SmartPixFeld()
+	Send("{TAB}")
+	$f[2] = SmartPixDatum(SmartPixFeld())
+	Send("{TAB}")
+	$f[3] = SmartPixFeld()
+	; Dateiname des Tagebuchs (nur lesbar, fuer das letzte Auslesen aus palist.xml): danach steht der Cursor dort
+	If UBound($f) > 4 Then $f[4] = ""
+	If $mitDatei And UBound($f) > 4 Then
+		If SmartPixKlick($h, Einst("SmartPix", "Dateiname", "300,318"), 1) Then
+			$f[4] = SmartPixFeld()
+			If Not StringRegExp($f[4], "^\{[0-9A-Fa-f-]{36}\}\.dia$") Then $f[4] = ""
+		EndIf
+	EndIf
+	If $f[0] = "" Or Not WinActive($h) Then
+		SmartPixDialogZu($h)
+		Return Meldung("Smart Pix: Felder in ""Patientendaten bearbeiten"" nicht lesbar")
+	EndIf
+	Return $h
+EndFunc
+
+; Inhalt des Eingabefelds mit dem Cursor (Strg+A, Strg+C), "" wenn leer
+Func SmartPixFeld()
+	ClipPut("")
+	Send("^a^c")
+	Local $t = TimerInit(), $s = ""
+	Do
+		Sleep(50)
+		$s = ClipGet()
+	Until $s <> "" Or TimerDiff($t) > 300
+	Return StringStripWS($s, 3)
+EndFunc
+
+; Geburtsdatum aus dem Feld mit Eingabemaske: "" ohne Ziffern, TT.MM.JJJJ bei 8 Ziffern, sonst wie gelesen
+Func SmartPixDatum($s)
+	Local $z = StringRegExpReplace($s, "\D", "")
+	If $z = "" Then Return ""
+	If StringLen($z) = 8 Then Return StringLeft($z, 2) & "." & StringMid($z, 3, 2) & "." & StringRight($z, 4)
+	Return $s
+EndFunc
+
+; traegt im offenen Dialog (Cursor in der Patienten-ID) das Geburtsdatum ein, prueft es und bestaetigt mit OK;
+; sonst wird der Dialog verworfen
+Func SmartPixGebSetzen($h, $geb)
+	Return SmartPixSetzen($h, $geb, "")
+EndFunc
+
+; wie SmartPixGebSetzen, dazu (falls nicht leer) die Patienten-ID $id
+Func SmartPixSetzen($h, $geb, $id)
+	If Not WinActive($h) Then
+		SmartPixDialogZu($h)
+		Return False
+	EndIf
+	If $id <> "" Then
+		Send("^a")
+		Send($id, 1)
+		If SmartPixFeld() <> $id Or Not WinActive($h) Then
+			SmartPixDialogZu($h)
+			Return False
+		EndIf
+	EndIf
+	If $geb <> "" Then
+		Send("+{TAB}{HOME}")
+		Send(StringRegExpReplace($geb, "\D", ""), 1)
+		If SmartPixDatum(SmartPixFeld()) <> $geb Or Not WinActive($h) Then
+			SmartPixDialogZu($h)
+			Return False
+		EndIf
+	EndIf
+	Local $ok = Einst("SmartPix", "OK", "")
+	If $ok = "" Then
+		Send("{ENTER}")
+	ElseIf Not SmartPixKlick($h, $ok, 1) Then
+		SmartPixDialogZu($h)
+		Return False
+	EndIf
+	If SmartPixWeg($h, 5000) Then Return True
+	SmartPixDialogZu($h)
+	Return False
+EndFunc
+
+; verwirft den Dialog (Esc, notfalls Fenster schliessen)
+Func SmartPixDialogZu($h)
+	If WinActive($h) Then Send("{ESC}")
+	If Not SmartPixWeg($h, 3000) Then WinClose($h)
+	Return True
+EndFunc
+
+; Name fuer Vergleiche: klein, Umlaute ausgeschrieben, ohne Sterne u.ae. und "zzz" (verstorben) vorn, nur Buchstaben
+Func SmartPixNorm($s)
+	$s = StringLower(StringStripWS($s, 3))
+	$s = StringReplace(StringReplace(StringReplace(StringReplace($s, ChrW(228), "ae"), ChrW(246), "oe"), ChrW(252), "ue"), ChrW(223), "ss")
+	$s = StringRegExpReplace($s, "^[*^\s\-_.#+]+", "")
+	$s = StringRegExpReplace($s, "^zzz[*^\s\-_.#+]*", "")
+	Local $t = StringRegExpReplace($s, "[^\pL]+", " ")
+	If @error Then $t = StringRegExpReplace($s, "[^a-z]+", " ")
+	Return StringStripWS($t, 7)
+EndFunc
+
+; gleicher Nachname und gleicher Vorname bzw. gleicher erster Vorname
+Func SmartPixNamePasst($spNach, $spVor, $nach, $vor)
+	If SmartPixNorm($spNach) <> SmartPixNorm($nach) Then Return False
+	Local $a = SmartPixNorm($spVor), $b = SmartPixNorm($vor)
+	Return $a = $b Or StringRegExpReplace($a, " .*", "") = StringRegExpReplace($b, " .*", "")
+EndFunc
+
+; tippt $text ins Feld "Suchen" der Patientenliste; Ergebnis: 0 = kein Treffer, 1 = genau ein Patient (nur die
+; erste Zeile hat einen Nachnamen, weitere Geraete desselben Patienten stehen ohne Namen darunter), 2 = mehrere,
+; -1 = Fehler
+Func SmartPixSuche($hListe, $text, $mal = 1)
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Suche", "357,-76"), 1) Then Return -1
+	Send("^a")
+	Send($text, 1)
+	Sleep(Int(Einst("SmartPix", "SuchWarten", "1500")) * $mal)
+	Local $z = SmartPixPunkt($hListe, Einst("SmartPix", "Zeile", "60,88"))
+	If @error Then Return -1
+	Local $unten = SmartPixPunkt($hListe, "0,-125")
+	Opt("PixelCoordMode", 1)
+	; dunkle Schrift (bis etwa 0x60 je Farbanteil) in der Spalte Nachname
+	PixelSearch($z[0] - 36, $z[1] - 8, $z[0] + 120, $z[1] + 8, 0x303030, 0x30)
+	If @error Then Return 0
+	; weitere Patienten darunter, bis kurz ueber die waagrechte Bildlaufleiste
+	PixelSearch($z[0] - 36, $z[1] + 16, $z[0] + 120, $unten[1], 0x303030, 0x30)
+	Return @error ? 1 : 2
+EndFunc
+
+; "x,y" relativ zum Fensterinneren (negatives y vom unteren Rand) als Bildschirmpunkt [x, y]
+Func SmartPixPunkt($hWnd, $xy)
+	Local $m = StringRegExp($xy, "^\s*(-?\d+)\s*,\s*(-?\d+)\s*$", 1)
+	If @error Then Return SetError(1, 0, 0)
+	Local $pt = DllStructCreate("int X;int Y"), $gr = WinGetClientSize($hWnd)
+	If @error Then Return SetError(1, 0, 0)
+	_WinAPI_ClientToScreen($hWnd, $pt)
+	Local $p[2] = [$pt.X + Int($m[0]), $pt.Y + ((Int($m[1]) < 0) ? $gr[1] + Int($m[1]) : Int($m[1]))]
+	Return $p
+EndFunc
+
+; klickt ($anz = 2: doppelt) mit der echten Maus an "x,y" im Fensterinneren und stellt die Maus zurueck
+Func SmartPixKlick($hWnd, $xy, $anz)
+	Local $p = SmartPixPunkt($hWnd, $xy)
+	If @error Then Return Meldung("Smart Pix: Stelle """ & $xy & """ unlesbar ([SmartPix] in der INI)")
+	Local $alt = MouseGetPos()
+	Opt("MouseCoordMode", 1)
+	MouseClick("left", $p[0], $p[1], $anz, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Return True
+EndFunc
+
+; Handle des ersten sichtbaren (mit $sichtbar = False: irgendeines) Fensters zu $titel, das zum Prozess von Smart
+; Pix gehoert (ein minimiertes wird wiederhergestellt), sonst 0
+Func SmartPixFenster($titel, $sichtbar = True)
+	Local $fe = WinList($titel), $pl = ProcessList(SmartPixExe()), $dabei
+	For $i = 1 To $fe[0][0]
+		$dabei = False
+		For $j = 1 To $pl[0][0]
+			If WinGetProcess($fe[$i][1]) = $pl[$j][1] Then $dabei = True
+		Next
+		If Not $dabei Then ContinueLoop
+		If Not $sichtbar Then Return $fe[$i][1]
+		If Not BitAND(WinGetState($fe[$i][1]), 2) Then ContinueLoop
+		If BitAND(WinGetState($fe[$i][1]), 16) Then
+			WinSetState($fe[$i][1], "", @SW_RESTORE)
+			Sleep(1000)
+		EndIf
+		Return $fe[$i][1]
+	Next
+	Return 0
+EndFunc
+
+; Dateiname des Programms von Smart Pix ([SmartPix] Programm=)
+Func SmartPixExe()
+	Local $exe = Einst("SmartPix", "Programm", "C:\AccuChek\SPIXSW\Accu-Chek Smart Pix Software.exe")
+	Return StringMid($exe, StringInStr($exe, "\", 0, -1) + 1)
+EndFunc
+
+; schliesst das Fenster "Wichtige Informationen" (Accu-Chek-Uebersicht), falls es beim Start erscheint
+Func SmartPixInfoWeg()
+	Local $info = "[TITLE:Wichtige Informationen; REGEXPCLASS:^WindowsForms10\.Window]"
+	If WinExists($info) Then WinClose($info)
+EndFunc
+
+; [Aufrufe] Strg+Umsch+S=SmartPixListe: geht die ganze Patientenliste von Smart Pix Zeile fuer Zeile durch (je
+; "Patientendaten bearbeiten", Felder ueber die Zwischenablage) und schreibt sie nach [SmartPixListe] Datei=.
+; Probelauf: nur lesen, mit Abgleich gegen Medical Office (patstamm) und quelle (namen), Nachnamen ohne "zzz"
+; der Verstorbenen; fehlt das Geburtsdatum und ist es dort eindeutig, steht es unter Vorschlag mit Eintragen=j.
+; Eintragen: traegt die Vorschlaege der Zeilen mit Eintragen=j aus dieser Datei ein (gleiche Nummer und gleicher
+; Name, also bei unveraenderter Liste) und schreibt dazu ...-eingetragen.csv. Abbruch mit Esc
+Func SmartPixListe()
+	If Not ModifierLos() Then Return SmartPixFehler("Strg bitte loslassen")
+	Local $datei = Einst("SmartPixListe", "Datei", @MyDocumentsDir & "\SmartPix-Patienten.csv")
+	Local $a = MsgBox(3 + 32 + 262144, "MOReiter: Smart Pix-Patientenliste", "Ja: die ganze Patientenliste lesen und mit " & _
+			"Medical Office und quelle abgleichen, nach" & @CRLF & $datei & @CRLF & "(danach die Frage, ob gleich eingetragen " & _
+			"werden soll)" & @CRLF & @CRLF & _
+			"Nein: fehlende Geburtsdaten und Patienten-IDs eintragen, laut Spalte Eintragen=j dieser Datei" & @CRLF & @CRLF & _
+			"Das dauert Stunden (etwa 2 s je Patient), den PC solange nicht benutzen; Abbruch mit Esc.")
+	If $a <> 6 And $a <> 7 Then Return False
+	; Lesen und gleich eintragen: eindeutige Vorschlaege sofort, die CSV entsteht trotzdem (Eintragen=eingetragen)
+	Local $sofort = False
+	If $a = 6 Then
+		$a = MsgBox(3 + 32 + 256 + 262144, "MOReiter: Smart Pix-Patientenliste", "Eindeutige Vorschlaege (Eintragen=j) gleich " & _
+				"beim Lesen eintragen?" & @CRLF & @CRLF & "Ja: lesen und gleich eintragen, ohne Rueckfragen; die CSV zeigt " & _
+				"danach je Zeile ""eingetragen"" bzw. ""Fehler""" & @CRLF & "Nein: nur Probelauf")
+		If $a <> 6 And $a <> 7 Then Return False
+		$sofort = ($a = 6)
+		$a = 6
+	EndIf
+	Local $eintragen = ($a = 7), $vorschlag = ObjCreate("Scripting.Dictionary"), $db = ObjCreate("Scripting.Dictionary")
+	Local $ausgelesen = ObjCreate("Scripting.Dictionary"), $ziel = $datei, $fehlerText
+	If $eintragen Then
+		If Not SmartPixVorschlaege($datei, $vorschlag) Then Return False
+		$ziel = StringRegExpReplace($datei, "(?i)\.csv$", "") & "-eingetragen.csv"
+	Else
+		HinweisStehend("Smart Pix-Liste: Patienten aus Medical Office und quelle werden gelesen ...")
+		; Fehler hier als Fenster, nicht als kurzer Hinweis, damit sie nicht uebersehen werden
+		Local $ohne = ""
+		Local $dbNamen[2] = ["medoff", "quelle"]
+		For $welche In $dbNamen
+			$fehlerText = DBPatienten($welche, $db)
+			If @error Then
+				ToolTip("")
+				If $ohne <> "" Then
+					MsgBox(16 + 262144, "MOReiter", $fehlerText & @CRLF & @CRLF & "Weder Medical Office noch quelle lesbar, Abbruch.")
+					Return False
+				EndIf
+				If MsgBox(4 + 48 + 262144, "MOReiter", $fehlerText & @CRLF & @CRLF & "Ohne " & $welche & " weitermachen?") <> 6 Then Return False
+				$ohne = $welche
+			EndIf
+		Next
+		; ohne quelle: Fallbeginne aus Medical Office ab der Umstellung 2025 gelten als unbekannt, denn ob die
+		; frueheren Faelle (aus Turbomed) dort alle stehen, ist nicht gesichert; das ist vorsichtig, weil dann eher
+		; mehrere Patienten passen und der Eintrag uebergangen wird
+		If $ohne = "quelle" Then
+			For $fk In $db.Keys
+				If StringLeft($fk, 2) = "F|" And Int($db.Item($fk)) >= Int(Einst("SmartPixListe", "MOAb", "20250101")) Then $db.Remove($fk)
+			Next
+		EndIf
+		; letztes Auslesen je Patient: wer erst danach in die Praxis kam, kommt nicht in Frage
+		Local $palist = Einst("SmartPixListe", "Palist", "P:\Datenbanken\AccuChek\Diaries\palist.xml")
+		$ausgelesen = SmartPixAuslesen($palist)
+		If @error Then
+			ToolTip("")
+			If MsgBox(4 + 48 + 262144, "MOReiter", $palist & " nicht lesbar ([SmartPixListe] Palist=)" & @CRLF & @CRLF & _
+					"Ohne Pruefung des letzten Auslesens weitermachen?") <> 6 Then Return False
+		EndIf
+	EndIf
+	Local $hListe = SmartPixListeOeffnen()
+	If Not $hListe Then Return False
+	ToolTip("")
+	; ganze Liste: Suche leeren, eine Zeile anklicken (damit die Tabelle den Fokus hat) und mit Strg+Pos1 nach oben
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Suche", "357,-76"), 1) Then Return False
+	Send("^a{DEL}")
+	Sleep(Int(Einst("SmartPixListe", "ListeWarten", "5000")))
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 1) Then Return False
+	Sleep(300)
+	Send("^{HOME}")
+	Sleep(500)
+	Local $h = FileOpen($ziel, 2 + 8 + 128)
+	If $h = -1 Then Return SmartPixFehler("Smart Pix-Liste: " & $ziel & " laesst sich nicht schreiben ([SmartPixListe] Datei=)")
+	Local $kopf = "Nr;Nachname;Vorname;Geburtsdatum;Patienten-ID;Letztes Auslesen;Medical Office;quelle;Vorschlag;Vorschlag-ID;Eintragen"
+	FileWriteLine($h, $kopf)
+	; beim Lesen zusaetzlich die Liste zum Nachsehen: weder in Medical Office noch in quelle bzw. mehrere passende
+	Local $pruefen = StringRegExpReplace($ziel, "(?i)\.csv$", "") & "-pruefen.csv", $h2 = -1, $grund
+	If Not $eintragen Then
+		$h2 = FileOpen($pruefen, 2 + 8 + 128)
+		If $h2 = -1 Then Return SmartPixFehler("Smart Pix-Liste: " & $pruefen & " laesst sich nicht schreiben")
+		FileWriteLine($h2, $kopf & ";Grund")
+	EndIf
+	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0")), $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
+	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
+	Local $nr = 0, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
+	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
+	Local $t0 = TimerInit()
+	While 1
+		If _IsPressed("1B") Then
+			$ende = "mit Esc abgebrochen"
+			ExitLoop
+		EndIf
+		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
+		If Not $hDlg Then
+			; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird
+			Sleep(3000)
+			SmartPixInfoWeg()
+			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
+		EndIf
+		If Not $hDlg Then
+			$ende = "abgebrochen, Dialog nicht lesbar"
+			ExitLoop
+		EndIf
+		; weitere Geraete desselben Patienten bzw. das Ende der Liste liefern dieselben Daten
+		If $f[0] & "|" & $f[1] & "|" & $f[2] & "|" & $f[3] = $vorher Then
+			$gleich += 1
+			SmartPixDialogZu($hDlg)
+			If $gleich >= $grenze Then ExitLoop
+		Else
+			$gleich = 0
+			$vorher = $f[0] & "|" & $f[1] & "|" & $f[2] & "|" & $f[3]
+			$nr += 1
+			$k = $nr & "|" & SmartPixNorm($f[0]) & "|" & SmartPixNorm($f[1])
+			If $eintragen Then
+				$geb = ""
+				$id = ""
+				If $vorschlag.Exists($k) Then
+					; nur was in Smart Pix noch fehlt
+					$teile = StringSplit($vorschlag.Item($k), "|", 2)
+					If $f[2] = "" Then $geb = $teile[0]
+					If $f[3] = "" Then $id = $teile[1]
+				EndIf
+				If $geb <> "" Or $id <> "" Then
+					If SmartPixSetzen($hDlg, $geb, $id) Then
+						$neu += 1
+						SmartPixZeile($h, $nr, $f, "", "", "", $geb, $id, "eingetragen")
+					Else
+						$fehler += 1
+						SmartPixZeile($h, $nr, $f, "", "", "", $geb, $id, "Fehler")
+					EndIf
+				Else
+					SmartPixDialogZu($hDlg)
+				EndIf
+			Else
+				SmartPixDialogZu($hDlg)
+				$imMO = SmartPixAbgleich($db, $f, "M")
+				$inQu = SmartPixAbgleich($db, $f, "Q")
+				$grund = ""
+				If StringLeft($imMO, 2) <> "ja" And StringLeft($inQu, 2) <> "ja" Then
+					$fehlt += 1
+					$grund = "nicht gefunden"
+				EndIf
+				$la = ""
+				If $f[4] = "" Then
+					$ohneDatei += 1
+				ElseIf $ausgelesen.Exists(StringLower($f[4])) Then
+					$la = $ausgelesen.Item(StringLower($f[4]))
+				EndIf
+				; Vorschlag nur bei genau einem passenden Patienten, der vor dem letzten Auslesen schon da war;
+				; mehrere stehen zur Ansicht da, ohne Eintragen=j
+				$ids = SmartPixKandidaten($db, $f, $la)
+				$vs = ""
+				$vid = ""
+				For $i = 0 To UBound($ids) - 1
+					If $f[2] = "" And $db.Item("P|" & $ids[$i]) <> "" Then $vs &= ($vs = "" ? "" : ", ") & $db.Item("P|" & $ids[$i])
+					If $f[3] = "" Then $vid &= ($vid = "" ? "" : ", ") & $ids[$i]
+				Next
+				If UBound($ids) > 1 Then $mehrdeutig += 1
+				$ein = (UBound($ids) = 1 And $vs & $vid <> "") ? "j" : ""
+				If $sofort And $ein = "j" Then
+					; neu oeffnen, damit der Cursor wieder in der Patienten-ID steht, und pruefen, dass es derselbe ist
+					$ein = "Fehler"
+					$hDlg = SmartPixDialog($hListe, $f2)
+					If $hDlg Then
+						If $f2[0] = $f[0] And $f2[1] = $f[1] And $f2[2] = $f[2] And $f2[3] = $f[3] Then
+							If SmartPixSetzen($hDlg, $vs, $vid) Then $ein = "eingetragen"
+						Else
+							SmartPixDialogZu($hDlg)
+						EndIf
+					EndIf
+					If $ein = "eingetragen" Then
+						$neu += 1
+					Else
+						$fehler += 1
+					EndIf
+				EndIf
+				$la = ($la = "") ? "" : StringRight($la, 2) & "." & StringMid($la, 5, 2) & "." & StringLeft($la, 4)
+				SmartPixZeile($h, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein)
+				If UBound($ids) > 1 Then $grund = "mehrere passende: " & SmartPixListeText($ids)
+				If $grund <> "" Then SmartPixZeile($h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein & ";" & $grund)
+			EndIf
+			If $max > 0 And $nr >= $max Then
+				$ende = "nach [SmartPixListe] Max=" & $max
+				ExitLoop
+			EndIf
+			; fest oben rechts, nicht an der Maus ueber der Liste
+			If Mod($nr, 10) = 0 Then ToolTip("Smart Pix-Liste: " & $nr & " Patienten, " & Round(TimerDiff($t0) / 60000) & _
+					" min (Esc = Abbruch)", @DesktopWidth - 330, 0, "MOReiter")
+		EndIf
+		; zurueck in die Tabelle und zum naechsten Patienten
+		If Not WinActive($hListe) Then WinActivate($hListe)
+		If Not WinWaitActive($hListe, "", 3) Then
+			$ende = "abgebrochen, Patientenliste nicht aktiv"
+			ExitLoop
+		EndIf
+		If Not SmartPixWeiter($hListe, $zurueck) Then
+			$ende = "abgebrochen, markierte Zeile nicht gefunden (s. %APPDATA%\MOReiter\SmartPixKante.txt und .png)"
+			ExitLoop
+		EndIf
+		Sleep($pause)
+	WEnd
+	FileClose($h)
+	If $h2 <> -1 Then FileClose($h2)
+	ClipPut($alt)
+	ToolTip("")
+	If $nr = 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
+	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", $nr & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
+			@CRLF & ($eintragen ? $neu & " Patienten ergaenzt, " & $fehler & " Fehler" : $fehlt & _
+			" weder in Medical Office noch in quelle, " & $mehrdeutig & " mehrdeutig (uebergangen), " & $ohneDatei & _
+			" ohne lesbaren Dateinamen (ohne Pruefung des letzten Auslesens)" & ($sofort ? ", " & $neu & _
+			" Patienten ergaenzt, " & $fehler & " Fehler" : "")) & @CRLF & @CRLF & $ziel & _
+			($eintragen ? "" : @CRLF & $pruefen))
+	Return True
+EndFunc
+
+; zum naechsten Patienten der Liste: ohne [SmartPixListe] ZurTabelle= wird die dunkle Unterkante der Markierung
+; (alle Zeilen des markierten Patienten) in der Spalte Nachname gesucht, knapp darueber in dessen letzte Zeile
+; geklickt (damit hat die Tabelle den Fokus) und Pfeil runter gedrueckt; sonst erst die Tasten aus ZurTabelle=
+Func SmartPixWeiter($hListe, $zurueck)
+	If $zurueck <> "" Then
+		Send($zurueck)
+		Sleep(200)
+		Send("{DOWN}")
+		Return True
+	EndIf
+	Local $z = SmartPixPunkt($hListe, Einst("SmartPix", "Zeile", "60,88"))
+	If @error Then Return False
+	Local $unten = SmartPixPunkt($hListe, "0,-125"), $x = $z[0] + Int(Einst("SmartPixListe", "KanteX", "40"))
+	Local $farbe = Int(Einst("SmartPixListe", "Kante", "0x0DA69E")), $p, $ok = False
+	Opt("PixelCoordMode", 1)
+	; von unten nach oben, damit die untere Kante gefunden wird; Qt zeichnet nach dem Dialog womoeglich erst spaeter
+	For $i = 1 To 5
+		Sleep(200)
+		$p = PixelSearch($x, $unten[1], $x, $z[1] - 14, $farbe, 0x20)
+		If Not @error Then
+			$ok = True
+			ExitLoop
+		EndIf
+	Next
+	If Not $ok Then
+		SmartPixKanteDiagnose($x, $z[1] - 14, $unten[1])
+		Return False
+	EndIf
+	; folgt unter der gefundenen Kante noch Markierung (tuerkis getoent), ist es die Oberkante eines Patienten, der
+	; unten aus dem Bild ragt: dann in die unterste sichtbare Zeile klicken
+	Local $y = $p[1] - 8, $c
+	If $p[1] + 4 < $unten[1] Then
+		$c = PixelGetColor($x, $p[1] + 4)
+		If BitAND(BitShift($c, 8), 0xFF) - BitShift($c, 16) > 8 Then $y = $unten[1] - 6
+	EndIf
+	Local $alt = MouseGetPos()
+	Opt("MouseCoordMode", 1)
+	MouseClick("left", $x, $y, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Sleep(200)
+	Send("{DOWN}")
+	Return True
+EndFunc
+
+; Kante nicht gefunden: Farben entlang der Spalte (bei Wechsel) und ein Bild der Liste nach
+; %APPDATA%\MOReiter\SmartPixKante.txt bzw. .png, zum Einstellen von Kante= und KanteX=
+Func SmartPixKanteDiagnose($x, $oben, $unten)
+	Local $t = "Spalte x=" & $x & ", y " & $oben & " bis " & $unten & @CRLF, $vorher = -1, $c
+	For $y = $oben To $unten
+		$c = PixelGetColor($x, $y)
+		If $c <> $vorher Then $t &= "y=" & $y & " 0x" & Hex($c, 6) & @CRLF
+		$vorher = $c
+	Next
+	DirCreate(@AppDataDir & "\MOReiter")
+	Local $h = FileOpen(@AppDataDir & "\MOReiter\SmartPixKante.txt", 2)
+	FileWrite($h, $t)
+	FileClose($h)
+	_ScreenCapture_Capture(@AppDataDir & "\MOReiter\SmartPixKante.png", $x - 300, $oben - 40, $x + 900, $unten, False)
+EndFunc
+
+; Fehler beim Durchlauf der ganzen Liste als Fenster (ein Hinweis an der Maus wird leicht uebersehen)
+Func SmartPixFehler($t)
+	ToolTip("")
+	MsgBox(48 + 262144, "MOReiter: Smart Pix-Patientenliste", $t)
+	Return False
+EndFunc
+
+; Patientennummern durch Leerzeichen getrennt (ohne Komma, wegen der CSV-Zelle)
+Func SmartPixListeText(ByRef $a)
+	Local $s = ""
+	For $i = 0 To UBound($a) - 1
+		$s &= ($s = "" ? "" : " ") & $a[$i]
+	Next
+	Return $s
+EndFunc
+
+Func SmartPixZeile($h, $nr, ByRef $f, $la, $mo, $qu, $vs, $vid, $ein)
+	Local $z = $nr
+	For $i = 0 To 3
+		$z &= ";" & StringReplace($f[$i], ";", ",")
+	Next
+	FileWriteLine($h, $z & ";" & $la & ";" & $mo & ";" & $qu & ";" & $vs & ";" & $vid & ";" & $ein)
+EndFunc
+
+; Vorschlaege mit Eintragen=j aus dem Probelauf: Schluessel Nr|Nachname|Vorname (wie SmartPixNorm) ->
+; Geburtsdatum|Patienten-ID (je leer, wenn kein Vorschlag)
+Func SmartPixVorschlaege($datei, ByRef $vorschlag)
+	Local $z = FileReadToArray($datei), $s
+	If @error Then Return SmartPixFehler("Smart Pix-Liste: erst den Probelauf machen (" & $datei & " fehlt)")
+	For $i = 1 To UBound($z) - 1
+		$s = StringSplit($z[$i], ";", 2)
+		If UBound($s) < 11 Then ContinueLoop
+		If StringLower(StringStripWS($s[10], 3)) <> "j" Then ContinueLoop
+		If Not StringRegExp($s[8], "^(\d\d\.\d\d\.\d{4})?$") Or Not StringRegExp($s[9], "^\d*$") Or $s[8] & $s[9] = "" Then ContinueLoop
+		$vorschlag.Item($s[0] & "|" & SmartPixNorm($s[1]) & "|" & SmartPixNorm($s[2])) = $s[8] & "|" & $s[9]
+	Next
+	If $vorschlag.Count = 0 Then Return SmartPixFehler("Smart Pix-Liste: keine Zeile mit Eintragen=j in " & $datei & " (Probelauf von vor dieser Version?)")
+	Return True
+EndFunc
+
+; liest die Patienten von Medical Office ("medoff") bzw. quelle in das gemeinsame Dictionary $d (die
+; Patientennummer ist in beiden dieselbe): N|nach|vor, E|nach|erster Vorname, G|nach|geb -> Patientennummern
+; (durch Komma getrennt), P|nr -> Geburtsdatum, F|nr -> Beginn des ersten Behandlungsfalls (JJJJMMTT, aus
+; beiden der fruehere), M|nr bzw. Q|nr -> 1 (vorhanden), Z|nr -> 1 (als verstorben mit "zzz" gefuehrt);
+; bei Fehler @error und der Fehlertext
+Func DBPatienten($welche, $d)
+	Local $cn = DBVerbinden($welche)
+	If @error Then Return SetError(1, 0, $cn)
+	Local $sql, $kz
+	If $welche = "medoff" Then
+		$kz = "M"
+		; ohne die kuenstlichen Faelle vom 1.1.2025 (FVon 49308 = Tage seit 1.1.1890, Scheintyp 0, Tarif 0)
+		$sql = "SELECT p.FSurogat, p.FNachname, p.FVorname, DATE_FORMAT(p.FGeburtsdatum,'%d.%m.%Y'), " & _
+				"DATE_FORMAT(DATE_ADD('1890-01-01', INTERVAL f.v DAY),'%Y%m%d') FROM patstamm p LEFT JOIN " & _
+				"(SELECT FPatnr, MIN(FVon) v FROM patfall WHERE NOT (FVon=49308 AND FScheintyp=0 AND FTarif=0) " & _
+				"GROUP BY FPatnr) f ON f.FPatnr=p.FSurogat"
+	Else
+		$kz = "Q"
+		; bhfb (Beginn des Behandlungsfalls) ist bei allen Faellen befuellt, auch bei denen aus Medical Office
+		$sql = "SELECT n.pat_id, n.Nachname, n.Vorname, DATE_FORMAT(n.GebDat,'%d.%m.%Y'), DATE_FORMAT(f.b,'%Y%m%d') " & _
+				"FROM namen n LEFT JOIN (SELECT pat_id, MIN(bhfb) b FROM faelle GROUP BY pat_id) f ON f.pat_id=n.pat_id"
+	EndIf
+	$gComFehler = ""
+	$cn.CommandTimeout = 300
+	Local $rs = $cn.Execute($sql)
+	If $gComFehler <> "" Or Not IsObj($rs) Then
+		Local $t = $gComFehler
+		$cn.Close
+		Return SetError(1, 0, "Abfrage der Patienten in " & $welche & " fehlgeschlagen: " & $t)
+	EndIf
+	Local $nr, $nach, $vor, $geb, $fb
+	While Not $rs.EOF
+		$nr = String($rs.Fields(0).Value)
+		$nach = SmartPixNorm(String($rs.Fields(1).Value))
+		$vor = SmartPixNorm(String($rs.Fields(2).Value))
+		$geb = String($rs.Fields(3).Value)
+		$fb = String($rs.Fields(4).Value)
+		SmartPixDazu($d, "N|" & $nach & "|" & $vor, $nr)
+		SmartPixDazu($d, "E|" & $nach & "|" & StringRegExpReplace($vor, " .*", ""), $nr)
+		If $geb <> "" Then SmartPixDazu($d, "G|" & $nach & "|" & $geb, $nr)
+		If Not $d.Exists("P|" & $nr) Or $d.Item("P|" & $nr) = "" Then $d.Item("P|" & $nr) = $geb
+		If StringRegExp($fb, "^\d{8}$") Then
+			If Not $d.Exists("F|" & $nr) Then
+				$d.Item("F|" & $nr) = $fb
+			ElseIf Int($fb) < Int($d.Item("F|" & $nr)) Then
+				$d.Item("F|" & $nr) = $fb
+			EndIf
+		EndIf
+		$d.Item($kz & "|" & $nr) = 1
+		If StringRegExp(String($rs.Fields(1).Value), "(?i)^[*^\s]*zzz") Then $d.Item("Z|" & $nr) = 1
+		$rs.MoveNext
+	WEnd
+	$rs.Close
+	$cn.Close
+	Return True
+EndFunc
+
+; haengt $w an die Komma-Liste unter $k an, wenn noch nicht enthalten
+Func SmartPixDazu($d, $k, $w)
+	If Not $d.Exists($k) Then
+		$d.Item($k) = $w
+	ElseIf $w <> "" And Not StringInStr("," & $d.Item($k) & ",", "," & $w & ",") Then
+		$d.Item($k) = ($d.Item($k) = "" ? "" : $d.Item($k) & ",") & $w
+	EndIf
+EndFunc
+
+; Patientennummern unter $k, nur die mit Geburtsdatum $geb (leer = alle) und vorhanden in $kz ("M", "Q", leer = beide)
+Func SmartPixIds($d, $k, $geb = "", $kz = "")
+	Local $erg[0], $l
+	If Not $d.Exists($k) Then Return $erg
+	$l = StringSplit($d.Item($k), ",", 2)
+	For $i = 0 To UBound($l) - 1
+		If $l[$i] = "" Then ContinueLoop
+		If $geb <> "" And $d.Item("P|" & $l[$i]) <> $geb Then ContinueLoop
+		If $kz <> "" And Not $d.Exists($kz & "|" & $l[$i]) Then ContinueLoop
+		ReDim $erg[UBound($erg) + 1]
+		$erg[UBound($erg) - 1] = $l[$i]
+	Next
+	Return $erg
+EndFunc
+
+; Spalte Medical Office ($kz "M") bzw. quelle ("Q"): "ja" (Name und, falls in Smart Pix vorhanden, Geburtsdatum),
+; "ja, verstorben", "ja, erster Vorname", "ja, Vorname anders" (Nachname und Geburtsdatum), "Name, Geb. ..."
+; (gleicher Name, anderes Geburtsdatum: wohl jemand anderes) oder ""
+Func SmartPixAbgleich($d, ByRef $f, $kz)
+	Local $nach = SmartPixNorm($f[0]), $vor = SmartPixNorm($f[1]), $erst = StringRegExpReplace($vor, " .*", ""), $ids
+	$ids = SmartPixIds($d, "N|" & $nach & "|" & $vor, $f[2], $kz)
+	If UBound($ids) > 0 Then Return "ja" & ($d.Exists("Z|" & $ids[0]) ? ", verstorben" : "")
+	$ids = SmartPixIds($d, "E|" & $nach & "|" & $erst, $f[2], $kz)
+	If UBound($ids) > 0 Then Return "ja, erster Vorname"
+	If $f[2] = "" Then Return ""
+	$ids = SmartPixIds($d, "G|" & $nach & "|" & $f[2], "", $kz)
+	If UBound($ids) > 0 Then Return "ja, Vorname anders"
+	$ids = SmartPixIds($d, "N|" & $nach & "|" & $vor, "", $kz)
+	If UBound($ids) = 0 Then Return ""
+	Local $s = "Name, Geb."
+	For $i = 0 To UBound($ids) - 1
+		$s &= " " & $d.Item("P|" & $ids[$i])
+	Next
+	Return $s
+EndFunc
+
+; Patienten aus Medical Office und quelle, die zu diesem Smart Pix-Eintrag passen: gleicher Name (sonst gleicher
+; erster Vorname) und, falls in Smart Pix vorhanden, gleiches Geburtsdatum; ohne die, deren erster
+; Behandlungsfall erst nach dem letzten Auslesen $bis (JJJJMMTT, leer = ohne diese Pruefung) begann
+Func SmartPixKandidaten($d, ByRef $f, $bis)
+	Local $nach = SmartPixNorm($f[0]), $vor = SmartPixNorm($f[1]), $erg[0]
+	Local $ids = SmartPixIds($d, "N|" & $nach & "|" & $vor, $f[2])
+	If UBound($ids) = 0 Then $ids = SmartPixIds($d, "E|" & $nach & "|" & StringRegExpReplace($vor, " .*", ""), $f[2])
+	For $i = 0 To UBound($ids) - 1
+		If $bis <> "" And $d.Exists("F|" & $ids[$i]) Then
+			If Int($d.Item("F|" & $ids[$i])) > Int($bis) Then ContinueLoop
+		EndIf
+		ReDim $erg[UBound($erg) + 1]
+		$erg[UBound($erg) - 1] = $ids[$i]
+	Next
+	Return $erg
+EndFunc
+
+; letztes Auslesen je Tagebuch aus palist.xml von Smart Pix (dort unverschluesselt): "{...}.dia" (klein) -> JJJJMMTT
+Func SmartPixAuslesen($datei)
+	Local $d = ObjCreate("Scripting.Dictionary")
+	Local $t = FileRead($datei)
+	If @error Then Return SetError(1, 0, $d)
+	Local $teile = StringSplit($t, "<PATIENT ", 1), $dia, $daten, $max
+	For $i = 2 To $teile[0]
+		$dia = StringRegExp($teile[$i], 'DiaryFileName="([^"]+)"', 1)
+		If @error Then ContinueLoop
+		$daten = StringRegExp($teile[$i], 'LastUpload="(\d{4})-(\d\d)-(\d\d)"', 3)
+		If @error Then ContinueLoop
+		$max = 0
+		For $j = 0 To UBound($daten) - 3 Step 3
+			If Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2]) > $max Then $max = Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2])
+		Next
+		$d.Item(StringLower($dia[0])) = String($max)
+	Next
+	Return $d
+EndFunc
+
+; Texte der Markierungen (Tabellen patmark/markier) des Patienten in Medical Office, sortiert nach Nummer der
+; Markierung; Zugangsdaten [medoff] uid=, pwd= aus der Zugang.ini von Dateilese ([Allgemein] Zugang=), Server
+; wie bei Dateilese aus der Registry (MOServer, sonst MORes); bei Fehler @error und der Fehlertext
+Func MOMarkierungen($nach, $vor, $geb)
+	Local $d = StringSplit($geb, ".", 2)
+	If UBound($d) <> 3 Then Return SetError(1, 0, "Geburtsdatum " & $geb & " unlesbar")
+	Local $sql = "SELECT DISTINCT m.FText, m.FSurogat FROM patmark pm JOIN markier m ON pm.FMarkiernr=m.FSurogat" & _
+			" JOIN patstamm p ON p.FSurogat=pm.FPatnr WHERE p.FNachname='" & SqlText($nach) & "' AND p.FVorname='" & _
+			SqlText($vor) & "' AND DATE(p.FGeburtsdatum)=DATE(" & $d[2] & $d[1] & $d[0] & ") ORDER BY m.FSurogat"
+	Local $cn = DBVerbinden("medoff")
+	If @error Then Return SetError(1, 0, $cn)
+	$gComFehler = ""
+	Local $rs = $cn.Execute($sql), $erg[0]
+	If $gComFehler <> "" Or Not IsObj($rs) Then
+		Local $t = $gComFehler
+		$cn.Close
+		Return SetError(1, 0, "Abfrage der Markierungen fehlgeschlagen: " & $t)
+	EndIf
+	While Not $rs.EOF
+		ReDim $erg[UBound($erg) + 1]
+		$erg[UBound($erg) - 1] = StringStripWS($rs.Fields(0).Value, 3)
+		$rs.MoveNext
+	WEnd
+	$rs.Close
+	$cn.Close
+	Return $erg
+EndFunc
+
+; Patientennummer (patstamm.FSurogat) in Medical Office zu Name und Geburtsdatum; bei Fehler oder nicht genau
+; einem Treffer @error und der Grund
+Func MOPatNr($nach, $vor, $geb)
+	Local $d = StringSplit($geb, ".", 2)
+	If UBound($d) <> 3 Then Return SetError(1, 0, "Geburtsdatum " & $geb & " unlesbar")
+	Local $cn = DBVerbinden("medoff")
+	If @error Then Return SetError(1, 0, $cn)
+	$gComFehler = ""
+	Local $rs = $cn.Execute("SELECT FSurogat FROM patstamm WHERE FNachname='" & SqlText($nach) & "' AND FVorname='" & _
+			SqlText($vor) & "' AND DATE(FGeburtsdatum)=DATE(" & $d[2] & $d[1] & $d[0] & ")"), $nr = "", $n = 0
+	If $gComFehler <> "" Or Not IsObj($rs) Then
+		Local $t = $gComFehler
+		$cn.Close
+		Return SetError(1, 0, "Abfrage fehlgeschlagen: " & $t)
+	EndIf
+	While Not $rs.EOF
+		$nr = String($rs.Fields(0).Value)
+		$n += 1
+		$rs.MoveNext
+	WEnd
+	$rs.Close
+	$cn.Close
+	If $n <> 1 Then Return SetError(1, 0, $n & " Treffer")
+	Return $nr
+EndFunc
+
+; ADODB-Verbindung zu "medoff" (Medical Office, Server wie bei Dateilese aus der Registry: MOServer, sonst MORes)
+; oder "quelle" ([SmartPixListe] QuelleServer=, QuellePort=); Zugangsdaten [medoff] bzw. [quelle] uid=, pwd= aus
+; der Zugang.ini von Dateilese ([Allgemein] Zugang=); bei Fehler @error und der Fehlertext
+Func DBVerbinden($welche)
+	Local $zugang = Einst("Allgemein", "Zugang", "C:\Program Files (x86)\Dateilesen\Zugang.ini")
+	Local $uid = IniRead($zugang, $welche, "uid", ""), $pwd = IniRead($zugang, $welche, "pwd", "")
+	If $uid = "" Then Return SetError(1, 0, "Keine Zugangsdaten zu " & $welche & " ([" & $welche & "] uid=, pwd= in " & $zugang & ")")
+	Local $verb = "DRIVER={MySQL ODBC 8.0 Unicode Driver};option=0;database=" & $welche & ";uid=" & $uid & ";pwd=" & $pwd & ";port="
+	Local $server[2]
+	If $welche = "medoff" Then
+		$verb &= Einst("Allgemein", "MOPort", "2020") & ";server="
+		$server[0] = RegWertDL("MOServer", "wser")
+		$server[1] = RegWertDL("MORes", "wres")
+	Else
+		$verb &= Einst("SmartPixListe", "QuellePort", "3306") & ";server="
+		ReDim $server[1]
+		$server[0] = Einst("SmartPixListe", "QuelleServer", "linux1")
+	EndIf
+	Local $cn = ObjCreate("ADODB.Connection"), $fehler = ""
+	If Not IsObj($cn) Then Return SetError(1, 0, "ADODB nicht verfuegbar")
+	For $srv In $server
+		$gComFehler = ""
+		$cn.ConnectionTimeout = 5
+		$cn.Open($verb & $srv)
+		If $gComFehler = "" And $cn.State = 1 Then Return $cn
+		$fehler &= @CRLF & $srv & ": " & $gComFehler
+	Next
+	Return SetError(1, 0, "Keine Verbindung zur Datenbank " & $welche & ":" & $fehler)
+EndFunc
+
+; Wert aus HKCU\Software\GSProducts\Dateilese (Einstellungen von Dateilese), sonst $vorgabe
+Func RegWertDL($wert, $vorgabe)
+	Local $v = RegRead("HKCU\Software\GSProducts\Dateilese", $wert)
+	If @error Or $v = "" Then Return $vorgabe
+	Return $v
+EndFunc
+
+; Text fuer ein SQL-Literal in '...' (MySQL: Backslash und Hochkomma verdoppeln)
+Func SqlText($t)
+	Return StringReplace(StringReplace($t, "\", "\\"), "'", "''")
+EndFunc
+
+Func ComFehler($o)
+	$gComFehler = StringStripWS($o.description, 3)
+	If $gComFehler = "" Then $gComFehler = "COM-Fehler 0x" & Hex($o.number, 8)
 EndFunc
 
 ; Stand des laufenden Programms: Aenderungszeit der exe (= Kompilierzeit, Kopieren erhaelt sie), TT.MM.JJJJ hh:mm
@@ -1635,7 +2780,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				If Not $code Then
 					$code = True
 					$max = TimerDiff($t) + 300000
-					HinweisStehend($s & ": bitte den Code aus der Mail eingeben und ""Bestaetigen und Anmelden"" druecken")
+					HinweisStehend($s & ": bitte den Code aus der Mail eingeben und bestaetigen (""Bestaetigen und Anmelden"" bzw. ""Fortfahren"")")
 				EndIf
 			Case "enter"
 				; das Skript hat einem Knopf den Fokus gegeben, der nur auf eine echte Benutzeraktion reagiert
@@ -1892,8 +3037,9 @@ EndFunc
 ; neuen Tab; laeuft Firefox nicht, wird er damit gestartet
 Func FirefoxOeffnen($url, $titel, $s)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
-	; Portalseite oder eine mit dem Fortschritt des Benutzerskripts
-	Local $LaborTitel = "^(\Q" & $titel & "\E|MOR:)"
+	; Portalseite (Titel beginnt mit $titel oder lautet "Seite | $titel", z.B. "Patienten | YourLoops") oder eine
+	; mit dem Fortschritt des Benutzerskripts
+	Local $LaborTitel = "^((?:.* \| )?\Q" & $titel & "\E|MOR:)"
 	; dort wartet das Benutzerskript noch (z.B. auf "PDF drucken/speichern") bzw. laeuft der Download: nicht
 	; stoeren, statt dessen einen neuen Tab
 	Local $belegt = "^MOR:\d+:(fertig|gedruckt)\b"
