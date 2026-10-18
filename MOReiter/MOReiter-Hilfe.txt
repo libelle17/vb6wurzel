@@ -88,6 +88,11 @@ YourLoops (z.B. Strg+Y=Portal:YourLoops, Abschnitt [YourLoops]): "Verbinden", An
 beim Code aus der Mail hakt das Skript "Dieses Gerät 30 Tage lang speichern" an, den Code selbst eintippen
 und "Fortfahren" drücken. Dann Patient über die Suche, "Download-Bericht" mit Tage= (Voreinstellung 90 =
 3 Monate) als PDF.
+EasyView (z.B. Strg+E=Portal:EasyView, Abschnitt [EasyView]): Medtrum EasyView Pro, "NEW VERSION",
+Anmeldung, Patient über die Suche nach dem Nachnamen (Name und, falls angegeben, Alter müssen passen),
+Dashboard mit Tage= (7, 14, 30, 90), "Print". In der Druckvorschau von Firefox klickt MOReiter
+"Speichern", wenn zuletzt "Als PDF speichern" gewählt war (sonst selbst Ziel wählen und "Speichern"),
+und trägt in "Speichern unter" Ordner und Namen (Ablage=, Name=) ein.
 Strg+S=SmartPix: startet die Accu-Chek Smart Pix Software (oder holt sie nach vorn; läuft sie nach dem
 Schließen nur noch versteckt im Infobereich, wird sie beendet und neu gestartet), öffnet die
 Patientenliste, sucht nach dem Geburtsdatum und wählt den Patienten, wenn genau einer übrig bleibt;
@@ -200,7 +205,8 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               Name=              dabei umbenennen ({vor}, {nach}, {geb} = Geburtsdatum, {von}, {bis} = Zeitraum
                                  des Berichts, {TT}, {MM}, {JJJJ} = heute), z.B. "{nach}, {vor}, {geb},
                                  Glooko {von}-{bis}, erst. {TT}.{MM}.{JJJJ}.pdf"
-[LibreView], [Dexcom], [Glooko], [YourLoops]  wie [Labor]; Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
+[LibreView], [Dexcom], [Glooko], [YourLoops], [EasyView]  wie [Labor] (EasyView ohne Datei=,
+                                 dazu Speichern=, DruckWarten=); Dexcom zusätzlich SpeichernAuf=PC1,PC2 und Tage=
 [Aufrufe]     Strg+P=<Befehlszeile>   {pat} = "Nachname;Vorname;TT.MM.JJJJ" des Patienten
               Strg+Z=Zucker      Portale nach den Markierungen des Patienten (s. [Zucker])
 [SmartPix]    Programm=, Knopf=, Suche=, Zeile=, Bearbeiten=   Programm und Klickstellen (x,y im

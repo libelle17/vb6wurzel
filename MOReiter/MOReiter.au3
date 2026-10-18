@@ -1820,14 +1820,14 @@ Func SmartPixSuche($hListe, $text, $mal = 1)
 	Return @error ? 1 : 2
 EndFunc
 
-; "x,y" relativ zum Fensterinneren (negatives y vom unteren Rand) als Bildschirmpunkt [x, y]
+; "x,y" relativ zum Fensterinneren (negatives x vom rechten, negatives y vom unteren Rand) als Bildschirmpunkt [x, y]
 Func SmartPixPunkt($hWnd, $xy)
 	Local $m = StringRegExp($xy, "^\s*(-?\d+)\s*,\s*(-?\d+)\s*$", 1)
 	If @error Then Return SetError(1, 0, 0)
 	Local $pt = DllStructCreate("int X;int Y"), $gr = WinGetClientSize($hWnd)
 	If @error Then Return SetError(1, 0, 0)
 	_WinAPI_ClientToScreen($hWnd, $pt)
-	Local $p[2] = [$pt.X + Int($m[0]), $pt.Y + ((Int($m[1]) < 0) ? $gr[1] + Int($m[1]) : Int($m[1]))]
+	Local $p[2] = [$pt.X + ((Int($m[0]) < 0) ? $gr[0] + Int($m[0]) : Int($m[0])), $pt.Y + ((Int($m[1]) < 0) ? $gr[1] + Int($m[1]) : Int($m[1]))]
 	Return $p
 EndFunc
 
@@ -2536,19 +2536,21 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	$gAblagen[$n][3] = DownloadPdfs()
 	$gAblagen[$n][4] = ""
 	$gAblagen[$n][5] = "(?i)^" & $muster & "$"
-	; Name= : beim Verschieben so umbenennen, z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf";
-	; {geb} = Geburtsdatum TT.MM.JJJJ; Zeichen, die in Dateinamen nicht erlaubt sind, fallen weg
-	Local $name = Einst($s, "Name", "")
-	If $name <> "" Then
-		Local $weg = "[\\/:*?""<>|]+"
-		$name = StringReplace($name, "{vor}", StringStripWS(StringRegExpReplace($vor, $weg, ""), 7))
-		$name = StringReplace($name, "{nach}", StringStripWS(StringRegExpReplace($nach, $weg, ""), 7))
-		$name = StringReplace($name, "{geb}", $geb)
-		; {von}, {bis} (Zeitraum des Berichts) erst beim Verschieben: aus dem PDF, sonst vom Skript
-		$name = StringReplace(StringReplace(StringReplace($name, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
-	EndIf
-	$gAblagen[$n][6] = $name
+	$gAblagen[$n][6] = AblageNeuerName($s, $nach, $vor, $geb)
 	$gAblagen[$n][7] = $zeitraum
+EndFunc
+
+; Name= : beim Verschieben so umbenennen, z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf";
+; {geb} = Geburtsdatum TT.MM.JJJJ; Zeichen, die in Dateinamen nicht erlaubt sind, fallen weg; {von}, {bis}
+; (Zeitraum des Berichts) bleiben stehen, s. NameMitZeitraum
+Func AblageNeuerName($s, $nach, $vor, $geb)
+	Local $name = Einst($s, "Name", "")
+	If $name = "" Then Return ""
+	Local $weg = "[\\/:*?""<>|]+"
+	$name = StringReplace($name, "{vor}", StringStripWS(StringRegExpReplace($vor, $weg, ""), 7))
+	$name = StringReplace($name, "{nach}", StringStripWS(StringRegExpReplace($nach, $weg, ""), 7))
+	$name = StringReplace($name, "{geb}", $geb)
+	Return StringReplace(StringReplace(StringReplace($name, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
 EndFunc
 
 ; setzt den Zeitraum "TT.MM.JJJJ-TT.MM.JJJJ" fuer {von}, {bis} ein; ohne ihn entfaellt "{von}-{bis}"
@@ -2798,6 +2800,9 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 				EndIf
 			Case "anmelden", "suche", "land", "zweifaktor", "patient"
 				If $code Then ToolTip("")
+			; Bericht ueber den Druckdialog von Firefox als PDF (EasyView): Druckvorschau und "Speichern unter"
+			Case "drucken"
+				Return PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
 			; "gedruckt" kann "fertig" so schnell folgen, dass dieses nie im Titel zu sehen war
 			Case "fertig", "gedruckt"
 				AblageMerken($s, $nach, $vor, $geb, $zeitraum)
@@ -2822,6 +2827,75 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 	; PDF evtl. doch erstellt (Fertigmeldung verpasst): ein noch erscheinendes trotzdem ablegen
 	If $z = "enter" Or $z = "patient" Then AblageMerken($s, $nach, $vor, $geb, $zeitraum)
 	Return Meldung($s & ": Zeitueberschreitung" & (($z = "") ? "" : " (zuletzt: " & $z & ")"))
+EndFunc
+
+; "drucken": das Benutzerskript hat den Druck der Seite ausgeloest. In der Druckvorschau von Firefox wird
+; "Speichern" ([Portal] Speichern= als x,y im Fensterinneren, negativ = vom rechten bzw. unteren Rand) nur
+; angeklickt, wenn Firefox zuletzt "Als PDF speichern" benutzt hat (sonst ginge es auf Papier), sonst klickt der
+; Mensch; im Fenster "Speichern unter" traegt MOReiter dann Ablage= und Name= (mit {von}, {bis}) ein
+Func PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
+	Local $verz = StringRegExpReplace(Einst($s, "Ablage", ""), "\\$", ""), $name = AblageNeuerName($s, $nach, $vor, $geb)
+	If $verz = "" Or $name = "" Then Return Meldung($s & ": [" & $s & "] Ablage= und Name= fehlen")
+	Local $ziel = AblageName($verz, NameMitZeitraum($name, $zeitraum))
+	Local $dlg = "[REGEXPTITLE:^(Speichern unter|Save As)$; CLASS:#32770]", $h = 0
+	Sleep(Int(Einst($s, "DruckWarten", "4000")))
+	Local $selbst = Not FirefoxDruckerPdf()
+	If Not $selbst Then
+		; "Speichern" geht erst, wenn die Vorschau fertig ist: bis zu sechsmal alle 4 s
+		Local $p = SmartPixPunkt($hFF, Einst($s, "Speichern", "-272,-121")), $ok = Not @error, $alt = MouseGetPos()
+		Opt("MouseCoordMode", 1)
+		For $k = 1 To 6
+			If Not $ok Or Not WinActive($hFF) Then ExitLoop
+			MouseClick("left", $p[0], $p[1], 1, 0)
+			MouseMove($alt[0], $alt[1], 0)
+			$h = WinWait($dlg, "", 4)
+			If $h Then ExitLoop
+		Next
+		$selbst = Not $h
+	EndIf
+	If $selbst Then
+		HinweisStehend($s & ": bitte in der Druckvorschau Ziel ""Als PDF speichern"" waehlen und ""Speichern"" klicken; " & _
+				"Name und Ordner traegt MOReiter dann ein")
+		$h = WinWait($dlg, "", 180)
+	EndIf
+	If Not $h Then
+		ToolTip("")
+		Return Meldung($s & ": Fenster ""Speichern unter"" nicht erschienen")
+	EndIf
+	ToolTip("")
+	WinActivate($h)
+	WinWaitActive($h, "", 3)
+	ControlSetText($h, "", "Edit1", $ziel)
+	Sleep(300)
+	If ControlGetText($h, "", "Edit1") <> $ziel Then Return Meldung($s & ": Dateiname liess sich nicht eintragen, bitte selbst speichern als " & $ziel)
+	ControlSend($h, "", "Edit1", "{ENTER}")
+	If Not WinWaitClose($h, "", 10) Then Return Meldung($s & ": ""Speichern unter"" blieb offen, bitte selbst speichern als " & $ziel)
+	Local $t = TimerInit()
+	While Not FileExists($ziel) And TimerDiff($t) < 30000
+		Sleep(500)
+	WEnd
+	If Not FileExists($ziel) Then Return Meldung($s & ": " & $ziel & " nicht angekommen")
+	Hinweis($s & ": als " & $ziel & " abgelegt")
+	Return True
+EndFunc
+
+; True, wenn Firefox (prefs.js des zuletzt benutzten Profils) zuletzt auf "Als PDF speichern" gedruckt hat
+Func FirefoxDruckerPdf()
+	Local $basis = @AppDataDir & "\Mozilla\Firefox\Profiles", $such = FileFindFirstFile($basis & "\*"), $neu = "", $zeit = ""
+	If $such = -1 Then Return False
+	While 1
+		Local $d = FileFindNextFile($such)
+		If @error Then ExitLoop
+		Local $f = $basis & "\" & $d & "\prefs.js"
+		If Not FileExists($f) Then ContinueLoop
+		If FileGetTime($f, 0, 1) > $zeit Then
+			$zeit = FileGetTime($f, 0, 1)
+			$neu = $f
+		EndIf
+	WEnd
+	FileClose($such)
+	If $neu = "" Then Return False
+	Return StringRegExp(FileRead($neu), 'user_pref\("print_printer",\s*"Mozilla Save to PDF"\);')
 EndFunc
 
 ; bietet Tampermonkey in einem neuen Firefox-Tab an und wartet, bis es eingeschaltet ist
