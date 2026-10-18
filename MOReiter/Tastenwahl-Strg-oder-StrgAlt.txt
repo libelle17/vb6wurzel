@@ -1,0 +1,43 @@
+Tastenwahl für die Zucker- und Programmaufrufe: Strg+Buchstabe oder Strg+Alt+Buchstabe?
+Stand 18.10.2026; Entscheidung vorerst: bei Strg+Buchstabe bleiben ([Aufrufe] in MOReiter-Vorgaben.ini)
+
+Heutige Belegung [Aufrufe]
+  Strg+P, Strg+Umsch+P, Strg+A, Strg+I      Dateilese bzw. FCAufruf
+  Strg+S, Strg+Umsch+S                      Smart Pix, ganze Smart Pix-Liste
+  Strg+L, Strg+D, Strg+G, Strg+Y, Strg+E    LibreView, Dexcom, Glooko, YourLoops, EasyView
+  Strg+Z                                    Zucker (Portale nach den Markierungen des Patienten)
+  Strg+Umsch+T                              alle Tampermonkey-Skripte einrichten/aktualisieren
+  Diese Tasten wirken nur, wenn Medical Office das aktive Fenster ist und der Cursor nicht in einem
+  Eingabefeld steht (Ausnahme: Strg+S auch in der Patientenliste von Smart Pix).
+
+Für Strg+Alt+Buchstabe
+  - MOReiter benutzt Strg+Alt schon als eigenen Tastenbereich (Kartei, Krankenblatt, Labor Strg+Alt+B ...),
+    alles Eigene wäre an einer Stelle.
+  - Wirkt auch, wenn der Cursor in einem Eingabefeld steht (z.B. in der Karteikarte).
+  - Kommt den Strg-Tasten von Medical Office selbst nicht in die Quere.
+
+Gegen Strg+Alt+Buchstabe
+  - Schon belegt (Hauptfenster): K Kartei/Wechsel, L Krankenblatt, P ePA, A Abhaken/ePAAbr, H Hochladen,
+    U Unten, T Termine, B Labor, Z letzte Patienten, F1 Hilfe, Leertaste Menü, Ziffern und Filtertasten
+    (^ 1 ... 0 ß ´ F2 ...); mit Umschalt: K L P A zum Kalibrieren, D Fensterliste; im Briefversand:
+    K I R O E B M F V. Gerade LibreView (L) und Zucker (Z) bräuchten also andere, schlechter merkbare
+    Buchstaben.
+  - Viele tippen @, € und µ als Strg+Alt+Q / E / M statt mit AltGr (Windows behandelt Strg+Alt wie AltGr).
+    MOReiter lässt AltGr selbst unberührt, aber eine Belegung von Strg+Alt+E oder M nähme diesen Weg weg.
+  - Strg+Alt eine halbe Sekunde gehalten blendet die gelben Schildchen ein ([Allgemein] Einblendung=).
+  - In Eingabefeldern würde die Taste dann eben auch wirken, also auch versehentlich beim Schreiben.
+
+Für Strg+Buchstabe
+  - Gut merkbar (L LibreView, D Dexcom, G Glooko, Y YourLoops, E EasyView, S Smart Pix, Z Zucker).
+  - In Eingabefeldern bleiben die üblichen Strg-Tasten unberührt (Strg+Z Rückgängig, Strg+A alles
+    markieren, Strg+S Speichern usw.), weil MOReiter sie dort durchlässt.
+
+Gegen Strg+Buchstabe
+  - Wirkt nicht, solange der Cursor in einem Eingabefeld steht (erst Feld verlassen, z.B. Esc oder Klick
+    auf die Liste).
+  - Kann mit eigenen Strg-Tasten von Medical Office außerhalb von Eingabefeldern zusammenstoßen (z.B. ein
+    Speichern mit Strg+S in einem Dialog, falls Medical Office das kennt); bisher nicht beobachtet.
+
+Umstellen
+  - Für Strg+Alt+Buchstabe müsste [Aufrufe] die Schreibweise "Strg+Alt+X=" lernen und die Belegung im
+    Tastatur-Hook vor den festen Strg+Alt-Tasten geprüft werden; für L und Z andere Buchstaben wählen.
