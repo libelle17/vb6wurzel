@@ -205,6 +205,9 @@ Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
 Global $gAblagen[0][8], $gAblagenGeprueft = 0
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
+; Aufruf ueber einen Link "moreiter:..." (Patientenlaufzettel, s. LinkAufruf): Patient und Markierungen aus dem
+; Link statt aus Medical Office
+Global $gLink = False, $gLinkNach = "", $gLinkVor = "", $gLinkGeb = "", $gLinkMark[0]
 
 If $CmdLine[0] > 0 And $CmdLine[1] = "Neustart" Then
 	; von NeustartPruefen gestartet: warten, bis sich die alte Instanz beendet hat
@@ -217,6 +220,8 @@ ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Filter" Then
 	Exit FilterWahl(Int($CmdLine[2]) - 1) ? 0 : 1
 ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Diagnose" Then
 	Exit DiagnoseWahl(Int($CmdLine[2]) - 1) ? 0 : 1
+ElseIf $CmdLine[0] > 0 And StringLeft($CmdLine[1], 9) = "moreiter:" Then
+	Exit LinkAufruf($CmdLine[1]) ? 0 : 1
 ElseIf $CmdLine[0] > 0 Then
 	Exit Ausfuehren($CmdLine[1]) ? 0 : 1
 ElseIf _Singleton("MOReiter_resident", 1) = 0 Then ; laeuft schon
@@ -231,6 +236,7 @@ TraySetToolTip("MOReiter " & Stand() & ": Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 AufrufeLaden()
+LinkSchemaEintragen()
 Global $gRueckruf = DllCallbackRegister("TastenHook", "lresult", "int;wparam;lparam")
 If Not HookErneuern() Then
 	MsgBox(16, "MOReiter", "Tastatur-Hook konnte nicht eingerichtet werden.", 10)
@@ -1289,7 +1295,7 @@ EndFunc
 ; fuehrt einen Befehl aus [Aufrufe] bzw. [Zucker] aus: "Portal:Abschnitt" oder eine Befehlszeile mit {pat}
 Func AufrufBefehl($name, $befehl)
 	Local $hMO = WinGetHandle($MOFenster)
-	If @error Then Return MOStarten()
+	If @error And Not $gLink Then Return MOStarten()
 	; Portal im Firefox mit eigenem Benutzerskript, z.B. Strg+L=Portal:LibreView
 	If StringLeft($befehl, 7) = "Portal:" Then Return Portal(StringStripWS(StringTrimLeft($befehl, 7), 3))
 	; Accu-Chek Smart Pix Software: Patient in der Patientenliste suchen und waehlen
@@ -1315,13 +1321,17 @@ EndFunc
 ; [Aufrufe] wie Strg+S; mehrere nacheinander, jeden Befehl nur einmal
 Func Zucker()
 	Local $hMO = WinGetHandle($MOFenster)
-	If @error Then Return MOStarten()
+	If @error And Not $gLink Then Return MOStarten()
 	If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
 	Local $nach, $vor, $geb
 	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
-	HinweisStehend("Markierungen von " & $vor & " " & $nach & " werden gelesen ...")
-	Local $mark = MOMarkierungen($nach, $vor, $geb)
-	If @error Then Return Meldung($mark)
+	; vom Laufzettel: die dort angeklickte Markierung bzw. bei Alt+Z alle
+	Local $mark = $gLinkMark
+	If Not $gLink Then
+		HinweisStehend("Markierungen von " & $vor & " " & $nach & " werden gelesen ...")
+		$mark = MOMarkierungen($nach, $vor, $geb)
+		If @error Then Return Meldung($mark)
+	EndIf
 	If UBound($mark) = 0 Then Return Meldung($vor & " " & $nach & ": keine Markierungen in Medical Office")
 	; Schluessel aus [Zucker], eigene INI vor den Vorgaben, in der Reihenfolge der Datei
 	Local $regeln[0][2], $quelle[2] = [$Ini, $IniVorgaben]
@@ -1367,7 +1377,7 @@ Func Zucker()
 			(($ohne = "") ? "" : " (ohne Abruf: " & StringTrimLeft($ohne, 2) & ")"))
 	Local $n = UBound($befehle)
 	For $j = 0 To $n - 1
-		Local $b = $befehle[$j][1], $name = "Strg+Z " & ($j + 1) & "/" & $n & " (" & $befehle[$j][0] & ")"
+		Local $b = $befehle[$j][1], $name = ($gLink ? "Laufzettel " : "Strg+Z ") & ($j + 1) & "/" & $n & " (" & $befehle[$j][0] & ")"
 		Hinweis($name & ": " & $b)
 		Sleep(1000)
 		; Verweis auf eine Taste aus [Aufrufe], z.B. Strg+S fuer Smart Pix
@@ -1401,7 +1411,7 @@ EndFunc
 ; Strg+S (auch in der Patientenliste): dann wird ihm das Geburtsdatum eingetragen, wenn der Name passt und es fehlt
 Func SmartPix()
 	Local $hMO = WinGetHandle($MOFenster)
-	If @error Then Return MOStarten()
+	If @error And Not $gLink Then Return MOStarten()
 	If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
 	Local $nach, $vor, $geb
 	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
@@ -2472,7 +2482,7 @@ Func Portal($s)
 	Local $portal = Einst($s, "Url", "")
 	If $portal = "" Then Return Meldung($s & " nicht eingerichtet ([" & $s & "] Url= in der INI, siehe Hilfe)")
 	Local $hMO = WinGetHandle($MOFenster)
-	If @error Then Return MOStarten()
+	If @error And Not $gLink Then Return MOStarten()
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
 	Local $nach, $vor, $geb
 	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
@@ -3101,9 +3111,76 @@ Func UrlKodiert($s)
 	Return $r
 EndFunc
 
+; Link "moreiter:Zucker;Nachname;Vorname;TT.MM.JJJJ;Markierung|Markierung..." vom Patientenlaufzettel (Klick
+; auf eine Zucker-Markierung bzw. Alt+Z fuer alle): wie Strg+Z, aber mit dem Patienten und den Markierungen aus
+; dem Link, also ohne Medical Office; die Teile sind percent-codiert (Windows-1252 wie die Seite). Danach wartet
+; diese Instanz, bis die abgerufenen PDFs abgelegt sind, und laesst die letzte Meldung noch lesen
+Func LinkAufruf($url)
+	$gLink = True
+	AufrufeLaden()
+	Local $r = LinkAusfuehren($url)
+	While UBound($gAblagen) > 0
+		Sleep(2000)
+		AblagenPruefen()
+	WEnd
+	Sleep(4000)
+	Return $r
+EndFunc
+
+Func LinkAusfuehren($url)
+	; Firefox haengt manchmal einen Schraegstrich an
+	Local $t = StringSplit(StringRegExpReplace(StringRegExpReplace($url, "(?i)^moreiter:/*", ""), "/+$", ""), ";", 2)
+	If UBound($t) < 5 Then Return Meldung("MOReiter-Link unvollstaendig: " & $url)
+	; nur dieser Befehl: eine fremde Seite soll ueber den Link keine Befehlszeilen starten koennen
+	If UrlDekodiert($t[0]) <> "Zucker" Then Return Meldung("MOReiter-Link: unbekannter Befehl " & UrlDekodiert($t[0]))
+	$gLinkNach = StringStripWS(UrlDekodiert($t[1]), 3)
+	$gLinkVor = StringStripWS(UrlDekodiert($t[2]), 3)
+	$gLinkGeb = UrlDekodiert($t[3])
+	If $gLinkNach = "" Or Not StringRegExp($gLinkGeb, "^\d\d\.\d\d\.\d{4}$") Then Return Meldung("MOReiter-Link: Name oder Geburtsdatum fehlt: " & $url)
+	For $m In StringSplit($t[4], "|", 2)
+		Local $w = StringStripWS(UrlDekodiert($m), 3)
+		If $w = "" Then ContinueLoop
+		ReDim $gLinkMark[UBound($gLinkMark) + 1]
+		$gLinkMark[UBound($gLinkMark) - 1] = $w
+	Next
+	Return Zucker()
+EndFunc
+
+; Linkschema "moreiter:" fuer diesen Benutzer auf diese exe (bzw. dieses Skript) eintragen, ohne Adminrechte
+Func LinkSchemaEintragen()
+	Local $k = "HKCU\Software\Classes\moreiter"
+	Local $befehl = '"' & @AutoItExe & '"' & (@Compiled ? "" : ' "' & @ScriptFullPath & '"') & ' "%1"'
+	If RegRead($k & "\shell\open\command", "") = $befehl Then Return
+	RegWrite($k, "", "REG_SZ", "URL:MOReiter")
+	RegWrite($k, "URL Protocol", "REG_SZ", "")
+	RegWrite($k & "\shell\open\command", "", "REG_SZ", $befehl)
+EndFunc
+
+; %XX-Folgen zurueck in Text, Bytes als Windows-1252
+Func UrlDekodiert($s)
+	Local $b = Binary(""), $i = 1
+	While $i <= StringLen($s)
+		Local $h = StringMid($s, $i + 1, 2)
+		If StringMid($s, $i, 1) = "%" And StringRegExp($h, "^[0-9A-Fa-f]{2}$") Then
+			$b &= BinaryMid(Binary(Int(Dec($h))), 1, 1)
+			$i += 3
+		Else
+			$b &= StringToBinary(StringMid($s, $i, 1), 1)
+			$i += 1
+		EndIf
+	WEnd
+	Return BinaryToString($b, 1)
+EndFunc
+
 ; Nachname, Vorname und Geburtsdatum aus der Seite "Personalien" des geoeffneten Patienten; sie liegt
 ; auch ohne F6 (unsichtbar unterhalb) im Fenster, sonst wird sie mit F6 kurz geholt
 Func PatientDaten($hWnd, ByRef $nach, ByRef $vor, ByRef $geb)
+	If $gLink Then
+		$nach = $gLinkNach
+		$vor = $gLinkVor
+		$geb = $gLinkGeb
+		Return True
+	EndIf
 	If PersonalienLesen($hWnd, $nach, $vor, $geb) Then Return True
 	WinActivate($hWnd)
 	If Not WinWaitActive($hWnd, "", 2) Then Return False
@@ -3990,7 +4067,7 @@ Func MOStarten()
 EndFunc
 
 Func Meldung($txt)
-	If $CmdLine[0] > 0 Then
+	If $CmdLine[0] > 0 And Not $gLink Then
 		ConsoleWriteError($txt & @CRLF)
 	Else
 		Hinweis($txt)

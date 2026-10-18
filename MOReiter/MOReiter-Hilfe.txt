@@ -125,6 +125,12 @@ Strg+Z=Zucker: liest die Markierungen des Patienten aus der Datenbank von Medica
 jede Zucker-Markierung das passende Portal bzw. Programm auf, mehrere nacheinander (z.B. "Libre-Handy"
 und "Omnipod 5 Glooko": erst LibreView, dann Glooko). Welche Markierung wohin führt, steht in [Zucker].
 Die Zugangsdaten zur Datenbank kommen aus der Zugang.ini von Dateilese.
+Vom Patientenlaufzettel aus: ein Klick auf eine Zucker-Markierung in der ersten Kopfzeile ruft dieses
+Portal ab, Alt+Z alle (wie Strg+Z, aber mit Name und Geburtsdatum aus dem Laufzettel, Medical Office
+braucht dafür nicht offen zu sein). Der Laufzettel öffnet dazu einen Link "moreiter:...", den MOReiter
+beim Start für den Benutzer anmeldet; Firefox fragt beim ersten Mal, ob er MOReiter öffnen darf
+("immer erlauben" anhaken). Die so gestartete zweite MOReiter-Instanz beendet sich, sobald die PDFs
+abgelegt sind.
 
 
 DIAGNOSEERFASSUNG
