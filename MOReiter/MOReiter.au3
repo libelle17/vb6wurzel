@@ -2034,7 +2034,8 @@ Func SmartPixListe()
 		FileWriteLine($h2, $kopf & ";Grund")
 	EndIf
 	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0")), $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
-	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
+	Local $pause = Int(Einst("SmartPixListe", "Pause", "800")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
+	Local $wiederholt = 0
 	Local $nr = 0, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
 	Local $t0 = TimerInit()
@@ -2045,12 +2046,21 @@ Func SmartPixListe()
 		EndIf
 		$gSmartPixWarnung = ""
 		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
-		If Not $hDlg Then
-			; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird
-			Sleep(3000)
+		; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird; "Kein Schreibzugriff" bzw. "Keine
+		; Schreibrechte" kommt bei schnellem Arbeiten ueber das Netz voruebergehend (Sperrdatei palock.xml.lck noch
+		; nicht frei): dann bis zu fuenfmal mit wachsender Pause
+		Local $wdh = 0
+		While Not $hDlg And $wdh < (StringInStr($gSmartPixWarnung, "Schreib") ? 5 : 1)
+			$wdh += 1
+			$wiederholt += 1
+			ToolTip("Smart Pix-Liste: Patient " & ($nr + 1) & ", " & $wdh & ". Wiederholung" & (($gSmartPixWarnung = "") ? "" : _
+					" (" & $gSmartPixWarnung & ")"), @DesktopWidth - 330, 0, "MOReiter")
+			Sleep(3000 * $wdh)
 			SmartPixInfoWeg()
+			SmartPixWarnungWeg()
+			$gSmartPixWarnung = ""
 			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
-		EndIf
+		WEnd
 		If Not $hDlg Then
 			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
 			ExitLoop
@@ -2133,8 +2143,9 @@ Func SmartPixListe()
 				If UBound($ids) > 1 Then $grund = "mehrere passende: " & SmartPixListeText($ids)
 				If $grund <> "" Then SmartPixZeile($h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein & ";" & $grund)
 			EndIf
-			; ohne Schreibrechte (Sperre eines anderen Smart Pix in palock.xml) scheitert jeder weitere Patient
-			If StringInStr($gSmartPixWarnung, "Schreibrecht") Then
+			; scheitert das Eintragen wiederholt an fehlenden Schreibrechten (z.B. Sperre eines anderen Smart Pix in
+			; palock.xml), scheitert auch jeder weitere Patient
+			If StringInStr($gSmartPixWarnung, "Schreib") And $fehler >= 5 Then
 				$ende = "abgebrochen, Smart Pix: " & $gSmartPixWarnung & " (Sperre in palock.xml? Smart Pix ueberall schliessen)"
 				ExitLoop
 			EndIf
@@ -2164,6 +2175,7 @@ Func SmartPixListe()
 	ToolTip("")
 	If $nr = 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
 	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", $nr & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
+			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
 			@CRLF & ($eintragen ? $neu & " Patienten ergaenzt, " & $fehler & " Fehler" : $fehlt & _
 			" weder in Medical Office noch in quelle, " & $mehrdeutig & " mehrdeutig (uebergangen), " & $ohneDatei & _
 			" ohne lesbaren Dateinamen (ohne Pruefung des letzten Auslesens)" & ($sofort ? ", " & $neu & _
