@@ -1295,6 +1295,7 @@ Func AufrufBefehl($name, $befehl)
 	; Accu-Chek Smart Pix Software: Patient in der Patientenliste suchen und waehlen
 	If $befehl = "SmartPix" Then Return SmartPix()
 	If $befehl = "SmartPixListe" Then Return SmartPixListe()
+	If $befehl = "Skripte" Then Return SkripteEinrichten()
 	If StringInStr($befehl, "{pat}") Then
 		; F6 (falls die Personalien fehlen) darf nicht als Strg+F6 ankommen
 		If Not ModifierLos() Then Return Meldung("Strg bitte loslassen")
@@ -2942,6 +2943,32 @@ EndFunc
 
 ; oeffnet das Benutzerskript in einem neuen Tab (Tampermonkey zeigt dann seine Installationsseite) und
 ; wartet, bis diese verschwindet ("Installieren": Tampermonkey schliesst den Tab)
+; [Aufrufe] Strg+Umsch+T=Skripte: Tampermonkey (falls noch nicht da) und nacheinander die Benutzerskripte aller
+; Portale mit Url= in der INI zum Installieren bzw. Aktualisieren anbieten (je "Installieren"/"Aktualisieren"
+; klicken oder den Tab schliessen, dann kommt das naechste)
+Func SkripteEinrichten()
+	If Not ModifierLos() Then Return Meldung("Strg und Umschalt bitte loslassen")
+	Local $portale = "", $quelle[2] = [$Ini, $IniVorgaben], $l
+	For $datei In $quelle
+		$l = IniReadSectionNames($datei)
+		If @error Then ContinueLoop
+		For $i = 1 To $l[0]
+			If Einst($l[$i], "Url", "") = "" Or StringInStr("|" & $portale & "|", "|" & $l[$i] & "|") Then ContinueLoop
+			$portale &= ($portale = "" ? "" : "|") & $l[$i]
+		Next
+	Next
+	If $portale = "" Then Return Meldung("Keine Portale mit Url= in der INI")
+	If Not TampermonkeyDa() And Not AddOnEinrichten() Then Return False
+	Local $p = StringSplit($portale, "|", 2)
+	For $k = 0 To UBound($p) - 1
+		Hinweis("Benutzerskript " & ($k + 1) & "/" & UBound($p) & ": MOReiter " & $p[$k])
+		Sleep(1000)
+		If Not SkriptEinrichten($p[$k]) Then Return False
+	Next
+	Hinweis("Benutzerskripte eingerichtet: " & StringReplace($portale, "|", ", "))
+	Return True
+EndFunc
+
 Func SkriptEinrichten($s)
 	Local $h = FirefoxTab(PortalSkript($s))
 	If Not $h Then Return False
