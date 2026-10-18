@@ -2865,20 +2865,17 @@ Func PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
 	ToolTip("")
 	WinActivate($h)
 	WinWaitActive($h, "", 3)
-	; Feld "Dateiname": zuerst als Control Edit1, sonst wie von Hand mit Alt+N, alles markieren, einfuegen
-	ControlSetText($h, "", "Edit1", $ziel)
-	Sleep(300)
-	If ControlGetText($h, "", "Edit1") = $ziel Then
-		ControlSend($h, "", "Edit1", "{ENTER}")
-	Else
-		If Not WinActive($h) Then Return Meldung($s & ": ""Speichern unter"" nicht aktiv, bitte selbst speichern als " & $ziel)
-		Send("!n")
-		Sleep(300)
-		Send("^a")
-		Einfuegen($ziel)
-		Sleep(300)
-		Send("{ENTER}")
-	EndIf
+	; der Cursor steht beim Oeffnen im Feld "Dateiname" (mit markiertem Vorschlag): wie von Hand alles markieren
+	; und den ganzen Pfad einfuegen (ein per ControlSetText gesetzter Text kommt beim Dialog nicht an)
+	If Not WinActive($h) Then Return Meldung($s & ": ""Speichern unter"" nicht aktiv, bitte selbst speichern als " & $ziel)
+	Sleep(500)
+	Send("^a")
+	Einfuegen($ziel)
+	Sleep(500)
+	Local $feld = ControlGetFocus($h)
+	If $feld = "" Or ControlGetText($h, "", $feld) <> $ziel Then Return Meldung($s & ": Dateiname liess sich nicht eintragen (" & _
+			$feld & "), bitte selbst speichern als " & $ziel)
+	Send("{ENTER}")
 	If Not WinWaitClose($h, "", 10) Then Return Meldung($s & ": ""Speichern unter"" blieb offen, bitte selbst speichern als " & $ziel)
 	Local $t = TimerInit()
 	While Not FileExists($ziel) And TimerDiff($t) < 30000
