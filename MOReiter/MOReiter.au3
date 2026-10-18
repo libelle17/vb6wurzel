@@ -2871,17 +2871,16 @@ Func PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
 	Sleep(500)
 	Send("^a")
 	Einfuegen($ziel)
+	; zuruecklesen laesst sich das Feld nicht verlaesslich; ob es geklappt hat, zeigt die Datei in der Ablage
 	Sleep(500)
-	Local $feld = ControlGetFocus($h)
-	If $feld = "" Or ControlGetText($h, "", $feld) <> $ziel Then Return Meldung($s & ": Dateiname liess sich nicht eintragen (" & _
-			$feld & "), bitte selbst speichern als " & $ziel)
+	If Not WinActive($h) Then Return Meldung($s & ": ""Speichern unter"" nicht aktiv, bitte selbst speichern als " & $ziel)
 	Send("{ENTER}")
 	If Not WinWaitClose($h, "", 10) Then Return Meldung($s & ": ""Speichern unter"" blieb offen, bitte selbst speichern als " & $ziel)
 	Local $t = TimerInit()
 	While Not FileExists($ziel) And TimerDiff($t) < 30000
 		Sleep(500)
 	WEnd
-	If Not FileExists($ziel) Then Return Meldung($s & ": " & $ziel & " nicht angekommen")
+	If Not FileExists($ziel) Then Return Meldung($s & ": " & $ziel & " nicht angekommen (evtl. unter anderem Namen gespeichert)")
 	Hinweis($s & ": als " & $ziel & " abgelegt")
 	Return True
 EndFunc
