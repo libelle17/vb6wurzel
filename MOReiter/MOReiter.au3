@@ -2962,6 +2962,15 @@ Func SkriptEinrichten($s)
 EndFunc
 
 ; oeffnet $adr in einem neuen Firefox-Tab (bzw. startet Firefox damit), liefert das Fenster
+; True, wenn zu Firefox ein Dialogfenster (z.B. "Speichern unter") offen ist: Tasten fuer Firefox kaemen dort an
+Func FirefoxDialog($h)
+	Local $pid = WinGetProcess($h), $l = WinList("[CLASS:#32770]")
+	For $i = 1 To $l[0][0]
+		If BitAND(WinGetState($l[$i][1]), 2) And WinGetProcess($l[$i][1]) = $pid Then Return True
+	Next
+	Return False
+EndFunc
+
 Func FirefoxTab($adr)
 	Local $muster = "[REGEXPTITLE:Mozilla Firefox$; CLASS:MozillaWindowClass]"
 	Local $h = WinGetHandle($muster)
@@ -2973,6 +2982,7 @@ Func FirefoxTab($adr)
 	EndIf
 	WinActivate($h)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
+	If FirefoxDialog($h) Then Return Meldung("Firefox hat noch ein Fenster offen (z.B. ""Speichern unter""), bitte erst schliessen")
 	Send("^t")
 	Sleep(300)
 	Einfuegen($adr)
@@ -3126,6 +3136,7 @@ Func FirefoxOeffnen($url, $titel, $s)
 	EndIf
 	WinActivate($h)
 	If Not WinWaitActive($h, "", 2) Then Return Meldung("Firefox laesst sich nicht aktivieren")
+	If FirefoxDialog($h) Then Return Meldung("Firefox hat noch ein Fenster offen (z.B. ""Speichern unter""), bitte erst schliessen")
 	Local $gefunden = StringRegExp(WinGetTitle($h), $LaborTitel) And Not StringRegExp(WinGetTitle($h), $belegt)
 	If Not $gefunden Then
 		Local $n = Int(Einst($s, "Tabs", $defLaborTabs)), $vorher = ""
