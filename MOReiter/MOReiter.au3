@@ -201,6 +201,8 @@ Global $gComFehler = "", $gComHandler = ObjEvent("AutoIt.Error", "ComFehler")
 Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
 ; Text der letzten Warnung von Smart Pix (z.B. "Keine Schreibrechte fuer die Datensaetze"), s. SmartPixWarnungWeg
 Global $gSmartPixWarnung = ""
+; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
+Global $gSmartPixDateiDy = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
@@ -1710,10 +1712,22 @@ Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
 	$f[3] = SmartPixFeld()
 	; Dateiname des Tagebuchs (nur lesbar, fuer das letzte Auslesen aus palist.xml): danach steht der Cursor dort
 	If UBound($f) > 4 Then $f[4] = ""
+	; Lage je nach PC (Skalierung) etwas verschieden: sonst 16 bzw. 32 Punkte hoeher versuchen (nicht tiefer, darunter
+	; liegen die Spaltenkoepfe der Geraeteliste), die passende Verschiebung gilt dann fuer die folgenden Patienten
 	If $mitDatei And UBound($f) > 4 Then
-		If SmartPixKlick($h, Einst("SmartPix", "Dateiname", "300,318"), 1) Then
-			$f[4] = SmartPixFeld()
-			If Not StringRegExp($f[4], "^\{[0-9A-Fa-f-]{36}\}\.dia$") Then $f[4] = ""
+		Local $xy = StringSplit(Einst("SmartPix", "Dateiname", "300,318"), ",", 2), $dys[4] = [$gSmartPixDateiDy, 0, -16, -32], $dy, $versucht = "|"
+		If UBound($xy) = 2 Then
+			For $dy In $dys
+				If StringInStr($versucht, "|" & $dy & "|") Then ContinueLoop
+				$versucht &= $dy & "|"
+				If Not SmartPixKlick($h, Int($xy[0]) & "," & (Int($xy[1]) + $dy), 1) Then ExitLoop
+				$f[4] = SmartPixFeld()
+				If StringRegExp($f[4], "^\{[0-9A-Fa-f-]{36}\}\.dia$") Then
+					$gSmartPixDateiDy = $dy
+					ExitLoop
+				EndIf
+				$f[4] = ""
+			Next
 		EndIf
 	EndIf
 	If $f[0] = "" Or Not WinActive($h) Then
