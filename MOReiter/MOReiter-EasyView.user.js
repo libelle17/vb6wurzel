@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter EasyView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.0
+// @version      1.1
 // @description  Medtrum EasyView Pro (Praxis): Patient nach Name (und Alter) suchen, Dashboard ueber Tage drucken (Auftrag von MOReiter, Strg+E)
 // @match        https://easyview.medtrum.eu/*
 // @grant        GM_getValue
@@ -15,7 +15,7 @@
 // MOReiter oeffnet EasyView mit dem Auftrag hinter "#":
 //     ...#mor=Nachname;Vorname;TT.MM.JJJJ;Kennung;Nr;PC-Name;Art;Tage   (Teile URL-kodiert)
 // Die Seite lenkt ihre Unterseiten selbst ueber "#/..." (Vue), daher wird der Auftrag gleich beim Laden
-// abgeholt und die Adresse auf "#/" zurueckgesetzt. Ablauf: "NEW VERSION", Anmeldung (mit "Remember Me"),
+// abgeholt und die Adresse auf "#/select" gesetzt (wie die Weiterleitung von www.easyviewpro.com). Ablauf: "NEW VERSION", Anmeldung (mit "Remember Me"),
 // Patientenliste, Suche nach dem Nachnamen, Zeile mit dem Namen (Vor- und Nachname, auch ohne Leerzeichen
 // dazwischen) und, wenn angegeben, dem Alter, Dashboard, Zeitraum Tage (7, 14, 30 oder 90), "Print". Den
 // Druckdialog von Firefox und "Speichern unter" bedient MOReiter. Fortschritt im Seitentitel "MOR:Nr:Zustand":
@@ -38,8 +38,9 @@
     var a = { name: t[0] || '', vor: t[1] || '', geb: t[2] || '', kennung: t[3] || '', nr: t[4] || '',
               pc: t[5] || '', art: t[6] || '', tage: t[7] || '', beginn: Date.now(), schritte: {} };
     merken(a);
-    // die Seite soll mit ihrer eigenen Startseite beginnen
-    history.replaceState(history.state, '', location.pathname + location.search + '#/');
+    // wie die Weiterleitung von www.easyviewpro.com mit der Auswahl NEW/OLD VERSION beginnen ("#/" fuehrte
+    // zur Anmeldung von EasyView Personal fuer Patienten)
+    history.replaceState(history.state, '', location.pathname + location.search + '#/select');
     return true;
   }
 
@@ -152,6 +153,8 @@
   // "passworttippen"), sonst die erste gespeicherte Anmeldung ("passwort"); "Remember Me" wird angehakt
   var stand = '', standSeit = 0;
   function loginTeile() {
+    // nur die Anmeldung von EasyView Pro (#/hcplogin/...), nicht die von EasyView Personal (#/login/...)
+    if (!/^#\/hcplogin/i.test(location.hash)) return null;
     var em = $('input[placeholder="Email"]'), pw = $('input[type="password"]'), b = mitText('button', 'Sign in');
     return (em && pw && b && sichtbar(em)) ? { em: em, pw: pw, b: b } : null;
   }
@@ -213,6 +216,16 @@
     }
   }
   window.addEventListener('click', abschickenPruefen, true);
+
+  // Anmeldung von EasyView Personal (fuer Patienten): zurueck zur Auswahl NEW/OLD VERSION
+  function personalSeite(a) {
+    if (!/^#\/login\//i.test(location.hash)) return false;
+    titel(a, 'anmelden');
+    if (einmal(a, 'personal')) location.hash = '#/select';
+    else if (seit(a, 'personal') > 5000 && einmal(a, 'personal2')) location.hash = '#/select';
+    else if (seit(a, 'personal') > 15000) { titel(a, 'fehler EasyView Personal statt Pro'); erledigt(); }
+    return true;
+  }
 
   // Startseite nach der Anmeldung: weiter zur Patientenliste
   function startSeite(a) {
@@ -327,7 +340,7 @@
     if (Date.now() - a.beginn > hoechstens) { erledigt(); return; }
     if (!document.body) return;
     try {
-      versionSeite(a) || anmelden(a) || startSeite(a) || dashboard(a) || liste(a) || titel(a, zustand || 'suche');
+      versionSeite(a) || personalSeite(a) || anmelden(a) || startSeite(a) || dashboard(a) || liste(a) || titel(a, zustand || 'suche');
     } catch (e) {
       titel(a, 'fehler ' + e.message);
       erledigt();
