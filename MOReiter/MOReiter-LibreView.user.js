@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.14
+// @version      1.15
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
@@ -422,7 +422,7 @@
       return true;
     }
     if (seit(a, 'patientSeite') < 0) einmal(a, 'patientSeite');
-    var b = $('pastGlucoseCard-report-button');
+    var b = berichtKnopf();
     if (b && !b.disabled) {
       if (einmal(a, 'berichtKlick')) klicke(b);
       // wirkt der Klick nicht, nach 5 s noch einmal
@@ -431,6 +431,20 @@
     }
     if (seit(a, 'patientSeite') > 90000) { titel(a, 'keinedaten'); erledigt(); }
     return true;
+  }
+
+  // Knopf "Glukose-Berichte": sonst in der Karte "Glukoseverlaufsdaten" (pastGlucoseCard), bei neuen Daten in der
+  // gruenen Karte "Neue Glukosedaten" mit anderer id; notfalls nach der Aufschrift
+  // (der erste sichtbare, nicht gesperrte; sonst irgendeiner, damit weiter auf ihn gewartet wird)
+  function berichtKnopf() {
+    var k = [].slice.call(document.querySelectorAll('#pastGlucoseCard-report-button, [id$="GlucoseCard-report-button"], ' +
+      '[id*="report-button"]:not(#reports-print-button)'));
+    [].forEach.call(document.querySelectorAll('button, a, [role="button"]'), function (e) {
+      if (/^\s*(Glukose-Berichte|Glucose Reports)\s*$/i.test(e.textContent)) k.push(e);
+    });
+    for (var i = 0; i < k.length; i++)
+      if (!k[i].disabled && k[i].getBoundingClientRect().width > 0) return k[i];
+    return k[0] || null;
   }
 
   // Glukose-Berichte (/reports/<id>): MOReiter ist hier fertig; das Skript wartet noch, bis der Knopf
