@@ -1974,6 +1974,19 @@ Func SmartPixListe()
 	EndIf
 	Local $eintragen = ($a = 7), $vorschlag = ObjCreate("Scripting.Dictionary"), $db = ObjCreate("Scripting.Dictionary")
 	Local $ausgelesen = ObjCreate("Scripting.Dictionary"), $ziel = $datei, $fehlerText
+	; endete der letzte Durchgang gleicher Art vor dem Ende der Liste (Abbruch, Esc, Max=), dahinter weitermachen?
+	Local $art = $eintragen ? "eintragen" : ($sofort ? "sofort" : "lesen"), $stand = @AppDataDir & "\MOReiter\SmartPixListe-Stand.ini"
+	Local $ab[4], $abNr = 0
+	If IniRead($stand, "Stand", "Art", "") = $art And Int(IniRead($stand, "Stand", "Nr", "0")) > 0 Then
+		For $i = 0 To 3
+			$ab[$i] = IniRead($stand, "Stand", "F" & $i, "")
+		Next
+		Local $w = MsgBox(3 + 32 + 262144, "MOReiter: Smart Pix-Patientenliste", "Der letzte Durchgang (" & IniRead($stand, "Stand", "Zeit", "") & _
+				") endete beim " & IniRead($stand, "Stand", "Nr", "") & ". Patienten (" & $ab[1] & " " & $ab[0] & ")." & @CRLF & @CRLF & _
+				"Ja: hinter ihm weitermachen, die CSV-Dateien werden ergaenzt" & @CRLF & "Nein: von vorn, die CSV-Dateien werden neu geschrieben")
+		If $w <> 6 And $w <> 7 Then Return False
+		If $w = 6 Then $abNr = Int(IniRead($stand, "Stand", "Nr", "0"))
+	EndIf
 	If $eintragen Then
 		If Not SmartPixVorschlaege($datei, $vorschlag) Then Return False
 		$ziel = StringRegExpReplace($datei, "(?i)\.csv$", "") & "-eingetragen.csv"
@@ -2022,21 +2035,35 @@ Func SmartPixListe()
 	Sleep(300)
 	Send("^{HOME}")
 	Sleep(500)
-	Local $h = FileOpen($ziel, 2 + 8 + 128)
+	Local $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
+	If $abNr > 0 And Not SmartPixAnspringen($hListe, $ab, $zurueck) Then
+		ToolTip("")
+		If MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", $ab[1] & " " & $ab[0] & " nicht wiedergefunden." & _
+				@CRLF & @CRLF & "Von vorn anfangen (die CSV-Dateien werden neu geschrieben)?") <> 6 Then Return False
+		$abNr = 0
+		If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 1) Then Return False
+		Sleep(300)
+		Send("^{HOME}")
+		Sleep(500)
+	EndIf
+	; beim Weitermachen anhaengen (1), sonst neu schreiben (2)
+	Local $modus = ($abNr > 0) ? 1 : 2
+	Local $h = FileOpen($ziel, $modus + 8 + 128)
 	If $h = -1 Then Return SmartPixFehler("Smart Pix-Liste: " & $ziel & " laesst sich nicht schreiben ([SmartPixListe] Datei=)")
 	Local $kopf = "Nr;Nachname;Vorname;Geburtsdatum;Patienten-ID;Letztes Auslesen;Medical Office;quelle;Vorschlag;Vorschlag-ID;Eintragen"
-	FileWriteLine($h, $kopf)
+	If $modus = 2 Then FileWriteLine($h, $kopf)
 	; beim Lesen zusaetzlich die Liste zum Nachsehen: weder in Medical Office noch in quelle bzw. mehrere passende
 	Local $pruefen = StringRegExpReplace($ziel, "(?i)\.csv$", "") & "-pruefen.csv", $h2 = -1, $grund
 	If Not $eintragen Then
-		$h2 = FileOpen($pruefen, 2 + 8 + 128)
+		$h2 = FileOpen($pruefen, $modus + 8 + 128)
 		If $h2 = -1 Then Return SmartPixFehler("Smart Pix-Liste: " & $pruefen & " laesst sich nicht schreiben")
-		FileWriteLine($h2, $kopf & ";Grund")
+		If $modus = 2 Then FileWriteLine($h2, $kopf & ";Grund")
 	EndIf
-	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0")), $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
+	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0"))
 	Local $pause = Int(Einst("SmartPixListe", "Pause", "800")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
 	Local $wiederholt = 0
-	Local $nr = 0, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
+	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
+	Local $nr = $abNr, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
 	Local $t0 = TimerInit()
 	While 1
@@ -2149,7 +2176,14 @@ Func SmartPixListe()
 				$ende = "abgebrochen, Smart Pix: " & $gSmartPixWarnung & " (Sperre in palock.xml? Smart Pix ueberall schliessen)"
 				ExitLoop
 			EndIf
-			If $max > 0 And $nr >= $max Then
+			; erreichter Stand, fuer das Weitermachen beim naechsten Mal
+			IniWrite($stand, "Stand", "Art", $art)
+			IniWrite($stand, "Stand", "Nr", $nr)
+			For $i = 0 To 3
+				IniWrite($stand, "Stand", "F" & $i, $f[$i])
+			Next
+			IniWrite($stand, "Stand", "Zeit", @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":" & @MIN)
+			If $max > 0 And $nr - $abNr >= $max Then
 				$ende = "nach [SmartPixListe] Max=" & $max
 				ExitLoop
 			EndIf
@@ -2173,8 +2207,11 @@ Func SmartPixListe()
 	If $h2 <> -1 Then FileClose($h2)
 	ClipPut($alt)
 	ToolTip("")
-	If $nr = 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
-	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", $nr & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
+	If $nr = $abNr + 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
+	; ganz durch: beim naechsten Mal wieder von vorn
+	If $ende = "Ende der Liste" Then FileDelete($stand)
+	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", (($abNr > 0) ? "ab dem " & ($abNr + 1) & ". bis zum " : "") & _
+			$nr & (($abNr > 0) ? "." : "") & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
 			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
 			@CRLF & ($eintragen ? $neu & " Patienten ergaenzt, " & $fehler & " Fehler" : $fehlt & _
 			" weder in Medical Office noch in quelle, " & $mehrdeutig & " mehrdeutig (uebergangen), " & $ohneDatei & _
@@ -2187,6 +2224,33 @@ EndFunc
 ; zum naechsten Patienten der Liste: ohne [SmartPixListe] ZurTabelle= wird die dunkle Unterkante der Markierung
 ; (alle Zeilen des markierten Patienten) in der Spalte Nachname gesucht, knapp darueber in dessen letzte Zeile
 ; geklickt (damit hat die Tabelle den Fokus) und Pfeil runter gedrueckt; sonst erst die Tasten aus ZurTabelle=
+; nach Strg+Pos1 zum Patienten $ab (Nachname, Vorname, Geburtsdatum, Patienten-ID wie gelesen) springen und auf den
+; naechsten stellen: das Tippen des Nachnamens (bis zum ersten Leerzeichen, das waehlt sonst die Zeile) springt in der
+; Tabelle zum ersten so beginnenden; von dort mit SmartPixWeiter weiter, bis alle vier Felder passen, solange der
+; Nachname noch so beginnt. False, wenn nicht gefunden
+Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
+	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $f[4], $h
+	If $anfang = "" Then Return False
+	HinweisStehend("Smart Pix-Liste: suche " & $ab[1] & " " & $ab[0] & " ...")
+	Send($anfang, 1)
+	Sleep(1500)
+	For $i = 1 To 500
+		If _IsPressed("1B") Then Return False
+		$h = SmartPixDialog($hListe, $f)
+		If Not $h Then Return False
+		SmartPixDialogZu($h)
+		If $f[0] = $ab[0] And $f[1] = $ab[1] And $f[2] = $ab[2] And $f[3] = $ab[3] Then
+			ToolTip("")
+			Return SmartPixWeiter($hListe, $zurueck)
+		EndIf
+		; das Springen hat nicht geklappt bzw. schon an allen so beginnenden vorbei
+		If StringLeft(StringLower($f[0]), StringLen($anfang)) <> StringLower($anfang) Then Return False
+		If Not SmartPixWeiter($hListe, $zurueck) Then Return False
+		Sleep(Int(Einst("SmartPixListe", "Pause", "800")))
+	Next
+	Return False
+EndFunc
+
 Func SmartPixWeiter($hListe, $zurueck)
 	If $zurueck <> "" Then
 		Send($zurueck)

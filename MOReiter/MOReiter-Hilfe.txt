@@ -123,7 +123,10 @@ ein (Spalte vorher nach Belieben auf n ändern) und protokolliert das in
 SmartPix-Patienten-eingetragen.csv.
 Meldet Smart Pix beim Speichern "Dieser Patient besteht bereits!" (ein anderer Eintrag hat denselben Namen und
 dasselbe Geburtsdatum), klickt MOReiter die Meldung weg und hängt an den Vornamen so lange ein Leerzeichen an,
-bis Smart Pix speichert (höchstens fünfmal). "Kein Schreibzugriff" bzw. "Keine Schreibrechte" kommt bei schnellem
+bis Smart Pix speichert (höchstens fünfmal). Endet ein Durchgang vor dem Ende der Liste (Abbruch, Esc, Max=),
+merkt sich MOReiter den letzten Patienten (%APPDATA%\MOReiter\SmartPixListe-Stand.ini) und fragt beim nächsten
+Durchgang derselben Art, ob es dahinter weitermachen soll: es springt dann durch Tippen des Nachnamens dorthin und
+ergänzt die CSV-Dateien, statt sie neu zu schreiben. "Kein Schreibzugriff" bzw. "Keine Schreibrechte" kommt bei schnellem
 Arbeiten über das Netz oft nur vorübergehend: MOReiter wartet dann und versucht denselben Patienten bis zu
 fünfmal neu ([SmartPixListe] Pause= verlängert die Wartezeit zwischen den Patienten). Bleibt es dabei, hält meist
 ein anderes (oder abgestürztes) Smart Pix noch eine Sperre in Diaries\palock.xml.
