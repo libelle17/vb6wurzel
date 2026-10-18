@@ -199,6 +199,8 @@ Global $gComFehler = "", $gComHandler = ObjEvent("AutoIt.Error", "ComFehler")
 ; Patient (Nachname|Vorname|Geburtsdatum), den Strg+S in Smart Pix nur ueber den Nachnamen fand: ein zweites
 ; Strg+S binnen 10 min traegt dem angeklickten Patienten das Geburtsdatum ein
 Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
+; Text der letzten Warnung von Smart Pix (z.B. "Keine Schreibrechte fuer die Datensaetze"), s. SmartPixWarnungWeg
+Global $gSmartPixWarnung = ""
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
@@ -1567,7 +1569,7 @@ Func SmartPixNachtragen($hListe, $nach, $vor, $geb)
 		SmartPixDialogZu($hDlg)
 	ElseIf $gebNeu = "" And $idNeu = "" Then
 		SmartPixDialogZu($hDlg)
-	ElseIf Not SmartPixSetzen($hDlg, $gebNeu, $idNeu) Then
+	ElseIf Not SmartPixSetzen($hDlg, $gebNeu, $idNeu, $f[1]) Then
 		$fehler = "Geburtsdatum bzw. Patienten-ID liessen sich nicht eintragen"
 	Else
 		$neu = (($gebNeu <> "") ? "Geburtsdatum" : "") & (($gebNeu <> "" And $idNeu <> "") ? " und " : "") & _
@@ -1661,15 +1663,7 @@ Func SmartPixNeu($hListe, $nach, $vor, $geb)
 		If SmartPixFeld() <> $nr Then $fehler = "Patienten-ID"
 	EndIf
 	If $fehler = "" And Not WinActive($h) Then $fehler = "Dialog nicht mehr aktiv"
-	If $fehler = "" Then
-		Local $ok = Einst("SmartPix", "OK", "")
-		If $ok = "" Then
-			Send("{ENTER}")
-		ElseIf Not SmartPixKlick($h, $ok, 1) Then
-			$fehler = "OK"
-		EndIf
-		If $fehler = "" And Not SmartPixWeg($h, 5000) Then $fehler = "OK"
-	EndIf
+	If $fehler = "" Then $fehler = SmartPixBestaetigen($h, ($nr <> "") ? "id" : "geb", $vor)
 	ClipPut($alt)
 	If $fehler <> "" Then
 		SmartPixDialogZu($h)
@@ -1692,10 +1686,12 @@ Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
 	WinActivate($hListe)
 	If Not WinWaitActive($hListe, "", 3) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
 	If Not SmartPixKlick($hListe, Einst("SmartPix", "Bearbeiten", "849,-76"), 1) Then Return 0
-	Local $t = TimerInit(), $h = 0
+	Local $t = TimerInit(), $h = 0, $w = ""
 	While Not $h And TimerDiff($t) < 10000
 		Sleep(200)
 		$h = SmartPixFenster($dlg)
+		If Not $h Then $w = SmartPixWarnungWeg()
+		If $w <> "" Then Return Meldung("Smart Pix: " & $w)
 	WEnd
 	If Not $h Then Return Meldung("Smart Pix: ""Patientendaten bearbeiten"" nicht erschienen ([SmartPix] Bearbeiten=)")
 	WinActivate($h)
@@ -1753,8 +1749,9 @@ Func SmartPixGebSetzen($h, $geb)
 	Return SmartPixSetzen($h, $geb, "")
 EndFunc
 
-; wie SmartPixGebSetzen, dazu (falls nicht leer) die Patienten-ID $id
-Func SmartPixSetzen($h, $geb, $id)
+; wie SmartPixGebSetzen, dazu (falls nicht leer) die Patienten-ID $id; $vor = Vorname im Dialog (fuer
+; "Dieser Patient besteht bereits!", s. SmartPixBestaetigen)
+Func SmartPixSetzen($h, $geb, $id, $vor = "")
 	If Not WinActive($h) Then
 		SmartPixDialogZu($h)
 		Return False
@@ -1775,20 +1772,69 @@ Func SmartPixSetzen($h, $geb, $id)
 			Return False
 		EndIf
 	EndIf
-	Local $ok = Einst("SmartPix", "OK", "")
-	If $ok = "" Then
-		Send("{ENTER}")
-	ElseIf Not SmartPixKlick($h, $ok, 1) Then
-		SmartPixDialogZu($h)
-		Return False
-	EndIf
-	If SmartPixWeg($h, 5000) Then Return True
+	If SmartPixBestaetigen($h, ($geb <> "") ? "geb" : "id", $vor) = "" Then Return True
 	SmartPixDialogZu($h)
 	Return False
 EndFunc
 
-; verwirft den Dialog (Esc, notfalls Fenster schliessen)
+; OK im Dialog (Enter bzw. [SmartPix] OK=); "" wenn er sich schliesst, sonst der Fehler. Meldet Smart Pix
+; "Dieser Patient besteht bereits!" (gleicher Name und Geburtsdatum wie ein anderer Eintrag), wird die Warnung
+; weggeklickt und an den Vornamen ein Leerzeichen angehaengt, bis es geht (hoechstens fuenfmal); $feld: Feld mit
+; dem Cursor ("geb" oder "id"), $vor: Vorname im Dialog (leer: kein Anhaengen)
+Func SmartPixBestaetigen($h, $feld, $vor)
+	Local $ok = Einst("SmartPix", "OK", ""), $w, $t
+	For $n = 0 To 5
+		If $ok = "" Then
+			Send("{ENTER}")
+		ElseIf Not SmartPixKlick($h, $ok, 1) Then
+			Return "OK"
+		EndIf
+		$w = ""
+		$t = TimerInit()
+		While TimerDiff($t) < 5000
+			Sleep(250)
+			If Not WinExists($h) Or Not BitAND(WinGetState($h), 2) Then Return ""
+			$w = SmartPixWarnungWeg()
+			If $w <> "" Then ExitLoop
+		WEnd
+		If $w = "" Then Return "OK"
+		If Not StringInStr($w, "besteht bereits") Or $vor = "" Or $n = 5 Then Return "Smart Pix: " & $w
+		; zurueck in den Vornamen (Tab-Reihenfolge Nachname, Vorname, Geburtsdatum, Patienten-ID) und ans Ende
+		WinActivate($h)
+		If Not WinWaitActive($h, "", 2) Then Return "Dialog nicht mehr aktiv"
+		If $feld = "geb" Then Send("+{TAB}")
+		If $feld = "id" Then Send("+{TAB 2}")
+		$feld = "vor"
+		If SmartPixFeld() <> StringStripWS($vor, 3) Then Return "Vorname nicht wiedergefunden"
+		Send("{END} ")
+	Next
+	Return "OK"
+EndFunc
+
+; Warnung von Smart Pix ("Accu-Chek Smart Pix Software - Warnung"): Text lesen (Qt-Meldungen kopieren ihn mit
+; Strg+C), nach $gSmartPixWarnung merken und mit OK wegklicken; "" wenn keine offen ist
+Func SmartPixWarnungWeg()
+	Local $h = SmartPixFenster("[REGEXPTITLE:(?i)^Accu-Chek Smart Pix Software.*Warn; CLASS:Qt5QWindowIcon]")
+	If Not $h Then Return ""
+	WinActivate($h)
+	WinWaitActive($h, "", 2)
+	Local $alt = ClipGet()
+	ClipPut("")
+	Send("^c")
+	Sleep(300)
+	Local $txt = StringStripWS(StringRegExpReplace(ClipGet(), "(?m)^-+\R?|\R+", " "), 7)
+	ClipPut($alt)
+	If $txt = "" Then $txt = "Warnung (Text nicht lesbar)"
+	If WinActive($h) Then Send("{ENTER}")
+	If Not SmartPixWeg($h, 3000) Then WinClose($h)
+	$gSmartPixWarnung = $txt
+	Return $txt
+EndFunc
+
+; verwirft den Dialog (Esc, notfalls Fenster schliessen); eine offene Warnung vorher wegklicken
 Func SmartPixDialogZu($h)
+	SmartPixWarnungWeg()
+	WinActivate($h)
 	If WinActive($h) Then Send("{ESC}")
 	If Not SmartPixWeg($h, 3000) Then WinClose($h)
 	Return True
@@ -1983,6 +2029,7 @@ Func SmartPixListe()
 			$ende = "mit Esc abgebrochen"
 			ExitLoop
 		EndIf
+		$gSmartPixWarnung = ""
 		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
 		If Not $hDlg Then
 			; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird
@@ -1991,7 +2038,7 @@ Func SmartPixListe()
 			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
 		EndIf
 		If Not $hDlg Then
-			$ende = "abgebrochen, Dialog nicht lesbar"
+			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
 			ExitLoop
 		EndIf
 		; weitere Geraete desselben Patienten bzw. das Ende der Liste liefern dieselben Daten
@@ -2014,7 +2061,7 @@ Func SmartPixListe()
 					If $f[3] = "" Then $id = $teile[1]
 				EndIf
 				If $geb <> "" Or $id <> "" Then
-					If SmartPixSetzen($hDlg, $geb, $id) Then
+					If SmartPixSetzen($hDlg, $geb, $id, $f[1]) Then
 						$neu += 1
 						SmartPixZeile($h, $nr, $f, "", "", "", $geb, $id, "eingetragen")
 					Else
@@ -2056,7 +2103,7 @@ Func SmartPixListe()
 					$hDlg = SmartPixDialog($hListe, $f2)
 					If $hDlg Then
 						If $f2[0] = $f[0] And $f2[1] = $f[1] And $f2[2] = $f[2] And $f2[3] = $f[3] Then
-							If SmartPixSetzen($hDlg, $vs, $vid) Then $ein = "eingetragen"
+							If SmartPixSetzen($hDlg, $vs, $vid, $f[1]) Then $ein = "eingetragen"
 						Else
 							SmartPixDialogZu($hDlg)
 						EndIf
@@ -2071,6 +2118,11 @@ Func SmartPixListe()
 				SmartPixZeile($h, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein)
 				If UBound($ids) > 1 Then $grund = "mehrere passende: " & SmartPixListeText($ids)
 				If $grund <> "" Then SmartPixZeile($h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein & ";" & $grund)
+			EndIf
+			; ohne Schreibrechte (Sperre eines anderen Smart Pix in palock.xml) scheitert jeder weitere Patient
+			If StringInStr($gSmartPixWarnung, "Schreibrecht") Then
+				$ende = "abgebrochen, Smart Pix: " & $gSmartPixWarnung & " (Sperre in palock.xml? Smart Pix ueberall schliessen)"
+				ExitLoop
 			EndIf
 			If $max > 0 And $nr >= $max Then
 				$ende = "nach [SmartPixListe] Max=" & $max
