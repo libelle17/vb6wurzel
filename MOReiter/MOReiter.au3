@@ -2865,10 +2865,20 @@ Func PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
 	ToolTip("")
 	WinActivate($h)
 	WinWaitActive($h, "", 3)
+	; Feld "Dateiname": zuerst als Control Edit1, sonst wie von Hand mit Alt+N, alles markieren, einfuegen
 	ControlSetText($h, "", "Edit1", $ziel)
 	Sleep(300)
-	If ControlGetText($h, "", "Edit1") <> $ziel Then Return Meldung($s & ": Dateiname liess sich nicht eintragen, bitte selbst speichern als " & $ziel)
-	ControlSend($h, "", "Edit1", "{ENTER}")
+	If ControlGetText($h, "", "Edit1") = $ziel Then
+		ControlSend($h, "", "Edit1", "{ENTER}")
+	Else
+		If Not WinActive($h) Then Return Meldung($s & ": ""Speichern unter"" nicht aktiv, bitte selbst speichern als " & $ziel)
+		Send("!n")
+		Sleep(300)
+		Send("^a")
+		Einfuegen($ziel)
+		Sleep(300)
+		Send("{ENTER}")
+	EndIf
 	If Not WinWaitClose($h, "", 10) Then Return Meldung($s & ": ""Speichern unter"" blieb offen, bitte selbst speichern als " & $ziel)
 	Local $t = TimerInit()
 	While Not FileExists($ziel) And TimerDiff($t) < 30000
