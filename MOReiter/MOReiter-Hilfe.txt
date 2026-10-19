@@ -146,7 +146,16 @@ als ein Mensch, bekommt beim Speichern sonst "Kein Schreibzugriff"; nach dem Sch
 [SmartPixListe] Nachlauf= ms (Vorgabe 1000). Der Dialog schließt sich auch, wenn Smart Pix das Speichern im
 Hintergrund nicht schafft; MOReiter wartet deshalb nach dem Speichern bis zu [SmartPixListe] Pruefen= ms (Vorgabe
 10000, 0 = nicht prüfen), bis palist.xml neu geschrieben ist, sonst zählt es als Fehler ("Speichern nicht
-angekommen"). Fehlt die Ergänzung des zuletzt bearbeiteten Patienten beim Wiederfinden, kommt er noch einmal dran. Jeder Durchgang schreibt ein Ablaufprotokoll ohne Patientennamen (nur
+angekommen"). Fehlt die Ergänzung des zuletzt bearbeiteten Patienten beim Wiederfinden, kommt er noch einmal dran.
+Gelesen wird die Liste über ihre Zellen, ohne jeden Patienten zu öffnen ([SmartPixListe] Zellen=1, 0 = wie
+früher): Strg+C kopiert die Zelle mit dem unsichtbaren Zellcursor, Pfeil rechts/links wechselt die Spalte, Pfeil
+runter die Zeile. Jedes Gerät ist eine Zeile, Name, Geburtsdatum und Patienten-ID stehen nur in der ersten Zeile
+eines Patienten, das letzte Auslesen je Gerät ([SmartPixListe] Spalten=0,1,2,3,6). Geöffnet wird ein Patient nur
+zum Eintragen; der Dialog muss dabei genau die gelesenen Werte zeigen. Danach geht es per Klick in die Markierung
+zum nächsten Patienten zurück; liegt der Zellcursor dann woanders, sucht MOReiter ihn. Scheitert das Eintragen
+dreimal hintereinander, startet es Smart Pix neu und versucht diesen Patienten noch einmal. Die Nummern zählen
+jeden Patienten in der Liste (gleichnamige doppelte einzeln), daher passen sie nicht zu CSV-Dateien, die vorher
+mit Zellen=0 entstanden sind. Jeder Durchgang schreibt ein Ablaufprotokoll ohne Patientennamen (nur
 Anfangsbuchstaben und Länge der Namen) nach %APPDATA%\MOReiter\SmartPixListe.log ([SmartPixListe] Protokoll=0 = keins). Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
