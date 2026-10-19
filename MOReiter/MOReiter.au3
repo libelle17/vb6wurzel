@@ -2001,8 +2001,19 @@ Func SmartPixListe()
 	Local $ausgelesen = ObjCreate("Scripting.Dictionary"), $puids = ObjCreate("Scripting.Dictionary"), $ziel = $datei, $fehlerText
 	; endete der letzte Durchgang gleicher Art vor dem Ende der Liste (Abbruch, Esc, Max=), dahinter weitermachen?
 	Local $art = $eintragen ? "eintragen" : ($sofort ? "sofort" : "lesen"), $stand = @AppDataDir & "\MOReiter\SmartPixListe-Stand.ini"
-	Local $ab[4], $abNr = 0, $abWeiter = 0
-	If IniRead($stand, "Stand", "Art", "") = $art And Int(IniRead($stand, "Stand", "Nr", "0")) > 0 Then
+	Local $ab[4], $abNr = 0, $abWeiter = 0, $abMarkiert = False, $abBasis = 0
+	; ist die Patientenliste schon offen, auf Wunsch beim dort markierten Patienten anfangen (nicht beim Eintragen
+	; aus der CSV, dort gehoeren die Nummern zum Schluessel); die Nummern zaehlen hinter dem letzten Stand weiter
+	If Not $eintragen And SmartPixFenster("[TITLE:Patientenliste; CLASS:Qt5QWindowIcon]") Then
+		Local $wm = MsgBox(3 + 32 + 256 + 262144, "MOReiter: Smart Pix-Patientenliste", "Die Patientenliste von Smart Pix ist offen." & _
+				@CRLF & @CRLF & "Ja: beim dort markierten Patienten anfangen, die CSV-Dateien werden ergaenzt" & @CRLF & _
+				"Nein: wie sonst (hinter dem letzten Durchgang bzw. von vorn)")
+		If $wm <> 6 And $wm <> 7 Then Return False
+		$abMarkiert = ($wm = 6)
+	EndIf
+	If $abMarkiert Then
+		If IniRead($stand, "Stand", "Art", "") = $art Then $abBasis = Int(IniRead($stand, "Stand", "Nr", "0")) + Int(IniRead($stand, "Stand", "Weiter", "0"))
+	ElseIf IniRead($stand, "Stand", "Art", "") = $art And Int(IniRead($stand, "Stand", "Nr", "0")) > 0 Then
 		For $i = 0 To 3
 			$ab[$i] = IniRead($stand, "Stand", "F" & $i, "")
 		Next
@@ -2058,14 +2069,22 @@ Func SmartPixListe()
 	Local $hListe = SmartPixListeOeffnen()
 	If Not $hListe Then Return False
 	ToolTip("")
+	; beim markierten Patienten: kein Neustart (die Markierung ginge verloren), nur ein Hinweis
+	If $abMarkiert Then
+		SmartPixSperren()
+		If @extended > 1 Then Return SmartPixFehler("Smart Pix-Liste: eigene Listensperre in palock.xml hochgezaehlt, " & _
+				"bitte Smart Pix schliessen und ohne ""beim markierten Patienten"" anfangen")
+	EndIf
 	; hochgezaehlte eigene Listensperre (Smart Pix frueher hart beendet): dann scheitert jedes Speichern, also neu starten
 	; (offenes Smart Pix auf anderen PCs stoert nicht, danach wird nicht mehr gefragt)
-	SmartPixSperren()
-	If @extended > 1 Then
-		$hListe = SmartPixNeustart()
-		If Not $hListe Then Return False
+	If Not $abMarkiert Then
+		SmartPixSperren()
+		If @extended > 1 Then
+			$hListe = SmartPixNeustart()
+			If Not $hListe Then Return False
+		EndIf
 	EndIf
-	If Not SmartPixListeOben($hListe) Then Return False
+	If Not $abMarkiert And Not SmartPixListeOben($hListe) Then Return False
 	Local $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
 	Local $neustarts = Int(Einst("SmartPixListe", "Neustarts", "5")), $neugestartet = 0
 	If $neustarts < 1 Then $neustarts = 1
@@ -2092,7 +2111,7 @@ Func SmartPixListe()
 		If Not SmartPixListeOben($hListe) Then Return False
 	EndIf
 	; beim Weitermachen anhaengen (1), sonst neu schreiben (2)
-	Local $modus = ($abNr > 0) ? 1 : 2
+	Local $modus = ($abNr > 0 Or ($abMarkiert And FileExists($ziel))) ? 1 : 2
 	Local $h = FileOpen($ziel, $modus + 8 + 128)
 	If $h = -1 Then Return SmartPixFehler("Smart Pix-Liste: " & $ziel & " laesst sich nicht schreiben ([SmartPixListe] Datei=)")
 	Local $kopf = "Nr;Nachname;Vorname;Geburtsdatum;Patienten-ID;Letztes Auslesen;Medical Office;quelle;Vorschlag;Vorschlag-ID;Eintragen"
@@ -2108,7 +2127,7 @@ Func SmartPixListe()
 	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
 	Local $wiederholt = 0, $mitDatei = (Einst("SmartPixListe", "Dateiname", "0") = "1")
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
-	Local $nr = $abNr + $abWeiter, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
+	Local $nr = $abNr + $abWeiter + $abBasis, $nr0 = $abNr + $abBasis, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
 	; hinter dem zuletzt gelesenen uebersprungene Patienten (lassen sich auch nach einem Neustart nicht oeffnen)
 	Local $skip = $abWeiter, $uebersprungen = 0, $aufgeben = False, $leer[4]
@@ -2142,6 +2161,8 @@ Func SmartPixListe()
 			Local $weg = Not BitAND(WinGetState($hListe), 2)
 			; nach gescheitertem Wiederfinden steht die Liste irgendwo: dann jedes Mal neu starten und neu suchen
 			If (Mod($wdh, 3) = 0 And $schreib) Or $weg Or $verloren Then
+				; ab dem markierten Patienten, aber noch keiner gelesen: nach einem Neustart unauffindbar
+				If $abMarkiert And $vorher = "" Then ExitLoop
 				If Not $weg Then $neugestartet += 1
 				$hListe = $weg ? SmartPixListeOeffnen() : SmartPixNeustart()
 				If Not $hListe Or Not SmartPixListeOben($hListe) Then ExitLoop
@@ -2293,7 +2314,7 @@ Func SmartPixListe()
 				IniWrite($stand, "Stand", "F" & $i, $f[$i])
 			Next
 			IniWrite($stand, "Stand", "Zeit", @MDAY & "." & @MON & "." & @YEAR & " " & @HOUR & ":" & @MIN)
-			If $max > 0 And $nr - $abNr >= $max Then
+			If $max > 0 And $nr - $nr0 >= $max Then
 				$ende = "nach [SmartPixListe] Max=" & $max
 				ExitLoop
 			EndIf
@@ -2317,11 +2338,11 @@ Func SmartPixListe()
 	If $h2 <> -1 Then FileClose($h2)
 	ClipPut($alt)
 	ToolTip("")
-	If $nr = $abNr + 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
+	If $nr = $nr0 + 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
 	; ganz durch: beim naechsten Mal wieder von vorn
 	If $ende = "Ende der Liste" Then FileDelete($stand)
-	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", (($abNr > 0) ? "ab dem " & ($abNr + 1) & ". bis zum " : "") & _
-			$nr & (($abNr > 0) ? "." : "") & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
+	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", (($nr0 > 0 Or $abMarkiert) ? "ab dem " & ($nr0 + 1) & ". bis zum " : "") & _
+			$nr & (($nr0 > 0 Or $abMarkiert) ? "." : "") & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
 			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
 			(($neugestartet = 0) ? "" : ", " & $neugestartet & " Neustarts von Smart Pix") & _
 			(($uebersprungen = 0) ? "" : ", " & $uebersprungen & " Patienten nicht zu oeffnen (uebersprungen)") & _
