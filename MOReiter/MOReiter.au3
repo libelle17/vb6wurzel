@@ -203,6 +203,8 @@ Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
 Global $gSmartPixWarnung = ""
 ; Text der letzten Meldung (fuer die Abschlussmeldung der Smart Pix-Liste, wo der Hinweis sonst verloren ginge)
 Global $gMeldung = ""
+; Ablaufprotokoll der Smart Pix-Liste (Pfad, waehrend des Durchgangs; "" = keins)
+Global $gSpLog = ""
 ; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
 Global $gSmartPixDateiDy = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
@@ -1739,6 +1741,7 @@ Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
 		SmartPixDialogZu($h)
 		Return Meldung("Smart Pix: Felder in ""Patientendaten bearbeiten"" nicht lesbar")
 	EndIf
+	SmartPixLog("geoeffnet: " & SmartPixKurz($f))
 	Return $h
 EndFunc
 
@@ -1813,13 +1816,18 @@ Func SmartPixBestaetigen($h, $feld, $vor)
 		While TimerDiff($t) < 5000
 			Sleep(250)
 			If Not WinExists($h) Or Not BitAND(WinGetState($h), 2) Then
+				SmartPixLog("gespeichert")
 				SmartPixFreiWarten(True)
 				Return ""
 			EndIf
 			$w = SmartPixWarnungWeg()
 			If $w <> "" Then ExitLoop
 		WEnd
-		If $w = "" Then Return "OK"
+		If $w = "" Then
+			SmartPixLog("Speichern: Dialog bleibt offen")
+			Return "OK"
+		EndIf
+		SmartPixLog("Speichern gescheitert: " & $w)
 		If Not StringInStr($w, "besteht bereits") Or $vor = "" Or $n = 5 Then Return "Smart Pix: " & $w
 		; zurueck in den Vornamen (Tab-Reihenfolge Nachname, Vorname, Geburtsdatum, Patienten-ID) und ans Ende
 		WinActivate($h)
@@ -1850,7 +1858,21 @@ Func SmartPixWarnungWeg()
 	If WinActive($h) Then Send("{ENTER}")
 	If Not SmartPixWeg($h, 3000) Then WinClose($h)
 	$gSmartPixWarnung = $txt
+	SmartPixLog("Warnung: " & $txt)
 	Return $txt
+EndFunc
+
+; eine Zeile ins Ablaufprotokoll der Smart Pix-Liste (%APPDATA%\MOReiter\SmartPixListe.log, [SmartPixListe]
+; Protokoll=0 = keins), mit Uhrzeit auf die Millisekunde
+Func SmartPixLog($txt)
+	If $gSpLog = "" Then Return
+	FileWriteLine($gSpLog, @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC & " " & $txt)
+EndFunc
+
+; Patient fuers Protokoll ohne Namen: Anfangsbuchstaben, Laenge der Namen, ob Geburtsdatum bzw. ID vorhanden
+Func SmartPixKurz(ByRef $f)
+	Return StringLeft($f[0], 1) & StringLen($f[0]) & "/" & StringLeft($f[1], 1) & StringLen($f[1]) & _
+			" geb=" & (($f[2] = "") ? "-" : "ja") & " id=" & (($f[3] = "") ? "-" : "ja")
 EndFunc
 
 ; verwirft den Dialog (Esc, notfalls Fenster schliessen); eine offene Warnung vorher wegklicken
@@ -1882,6 +1904,7 @@ Func SmartPixFreiWarten($nachSchliessen = False)
 		If Not FileExists($datei & ".lck") And Not StringRegExp(FileRead($datei), '(?i)<PATIENTLOCK\b[^>]*\bUser="' & $ich & '"') Then Return True
 		Sleep(100)
 	WEnd
+	SmartPixLog("Sperre nach " & $ms & " ms nicht frei")
 	Return False
 EndFunc
 
@@ -2008,6 +2031,13 @@ Func SmartPixListe()
 	; endete der letzte Durchgang gleicher Art vor dem Ende der Liste (Abbruch, Esc, Max=), dahinter weitermachen?
 	Local $art = $eintragen ? "eintragen" : ($sofort ? "sofort" : "lesen"), $stand = @AppDataDir & "\MOReiter\SmartPixListe-Stand.ini"
 	Local $ab[4], $abNr = 0, $abWeiter = 0, $abMarkiert = False, $abBasis = 0
+	; Ablaufprotokoll (ohne Namen), waechst bis 2 MB, dann neu
+	$gSpLog = ""
+	If Einst("SmartPixListe", "Protokoll", "1") <> "0" Then
+		$gSpLog = @AppDataDir & "\MOReiter\SmartPixListe.log"
+		If FileGetSize($gSpLog) > 2000000 Then FileDelete($gSpLog)
+		SmartPixLog("=== " & @MDAY & "." & @MON & "." & @YEAR & " Durchgang " & $art & ", " & @ComputerName)
+	EndIf
 	; ist die Patientenliste schon offen, auf Wunsch beim dort markierten Patienten anfangen (nicht beim Eintragen
 	; aus der CSV, dort gehoeren die Nummern zum Schluessel); die Nummern zaehlen hinter dem letzten Stand weiter
 	If Not $eintragen And SmartPixFenster("[TITLE:Patientenliste; CLASS:Qt5QWindowIcon]") Then
@@ -2156,6 +2186,7 @@ Func SmartPixListe()
 		While Not $hDlg And $wdh < (($schreib Or $verloren) ? 3 * $neustarts : 3)
 			$wdh += 1
 			$wiederholt += 1
+			SmartPixLog("Patient " & ($nr + 1) & ": " & $wdh & ". Wiederholung" & ($verloren ? " (Stelle verloren)" : ""))
 			ToolTip("Smart Pix-Liste: Patient " & ($nr + 1) & ", " & $wdh & ". Wiederholung" & (($gSmartPixWarnung = "") ? "" : _
 					" (" & $gSmartPixWarnung & ")"), @DesktopWidth - 330, 0, "MOReiter")
 			Sleep(3000 * (Mod($wdh - 1, 3) + 1))
@@ -2198,6 +2229,7 @@ Func SmartPixListe()
 					$nr += 1
 					$skip += 1
 					$uebersprungen += 1
+					SmartPixLog("Patient " & $nr & " uebersprungen")
 					$leer[0] = "?"
 					$leer[1] = "(nach " & (($vorher <> "") ? StringReplace($vorher, "|", " ") : $ab[0] & " " & $ab[1]) & ")"
 					SmartPixZeile($h, $nr, $leer, "", "", "", "", "", "uebersprungen")
@@ -2234,6 +2266,7 @@ Func SmartPixListe()
 			$skip = 0
 			$vorher = $f[0] & "|" & $f[1] & "|" & $f[2] & "|" & $f[3]
 			$nr += 1
+			SmartPixLog("Patient " & $nr & ": " & SmartPixKurz($f))
 			$k = $nr & "|" & SmartPixNorm($f[0]) & "|" & SmartPixNorm($f[1])
 			If $eintragen Then
 				$geb = ""
@@ -2350,6 +2383,8 @@ Func SmartPixListe()
 	If $nr = $nr0 + 1 And $ende = "Ende der Liste" Then $ende = "die Zeile wechselt nicht, [SmartPixListe] ZurTabelle= pruefen"
 	; ganz durch: beim naechsten Mal wieder von vorn
 	If $ende = "Ende der Liste" Then FileDelete($stand)
+	SmartPixLog("Ende bei Patient " & $nr & ": " & $ende)
+	$gSpLog = ""
 	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", (($nr0 > 0 Or $abMarkiert) ? "ab dem " & ($nr0 + 1) & ". bis zum " : "") & _
 			$nr & (($nr0 > 0 Or $abMarkiert) ? "." : "") & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
 			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
@@ -2381,6 +2416,7 @@ EndFunc
 ; Smart Pix beenden (nur das Programm selbst, nicht das Connection Framework) und mit der Patientenliste neu starten;
 ; SmartPixListeOeffnen raeumt vor dem Start die Sperren dieses PCs auf. Handle der Liste oder 0
 Func SmartPixNeustart()
+	SmartPixLog("Neustart von Smart Pix")
 	HinweisStehend("Smart Pix wird neu gestartet (Sperren in palock.xml) ...")
 	Local $pl = ProcessList(SmartPixExe())
 	For $i = 1 To $pl[0][0]
@@ -2448,6 +2484,7 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $f[4], $h
 	If $anfang = "" Then Return False
 	HinweisStehend("Smart Pix-Liste: suche " & $ab[1] & " " & $ab[0] & " ...")
+	SmartPixLog("suche " & SmartPixKurz($ab))
 	Send($anfang, 1)
 	Sleep(1500)
 	For $i = 1 To 500
@@ -2460,14 +2497,21 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 			SmartPixInfoWeg()
 			SmartPixWarnungWeg()
 		Next
-		If Not $h Then Return False
+		If Not $h Then
+			SmartPixLog("suche: Oeffnen gescheitert")
+			Return False
+		EndIf
 		SmartPixDialogZu($h)
 		If SmartPixPasst($f, $ab) Then
 			ToolTip("")
+			SmartPixLog("gefunden")
 			Return SmartPixWeiter($hListe, $zurueck)
 		EndIf
 		; das Springen hat nicht geklappt bzw. schon an allen so beginnenden vorbei
-		If StringLeft(StringLower($f[0]), StringLen($anfang)) <> StringLower($anfang) Then Return False
+		If StringLeft(StringLower($f[0]), StringLen($anfang)) <> StringLower($anfang) Then
+			SmartPixLog("suche: an allen so beginnenden vorbei, nicht gefunden")
+			Return False
+		EndIf
 		If Not SmartPixWeiter($hListe, $zurueck) Then Return False
 		Sleep(Int(Einst("SmartPixListe", "Pause", "200")))
 	Next
@@ -4675,6 +4719,7 @@ EndFunc
 
 Func Meldung($txt)
 	$gMeldung = $txt
+	SmartPixLog("Meldung: " & $txt)
 	If $CmdLine[0] > 0 And Not $gLink Then
 		ConsoleWriteError($txt & @CRLF)
 	Else
