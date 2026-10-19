@@ -1695,8 +1695,8 @@ Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
 	WinActivate($hListe)
 	If Not WinWaitActive($hListe, "", 3) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
 	If Not SmartPixKlick($hListe, Einst("SmartPix", "Bearbeiten", "849,-76"), 1) Then Return 0
-	Local $t = TimerInit(), $h = 0, $w = ""
-	While Not $h And TimerDiff($t) < 10000
+	Local $t = TimerInit(), $h = 0, $w = "", $max = Int(Einst("SmartPix", "DialogMax", "30000"))
+	While Not $h And TimerDiff($t) < $max
 		Sleep(200)
 		$h = SmartPixFenster($dlg)
 		If Not $h Then $w = SmartPixWarnungWeg()
@@ -2604,7 +2604,10 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			If Not $listeEnde Then Send("{UP}")
 			Sleep(200)
 			$warum = SmartPixZellenSetzen($hListe, $f, $geb, $id)
-			If $warum = "" Then
+			; kein Fehler von Smart Pix: weder Neustart noch Fehlerzaehlung
+			If $warum = "schon da" Or StringInStr($warum, "in der Liste nicht gelesen") Then
+				$ein = $warum
+			ElseIf $warum = "" Then
 				$neu += 1
 				$folge = 0
 				$neustartFolge = 0
@@ -2708,9 +2711,9 @@ Func SmartPixSpalten()
 EndFunc
 
 ; Inhalt der Zelle mit dem Zellcursor (Strg+C), "" wenn leer: vorher steht ein Merkzeichen in der Zwischenablage,
-; ersetzt Smart Pix es nicht binnen [SmartPixListe] Kopieren= ms (Vorgabe 300), gilt die Zelle als leer
+; ersetzt Smart Pix es nicht binnen [SmartPixListe] Kopieren= ms (Vorgabe 600), gilt die Zelle als leer
 Func SmartPixZelle()
-	Local $merk = "<MOReiter " & Random(100000, 999999, 1) & ">", $ms = Int(Einst("SmartPixListe", "Kopieren", "300")), $s
+	Local $merk = "<MOReiter " & Random(100000, 999999, 1) & ">", $ms = Int(Einst("SmartPixListe", "Kopieren", "600")), $s
 	ClipPut($merk)
 	Send("^c")
 	Local $t = TimerInit()
@@ -2825,28 +2828,64 @@ Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
 EndFunc
 
 ; den markierten Patienten oeffnen, pruefen, dass der Dialog $f zeigt, und $geb bzw. $id eintragen; "" wenn
-; gespeichert, sonst der Grund
-Func SmartPixZellenSetzen($hListe, ByRef $f, $geb, $id)
-	Local $f2[4], $hDlg
+; gespeichert, "schon da", wenn der Dialog den fehlenden Wert schon zeigt (aus der Zelle nicht kopiert), sonst der
+; Grund. Ein in der Liste leer gelesenes Geburtsdatum, das der Dialog zeigt, laesst ihn aus (der Vorschlag beruhte
+; dann nur auf dem Namen)
+Func SmartPixZellenSetzen($hListe, ByRef $f, ByRef $geb, ByRef $id)
+	Local $f2[4], $hDlg, $a, $b
 	$gSmartPixWarnung = ""
 	$gMeldung = ""
 	$hDlg = SmartPixDialog($hListe, $f2)
-	If Not $hDlg Then Return "nicht zu oeffnen" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
+	If Not $hDlg Then
+		SmartPixDialogWeg()
+		Return "nicht zu oeffnen" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
+	EndIf
 	For $i = 0 To 3
-		If StringStripWS($f2[$i], 3) <> StringStripWS($f[$i], 3) Then
-			SmartPixLog("Dialog zeigt einen anderen Patienten: " & SmartPixKurz($f2))
+		$a = StringStripWS($f[$i], 3)
+		$b = StringStripWS($f2[$i], 3)
+		If $a = $b Then ContinueLoop
+		If $i = 2 And $a = "" Then
+			SmartPixLog("Geburtsdatum im Dialog, in der Liste leer gelesen: ausgelassen")
 			SmartPixDialogZu($hDlg)
-			Return "Dialog zeigt einen anderen Patienten"
+			Return "Geburtsdatum in der Liste nicht gelesen"
 		EndIf
+		If $i = 3 And $a = "" Then
+			SmartPixLog("Patienten-ID im Dialog, in der Liste leer gelesen")
+			$f[3] = $b
+			$id = ""
+			ContinueLoop
+		EndIf
+		SmartPixLog("Dialog zeigt einen anderen Patienten: " & SmartPixKurz($f2))
+		SmartPixDialogZu($hDlg)
+		Return "Dialog zeigt einen anderen Patienten"
 	Next
+	If $geb = "" And $id = "" Then
+		SmartPixDialogZu($hDlg)
+		Return "schon da"
+	EndIf
 	If SmartPixSetzen($hDlg, $geb, $id, $f[1]) Then Return ""
 	Return "nicht gespeichert" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
+EndFunc
+
+; ein (zu spaet erschienener) Dialog "Patientendaten bearbeiten" steht noch offen: verwerfen, bis 5 s darauf warten
+Func SmartPixDialogWeg($ms = 5000)
+	Local $t = TimerInit(), $d
+	Do
+		$d = SmartPixFenster("[TITLE:Patientendaten bearbeiten; CLASS:Qt5QWindowIcon]")
+		If $d Then
+			SmartPixLog("Dialog erschien zu spaet, verworfen")
+			Return SmartPixDialogZu($d)
+		EndIf
+		Sleep(250)
+	Until TimerDiff($t) > $ms
+	Return False
 EndFunc
 
 ; nach dem Dialog zurueck in die Tabelle, in die erste Zeile des naechsten Patienten ($r, schon gelesen): in die
 ; Markierung klicken und Pfeil runter, sonst suchen
 Func SmartPixZellenZurueck($hListe, $zurueck, ByRef $r, ByRef $sp)
 	Local $t[5]
+	SmartPixDialogWeg(0)
 	WinActivate($hListe)
 	If Not WinWaitActive($hListe, "", 3) Then Return False
 	If SmartPixWeiter($hListe, $zurueck) Then
