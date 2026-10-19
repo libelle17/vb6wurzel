@@ -2151,7 +2151,7 @@ Func SmartPixListe()
 	If $neustarts < 1 Then $neustarts = 1
 	; ohne jeden Patienten zu oeffnen: die Zellen der Liste mit Strg+C lesen ([SmartPixListe] Zellen=0 = wie frueher)
 	If Einst("SmartPixListe", "Zellen", "1") <> "0" Then Return SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, _
-			$stand, $ab, $abNr, $abMarkiert, $abBasis, $ziel, $vorschlag, $db, $neustarts)
+			$stand, $ab, $abNr, $abMarkiert, $abBasis, $ziel, $vorschlag, $db, $neustarts, $puids, $ausgelesen)
 	; scheitert das Wiederfinden (meist "Kein Schreibzugriff" beim Oeffnen des Patienten), Smart Pix neu starten
 	; und noch einmal suchen, erst dann fragen
 	Local $gefunden = ($abNr = 0)
@@ -2445,7 +2445,7 @@ EndFunc
 ; (unsichtbaren) Zellcursor, Pfeil rechts/links wechselt die Spalte, Pfeil runter die Zeile. Jedes Geraet ist eine
 ; Zeile, nur die erste eines Patienten traegt Name, Geburtsdatum und Patienten-ID; das letzte Auslesen steht je
 ; Geraet da. Geoeffnet wird ein Patient nur noch zum Eintragen ([SmartPixListe] Zellen=0 = wie frueher)
-Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, ByRef $ab, $abNr, $abMarkiert, $abBasis, $ziel, ByRef $vorschlag, ByRef $db, $neustarts)
+Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, ByRef $ab, $abNr, $abMarkiert, $abBasis, $ziel, ByRef $vorschlag, ByRef $db, $neustarts, ByRef $puids, ByRef $ausgelesen)
 	Local $sp = SmartPixSpalten()
 	If @error Then Return SmartPixFehler("Smart Pix-Liste: [SmartPixListe] Spalten= unlesbar (Spalten von Nachname, Vorname, " & _
 			"Geburtsdatum, Patienten-ID und Letztes Auslesen, ab 0 gezaehlt, z.B. 0,1,2,3,6)")
@@ -2489,7 +2489,8 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $max = Int(Einst("SmartPixListe", "Max", "0")), $grenze = Int(Einst("SmartPixListe", "GleichZeilen", "10"))
 	Local $zp = Int(Einst("SmartPixListe", "ZeilePause", "30"))
 	Local $nr = $abNr + $abBasis, $nr0 = $nr, $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $k, $vorher = ""
-	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten
+	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten, $n
+	Local $pla, $pfa
 	Local $gelesen = False, $listeEnde = False, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
 	Local $t0 = TimerInit()
 	SmartPixLog("Zellen lesen ab Patient " & ($nr + 1))
@@ -2507,7 +2508,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 		EndIf
 		; $r ist die erste Zeile des Patienten (schon gelesen, wenn $gelesen)
 		If Not $gelesen And Not SmartPixReiheLesen($r, $sp) Then
-			$ende = "abgebrochen, Zelle sieht nicht wie erwartet aus ([SmartPixListe] Spalten= pruefen)"
+			$ende = "abgebrochen, Zelle nicht lesbar oder unerwartet (s. %APPDATA%\MOReiter\SmartPixListe.log, [SmartPixListe] Spalten=)"
 			ExitLoop
 		EndIf
 		$gelesen = False
@@ -2546,7 +2547,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			$zeilen += 1
 		WEnd
 		If Not $gelesen And Not $listeEnde Then
-			$ende = _IsPressed("1B") ? "mit Esc abgebrochen" : "abgebrochen, Zelle sieht nicht wie erwartet aus ([SmartPixListe] Spalten= pruefen)"
+			$ende = _IsPressed("1B") ? "mit Esc abgebrochen" : "abgebrochen, Zelle nicht lesbar oder unerwartet (s. %APPDATA%\MOReiter\SmartPixListe.log, [SmartPixListe] Spalten=)"
 			ExitLoop
 		EndIf
 		For $i = 0 To 3
@@ -2583,6 +2584,11 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 				$fehlt += 1
 				$grund = "nicht gefunden"
 			EndIf
+			; die Liste zeigt womoeglich nicht alle Geraete (verbundene Zellen): dazu das Auslesen aus palist.xml
+			$pla = SmartPixLetztesAuslesen($puids, $ausgelesen, $f)
+			$pfa = @extended
+			If $pla <> "" And ($la = "" Or Int($pla) > Int($la)) Then $la = $pla
+			If $pfa > 0 And ($fa = 0 Or $pfa < $fa) Then $fa = $pfa
 			If $la = "" Then $ohneDatei += 1
 			; Vorschlag nur bei genau einem passenden Patienten, der vor dem letzten Auslesen schon da war (und
 			; nicht erst lange nach dem ersten); mehrere stehen zur Ansicht da, ohne Eintragen=j
@@ -2601,7 +2607,9 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 		; eintragen: zurueck in eine Zeile dieses Patienten (damit ist er markiert), oeffnen, eintragen, danach in die
 		; erste Zeile des naechsten
 		If $geb <> "" Or $id <> "" Then
-			If Not $listeEnde Then Send("{UP}")
+			; Pfeil hoch so oft, wie der Patient Zeilen hat (am Ende der Liste eine weniger): in seine erste Zeile
+			$n = $listeEnde ? $zeilen - 1 : $zeilen
+			If $n > 0 Then Send("{UP " & $n & "}")
 			Sleep(200)
 			$warum = SmartPixZellenSetzen($hListe, $f, $geb, $id)
 			; kein Fehler von Smart Pix: weder Neustart noch Fehlerzaehlung
@@ -2710,19 +2718,22 @@ Func SmartPixSpalten()
 	Return $sp
 EndFunc
 
-; Inhalt der Zelle mit dem Zellcursor (Strg+C), "" wenn leer: vorher steht ein Merkzeichen in der Zwischenablage,
-; ersetzt Smart Pix es nicht binnen [SmartPixListe] Kopieren= ms (Vorgabe 600), gilt die Zelle als leer
+; Inhalt der Zelle mit dem Zellcursor (Strg+C), "" wenn leer: vorher steht ein Merkzeichen in der Zwischenablage;
+; eine leere Zelle ersetzt es sofort durch nichts, bleibt es [SmartPixListe] Kopieren= ms (Vorgabe 300) stehen,
+; ging das Strg+C verloren: noch bis zu zweimal, dann @error = 1
 Func SmartPixZelle()
-	Local $merk = "<MOReiter " & Random(100000, 999999, 1) & ">", $ms = Int(Einst("SmartPixListe", "Kopieren", "600")), $s
+	Local $merk = "<MOReiter " & Random(100000, 999999, 1) & ">", $ms = Int(Einst("SmartPixListe", "Kopieren", "300")), $s, $t
 	ClipPut($merk)
-	Send("^c")
-	Local $t = TimerInit()
-	Do
-		Sleep(10)
-		$s = ClipGet()
-		If $s <> $merk Then Return StringStripWS($s, 3)
-	Until TimerDiff($t) > $ms
-	Return ""
+	For $n = 1 To 3
+		Send("^c")
+		$t = TimerInit()
+		Do
+			Sleep(10)
+			$s = ClipGet()
+			If $s <> $merk Then Return StringStripWS($s, 3)
+		Until TimerDiff($t) > $ms * $n
+	Next
+	Return SetError(1, 0, "")
 EndFunc
 
 ; eine Zeile der Liste lesen; der Zellcursor steht vorher und nachher in der ersten Spalte. $r[0..3] Nachname,
@@ -2730,15 +2741,25 @@ EndFunc
 ; mehreren Geraeten womoeglich mehrere Daten in einer Zelle); False, wenn ein Datum nicht wie eines aussieht
 ; (Spalten verschoben?), dann steht die Zelle unkenntlich gemacht im Protokoll
 Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
-	Local $c = 0
-	For $i = 0 To 4
-		$r[$i] = ""
-		If $i >= 1 And $i <= 3 And $r[0] = "" Then ContinueLoop
-		If $sp[$i] > $c Then Send("{RIGHT " & ($sp[$i] - $c) & "}")
-		$c = $sp[$i]
-		$r[$i] = SmartPixZelle()
+	Local $c, $verloren
+	; ging ein Strg+C verloren, die ganze Zeile noch einmal; dann nicht mehr: abbrechen (False)
+	For $n = 1 To 2
+		$c = 0
+		$verloren = ""
+		For $i = 0 To 4
+			$r[$i] = ""
+			If $i >= 1 And $i <= 3 And $r[0] = "" Then ContinueLoop
+			If $sp[$i] > $c Then Send("{RIGHT " & ($sp[$i] - $c) & "}")
+			$c = $sp[$i]
+			$r[$i] = SmartPixZelle()
+			If @error Then $verloren &= " " & $sp[$i]
+		Next
+		If $c > 0 Then Send("{LEFT " & $c & "}")
+		If $verloren = "" Then ExitLoop
+		SmartPixLog("Strg+C ohne Ergebnis in Spalte" & $verloren & ($n = 1 ? ", Zeile noch einmal" : ""))
+		If $n = 2 Then Return False
+		Sleep(500)
 	Next
-	If $c > 0 Then Send("{LEFT " & $c & "}")
 	If $r[2] <> "" And Not StringRegExp($r[2], "^\d\d\.\d\d\.\d{4}$") Then
 		SmartPixLog("Geburtsdatum unerwartet: " & SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")")
 		Return False
@@ -2890,7 +2911,7 @@ Func SmartPixZellenZurueck($hListe, $zurueck, ByRef $r, ByRef $sp)
 	If Not WinWaitActive($hListe, "", 3) Then Return False
 	If SmartPixWeiter($hListe, $zurueck) Then
 		Sleep(200)
-		If SmartPixReiheLesen($t, $sp) And SmartPixReiheText($t) = SmartPixReiheText($r) Then Return True
+		If SmartPixReiheLesen($t, $sp) And $t[0] = $r[0] And $t[1] = $r[1] And $t[2] = $r[2] And $t[3] = $r[3] Then Return True
 		SmartPixLog("nach dem Dialog in einer anderen Zeile: " & SmartPixKurz($t))
 	EndIf
 	Return SmartPixZellenFinden($hListe, $r, $sp)
