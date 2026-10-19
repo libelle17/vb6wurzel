@@ -2489,8 +2489,8 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $max = Int(Einst("SmartPixListe", "Max", "0")), $grenze = Int(Einst("SmartPixListe", "GleichZeilen", "10"))
 	Local $zp = Int(Einst("SmartPixListe", "ZeilePause", "30"))
 	Local $nr = $abNr + $abBasis, $nr0 = $nr, $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $k, $vorher = ""
-	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten, $n
-	Local $pla, $pfa
+	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten, $n
+	Local $pla, $pfa, $varianten, $fx, $t, $idsV, $ids[0]
 	Local $gelesen = False, $listeEnde = False, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
 	Local $t0 = TimerInit()
 	SmartPixLog("Zellen lesen ab Patient " & ($nr + 1))
@@ -2577,22 +2577,41 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 				If $f[3] = "" Then $id = $teile[1]
 			EndIf
 		Else
-			$imMO = SmartPixAbgleich($db, $f, "M")
-			$inQu = SmartPixAbgleich($db, $f, "Q")
-			$grund = ""
-			If StringLeft($imMO, 2) <> "ja" And StringLeft($inQu, 2) <> "ja" Then
-				$fehlt += 1
-				$grund = "nicht gefunden"
-			EndIf
 			; die Liste zeigt womoeglich nicht alle Geraete (verbundene Zellen): dazu das Auslesen aus palist.xml
 			$pla = SmartPixLetztesAuslesen($puids, $ausgelesen, $f)
 			$pfa = @extended
 			If $pla <> "" And ($la = "" Or Int($pla) > Int($la)) Then $la = $pla
 			If $pfa > 0 And ($fa = 0 Or $pfa < $fa) Then $fa = $pfa
 			If $la = "" Then $ohneDatei += 1
-			; Vorschlag nur bei genau einem passenden Patienten, der vor dem letzten Auslesen schon da war (und
-			; nicht erst lange nach dem ersten); mehrere stehen zur Ansicht da, ohne Eintragen=j
-			$ids = SmartPixKandidaten($db, $f, $la, $fa)
+			; Geburtsdatum mit zweistelligem Jahr bzw. einstelligem Tag/Monat: jede moegliche Lesart pruefen (19.. und
+			; 20.., hoechstens [SmartPixListe] HoechstAlter= Jahre, Vorgabe 125); Vorschlag nur bei genau einem
+			; passenden Patienten, der vor dem letzten Auslesen schon da war (und nicht erst lange nach dem ersten);
+			; mehrere stehen zur Ansicht da, ohne Eintragen=j
+			$varianten = SmartPixGebVarianten($f[2])
+			$fx = $f
+			$imMO = ""
+			$inQu = ""
+			ReDim $ids[0]
+			For $g In $varianten
+				$fx[2] = $g
+				$t = SmartPixAbgleich($db, $fx, "M")
+				If $imMO = "" Or (StringLeft($t, 2) = "ja" And StringLeft($imMO, 2) <> "ja") Then $imMO = $t
+				$t = SmartPixAbgleich($db, $fx, "Q")
+				If $inQu = "" Or (StringLeft($t, 2) = "ja" And StringLeft($inQu, 2) <> "ja") Then $inQu = $t
+				$idsV = SmartPixKandidaten($db, $fx, $la, $fa)
+				For $i = 0 To UBound($idsV) - 1
+					If SmartPixHat($ids, $idsV[$i]) Then ContinueLoop
+					ReDim $ids[UBound($ids) + 1]
+					$ids[UBound($ids) - 1] = $idsV[$i]
+				Next
+			Next
+			If UBound($varianten) > 1 Or ($f[2] <> "" And $varianten[0] <> $f[2]) Then SmartPixLog("Geburtsdatum " & StringLen($f[2]) & _
+					" Zeichen, " & UBound($varianten) & " Lesarten, " & UBound($ids) & " passende")
+			$grund = ""
+			If StringLeft($imMO, 2) <> "ja" And StringLeft($inQu, 2) <> "ja" Then
+				$fehlt += 1
+				$grund = "nicht gefunden"
+			EndIf
 			For $i = 0 To UBound($ids) - 1
 				If $f[2] = "" And $db.Item("P|" & $ids[$i]) <> "" Then $vs &= ($vs = "" ? "" : ", ") & $db.Item("P|" & $ids[$i])
 				If $f[3] = "" Then $vid &= ($vid = "" ? "" : ", ") & $ids[$i]
@@ -2705,6 +2724,41 @@ Func SmartPixZeilenSchreiben($h, $h2, $nr, ByRef $f, $la, $imMO, $inQu, $vs, $vi
 	If $grund <> "" Then SmartPixZeile($h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein & ";" & $grund)
 EndFunc
 
+; True, wenn das Feld $a den Wert $v enthaelt
+Func SmartPixHat(ByRef $a, $v)
+	For $i = 0 To UBound($a) - 1
+		If $a[$i] = $v Then Return True
+	Next
+	Return False
+EndFunc
+
+; moegliche Geburtsdaten TT.MM.JJJJ zu einem so in Smart Pix eingetragenen: "" bleibt "", T.M. wird aufgefuellt,
+; ein zweistelliges Jahr wird 19.. und/oder 20.. (nicht in der Zukunft, hoechstens [SmartPixListe] HoechstAlter=
+; Jahre alt, Vorgabe 125); Unlesbares bleibt wie es ist
+Func SmartPixGebVarianten($g)
+	Local $m = StringRegExp($g, "^(\d{1,2})\.(\d{1,2})\.(\d\d|\d{4})$", 1), $erg[1] = [$g]
+	If @error Then Return $erg
+	Local $tm = StringRight("0" & $m[0], 2) & "." & StringRight("0" & $m[1], 2) & "."
+	If StringLen($m[2]) = 4 Then
+		$erg[0] = $tm & $m[2]
+		Return $erg
+	EndIf
+	Local $min = Int(@YEAR) - Int(Einst("SmartPixListe", "HoechstAlter", "125")), $j, $n = 0
+	ReDim $erg[2]
+	For $jh = 1900 To 2000 Step 100
+		$j = $jh + Int($m[2])
+		If $j > Int(@YEAR) Or $j < $min Then ContinueLoop
+		$erg[$n] = $tm & $j
+		$n += 1
+	Next
+	If $n = 0 Then
+		$erg[0] = $g
+		$n = 1
+	EndIf
+	ReDim $erg[$n]
+	Return $erg
+EndFunc
+
 ; Spalten der Liste fuer Nachname, Vorname, Geburtsdatum, Patienten-ID und Letztes Auslesen ([SmartPixListe]
 ; Spalten=, ab 0 gezaehlt, aufsteigend)
 Func SmartPixSpalten()
@@ -2771,7 +2825,8 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 			EndIf
 		Next
 		If $c > 0 Then Send("{LEFT " & $c & "}")
-		If $r[2] <> "" And Not StringRegExp($r[2], "^\d\d\.\d\d\.\d{4}$") Then $falsch &= ", Geburtsdatum unerwartet: " & _
+		; Geburtsdatum auch mit zweistelligem Jahr oder einstelligem Tag/Monat (so eingegeben)
+		If $r[2] <> "" And Not StringRegExp($r[2], "^\d{1,2}\.\d{1,2}\.(\d\d|\d{4})$") Then $falsch &= ", Geburtsdatum unerwartet: " & _
 				SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")"
 		If $r[4] <> "" And Not StringRegExp($r[4], "\d\d\.\d\d\.\d{4}") Then $falsch &= ", Letztes Auslesen unerwartet: " & _
 				SmartPixMaske($r[4]) & " (Spalte " & $sp[4] & ")"
