@@ -135,8 +135,10 @@ jedem dritten vergeblichen Versuch startet es Smart Pix neu und macht beim näch
 wird erst nach [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
-läuft; die anderer PCs bleiben), startet bei einer hochgezählten eigenen Listensperre vor dem Durchgang neu und
-fragt nach, wenn Smart Pix auch auf anderen PCs offen ist.
+läuft; die anderer PCs bleiben) und startet bei einer hochgezählten eigenen Listensperre vor dem Durchgang neu;
+ein auf anderen PCs offenes Smart Pix stört nicht. Findet MOReiter beim Weitermachen den letzten Patienten nicht
+wieder (meist, weil schon sein Öffnen am "Kein Schreibzugriff" scheitert), startet es Smart Pix ebenso neu und sucht
+noch einmal; erst nach Neustarts= vergeblichen Versuchen fragt es, ob es von vorn anfangen soll.
 Strg+Z=Zucker: liest die Markierungen des Patienten aus der Datenbank von Medical Office und ruft für
 jede Zucker-Markierung das passende Portal bzw. Programm auf, mehrere nacheinander (z.B. "Libre-Handy"
 und "Omnipod 5 Glooko": erst LibreView, dann Glooko). Welche Markierung wohin führt, steht in [Zucker].

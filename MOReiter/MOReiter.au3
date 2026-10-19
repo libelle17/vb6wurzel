@@ -2035,17 +2035,30 @@ Func SmartPixListe()
 	If Not $hListe Then Return False
 	ToolTip("")
 	; hochgezaehlte eigene Listensperre (Smart Pix frueher hart beendet): dann scheitert jedes Speichern, also neu starten
-	Local $fremd = SmartPixSperren()
+	; (offenes Smart Pix auf anderen PCs stoert nicht, danach wird nicht mehr gefragt)
+	SmartPixSperren()
 	If @extended > 1 Then
 		$hListe = SmartPixNeustart()
 		If Not $hListe Then Return False
-		$fremd = SmartPixSperren()
 	EndIf
-	If $fremd <> "" And MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", "Smart Pix ist auch auf anderen PCs geoeffnet " & _
-			"(Sperren in palock.xml: " & $fremd & "); das Speichern kann dann scheitern." & @CRLF & @CRLF & "Trotzdem anfangen?") <> 6 Then Return False
 	If Not SmartPixListeOben($hListe) Then Return False
 	Local $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
-	If $abNr > 0 And Not SmartPixAnspringen($hListe, $ab, $zurueck) Then
+	Local $neustarts = Int(Einst("SmartPixListe", "Neustarts", "5")), $neugestartet = 0
+	If $neustarts < 1 Then $neustarts = 1
+	; scheitert das Wiederfinden (meist "Kein Schreibzugriff" beim Oeffnen des Patienten), Smart Pix neu starten
+	; und noch einmal suchen, erst dann fragen
+	Local $gefunden = ($abNr = 0)
+	For $i = 0 To $neustarts
+		If $gefunden Then ExitLoop
+		If $i > 0 Then
+			$neugestartet += 1
+			$hListe = SmartPixNeustart()
+			If Not $hListe Or Not SmartPixListeOben($hListe) Then Return False
+		EndIf
+		$gefunden = SmartPixAnspringen($hListe, $ab, $zurueck)
+		If _IsPressed("1B") Then Return False
+	Next
+	If Not $gefunden Then
 		ToolTip("")
 		If MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", $ab[1] & " " & $ab[0] & " nicht wiedergefunden." & _
 				@CRLF & @CRLF & "Von vorn anfangen (die CSV-Dateien werden neu geschrieben)?") <> 6 Then Return False
@@ -2068,8 +2081,6 @@ Func SmartPixListe()
 	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0"))
 	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
 	Local $wiederholt = 0, $mitDatei = (Einst("SmartPixListe", "Dateiname", "0") = "1")
-	Local $neustarts = Int(Einst("SmartPixListe", "Neustarts", "5")), $neugestartet = 0
-	If $neustarts < 1 Then $neustarts = 1
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
 	Local $nr = $abNr, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
@@ -2088,8 +2099,8 @@ Func SmartPixListe()
 		; Schreibrechte" kommt bei schnellem Arbeiten ueber das Netz voruebergehend (Sperrdatei palock.xml.lck noch
 		; nicht frei): dann mit wachsender Pause, nach jedem dritten Versuch Smart Pix neu starten, erst nach
 		; [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten abbrechen
-		Local $wdh = 0
-		While Not $hDlg And $wdh < (StringInStr($gSmartPixWarnung, "Schreib") ? 3 * $neustarts : 3)
+		Local $wdh = 0, $schreib = StringInStr($gSmartPixWarnung, "Schreib"), $verloren = False
+		While Not $hDlg And $wdh < (($schreib Or $verloren) ? 3 * $neustarts : 3)
 			$wdh += 1
 			$wiederholt += 1
 			ToolTip("Smart Pix-Liste: Patient " & ($nr + 1) & ", " & $wdh & ". Wiederholung" & (($gSmartPixWarnung = "") ? "" : _
@@ -2101,20 +2112,29 @@ Func SmartPixListe()
 			; hinter dem zuletzt gelesenen
 			; ist die Liste verschwunden (oder liess sich nicht nach vorn holen), sie neu oeffnen und ebenso zurueck
 			Local $weg = Not BitAND(WinGetState($hListe), 2)
-			If (Mod($wdh, 3) = 0 And StringInStr($gSmartPixWarnung, "Schreib")) Or $weg Then
+			; nach gescheitertem Wiederfinden steht die Liste irgendwo: dann jedes Mal neu starten und neu suchen
+			If (Mod($wdh, 3) = 0 And $schreib) Or $weg Or $verloren Then
 				If Not $weg Then $neugestartet += 1
 				$hListe = $weg ? SmartPixListeOeffnen() : SmartPixNeustart()
 				If Not $hListe Or Not SmartPixListeOben($hListe) Then ExitLoop
+				$gSmartPixWarnung = ""
+				$gMeldung = ""
 				If $vorher <> "" Then
 					Local $vab = StringSplit($vorher, "|", 2)
-					If Not SmartPixAnspringen($hListe, $vab, $zurueck) Then ExitLoop
+					$verloren = Not SmartPixAnspringen($hListe, $vab, $zurueck)
 				ElseIf $abNr > 0 Then
-					If Not SmartPixAnspringen($hListe, $ab, $zurueck) Then ExitLoop
+					$verloren = Not SmartPixAnspringen($hListe, $ab, $zurueck)
+				EndIf
+				If _IsPressed("1B") Then ExitLoop
+				If $verloren Then
+					If StringInStr($gSmartPixWarnung, "Schreib") Then $schreib = True
+					ContinueLoop
 				EndIf
 			EndIf
 			$gSmartPixWarnung = ""
 			$gMeldung = ""
 			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen And $mitDatei)
+			If StringInStr($gSmartPixWarnung, "Schreib") Then $schreib = True
 		WEnd
 		If Not $hDlg Then
 			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? (($gMeldung = "") ? "" : " (" & $gMeldung & ")") : _
@@ -2341,7 +2361,14 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 	Sleep(1500)
 	For $i = 1 To 500
 		If _IsPressed("1B") Then Return False
-		$h = SmartPixDialog($hListe, $f)
+		; "Kein Schreibzugriff" beim Oeffnen ist meist voruebergehend: bis zu dreimal versuchen
+		For $j = 1 To 3
+			$h = SmartPixDialog($hListe, $f)
+			If $h Then ExitLoop
+			Sleep(2000 * $j)
+			SmartPixInfoWeg()
+			SmartPixWarnungWeg()
+		Next
 		If Not $h Then Return False
 		SmartPixDialogZu($h)
 		If $f[0] = $ab[0] And $f[1] = $ab[1] And $f[2] = $ab[2] And $f[3] = $ab[3] Then
