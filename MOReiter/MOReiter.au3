@@ -2128,7 +2128,7 @@ Func SmartPixListe()
 	Local $wiederholt = 0, $mitDatei = (Einst("SmartPixListe", "Dateiname", "0") = "1")
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
 	Local $nr = $abNr + $abWeiter + $abBasis, $nr0 = $abNr + $abBasis, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
-	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
+	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
 	; hinter dem zuletzt gelesenen uebersprungene Patienten (lassen sich auch nach einem Neustart nicht oeffnen)
 	Local $skip = $abWeiter, $uebersprungen = 0, $aufgeben = False, $leer[4]
 	Local $t0 = TimerInit()
@@ -2260,15 +2260,18 @@ Func SmartPixListe()
 					$grund = "nicht gefunden"
 				EndIf
 				$la = ""
+				$fa = 0
 				If $f[4] <> "" And $ausgelesen.Exists(StringLower($f[4])) Then
 					$la = $ausgelesen.Item(StringLower($f[4]))
+					If $ausgelesen.Exists("E|" & StringLower($f[4])) Then $fa = Int($ausgelesen.Item("E|" & StringLower($f[4])))
 				Else
 					$la = SmartPixLetztesAuslesen($puids, $ausgelesen, $f)
+					$fa = @extended
 					If $la = "" Then $ohneDatei += 1
 				EndIf
-				; Vorschlag nur bei genau einem passenden Patienten, der vor dem letzten Auslesen schon da war;
-				; mehrere stehen zur Ansicht da, ohne Eintragen=j
-				$ids = SmartPixKandidaten($db, $f, $la)
+				; Vorschlag nur bei genau einem passenden Patienten, der vor dem letzten Auslesen schon da war (und
+				; nicht erst lange nach dem ersten); mehrere stehen zur Ansicht da, ohne Eintragen=j
+				$ids = SmartPixKandidaten($db, $f, $la, $fa)
 				$vs = ""
 				$vid = ""
 				For $i = 0 To UBound($ids) - 1
@@ -2695,14 +2698,25 @@ EndFunc
 
 ; Patienten aus Medical Office und quelle, die zu diesem Smart Pix-Eintrag passen: gleicher Name (sonst gleicher
 ; erster Vorname) und, falls in Smart Pix vorhanden, gleiches Geburtsdatum; ohne die, deren erster
-; Behandlungsfall erst nach dem letzten Auslesen $bis (JJJJMMTT, leer = ohne diese Pruefung) begann
-Func SmartPixKandidaten($d, ByRef $f, $bis)
-	Local $nach = SmartPixNorm($f[0]), $vor = SmartPixNorm($f[1]), $erg[0]
+; Behandlungsfall erst nach dem letzten Auslesen $bis (JJJJMMTT, leer = ohne diese Pruefung) begann, und ohne die,
+; deren erster Fall mehr als [SmartPixListe] Vorlauf= Monate (Vorgabe 3, 0 = ohne) nach dem ersten Auslesen begann;
+; das erste Auslesen steht nicht in palist.xml, $frueh (JJJJMMTT, 0 = unbekannt) ist das frueheste letzte Auslesen
+; der Geraete, das erste lag nicht spaeter: so wird eher zu wenig als zu viel gestrichen
+Func SmartPixKandidaten($d, ByRef $f, $bis, $frueh = 0)
+	Local $nach = SmartPixNorm($f[0]), $vor = SmartPixNorm($f[1]), $erg[0], $fall
+	Local $monate = Int(Einst("SmartPixListe", "Vorlauf", "3")), $grenze = 0
+	If $monate > 0 And Int($frueh) > 0 Then
+		; JJJJMMTT plus $monate Monate (Tag bleibt, fuer den Vergleich genuegt das)
+		Local $mm = Int(StringMid($frueh, 5, 2)) - 1 + $monate
+		$grenze = (Int(StringLeft($frueh, 4)) + Floor($mm / 12)) * 10000 + (Mod($mm, 12) + 1) * 100 + Int(StringRight($frueh, 2))
+	EndIf
 	Local $ids = SmartPixIds($d, "N|" & $nach & "|" & $vor, $f[2])
 	If UBound($ids) = 0 Then $ids = SmartPixIds($d, "E|" & $nach & "|" & StringRegExpReplace($vor, " .*", ""), $f[2])
 	For $i = 0 To UBound($ids) - 1
-		If $bis <> "" And $d.Exists("F|" & $ids[$i]) Then
-			If Int($d.Item("F|" & $ids[$i])) > Int($bis) Then ContinueLoop
+		If $d.Exists("F|" & $ids[$i]) Then
+			$fall = Int($d.Item("F|" & $ids[$i]))
+			If $bis <> "" And $fall > Int($bis) Then ContinueLoop
+			If $grenze > 0 And $fall > $grenze Then ContinueLoop
 		EndIf
 		ReDim $erg[UBound($erg) + 1]
 		$erg[UBound($erg) - 1] = $ids[$i]
@@ -2715,20 +2729,28 @@ Func SmartPixAuslesen($datei)
 	Local $d = ObjCreate("Scripting.Dictionary")
 	Local $t = FileRead($datei)
 	If @error Then Return SetError(1, 0, $d)
-	Local $teile = StringSplit($t, "<PATIENT ", 1), $dia, $daten, $max
+	Local $teile = StringSplit($t, "<PATIENT ", 1), $dia, $daten, $max, $min, $z
 	For $i = 2 To $teile[0]
 		$dia = StringRegExp($teile[$i], 'DiaryFileName="([^"]+)"', 1)
 		If @error Then ContinueLoop
 		$daten = StringRegExp($teile[$i], 'LastUpload="(\d{4})-(\d\d)-(\d\d)"', 3)
 		If @error Then ContinueLoop
 		$max = 0
+		$min = 99999999
 		For $j = 0 To UBound($daten) - 3 Step 3
-			If Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2]) > $max Then $max = Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2])
+			$z = Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2])
+			If $z > $max Then $max = $z
+			If $z > 0 And $z < $min Then $min = $z
 		Next
 		$d.Item(StringLower($dia[0])) = String($max)
+		; frueheste letzte Auslesen der Geraete: das erste Auslesen lag nicht spaeter (SmartPixKandidaten)
+		If $min < 99999999 Then $d.Item("E|" & StringLower($dia[0])) = String($min)
 		; auch je interner Nummer, fuer die Zuordnung ueber die Protokolle (SmartPixProtokolle)
 		$dia = StringRegExp($teile[$i], '^UID="(\d+)"', 1)
-		If Not @error Then $d.Item("U|" & $dia[0]) = String($max)
+		If Not @error Then
+			$d.Item("U|" & $dia[0]) = String($max)
+			If $min < 99999999 Then $d.Item("V|" & $dia[0]) = String($min)
+		EndIf
 	Next
 	Return $d
 EndFunc
@@ -2779,19 +2801,21 @@ EndFunc
 
 ; letztes Auslesen (JJJJMMTT) des Patienten mit den Feldern $f ueber die Protokolle: erst ueber die Patienten-ID, dann
 ; Name und Geburtsdatum, dann nur den Namen; kommt der Name in den Protokollen gar nicht vor, wurde er seit deren
-; Beginn nicht ausgelesen, dann gilt dieser Beginn als spaetestes Datum. "" wenn unbekannt bzw. mehrdeutig
+; Beginn nicht ausgelesen, dann gilt dieser Beginn als spaetestes Datum. "" wenn unbekannt bzw. mehrdeutig;
+; @extended: fruehestes letztes Auslesen der Geraete (JJJJMMTT, 0 = unbekannt)
 Func SmartPixLetztesAuslesen($puids, $ausgelesen, ByRef $f)
-	If $puids.Count = 0 Then Return ""
+	If $puids.Count = 0 Then Return SetExtended(0, "")
 	Local $k = SmartPixNorm($f[0]) & "|" & SmartPixNorm($f[1]), $schl[3] = ["I|" & $f[3], "N|" & $k & "|" & $f[2], "M|" & $k], $uid
 	For $i = 0 To 2
 		If $i = 0 And $f[3] = "" Then ContinueLoop
 		If Not $puids.Exists($schl[$i]) Then ContinueLoop
 		$uid = $puids.Item($schl[$i])
-		If $uid = "" Then Return ""
-		If $ausgelesen.Exists("U|" & $uid) Then Return $ausgelesen.Item("U|" & $uid)
-		Return ""
+		If $uid = "" Then Return SetExtended(0, "")
+		If $ausgelesen.Exists("U|" & $uid) Then Return SetExtended($ausgelesen.Exists("V|" & $uid) ? _
+				Int($ausgelesen.Item("V|" & $uid)) : 0, $ausgelesen.Item("U|" & $uid))
+		Return SetExtended(0, "")
 	Next
-	Return $puids.Exists("?") ? $puids.Item("?") : ""
+	Return SetExtended(0, $puids.Exists("?") ? $puids.Item("?") : "")
 EndFunc
 
 ; Texte der Markierungen (Tabellen patmark/markier) des Patienten in Medical Office, sortiert nach Nummer der

@@ -115,7 +115,9 @@ Vorschlag-ID, dann mit Eintragen=j. Dabei zählen nur Patienten, deren erster Be
 nach dem letzten Auslesen in Smart Pix begann (das letzte Auslesen steht in palist.xml; welcher Eintrag dort
 zum Patienten gehört, verraten die Protokolle von Smart Pix, Log_JJMM.AccessInterface.csv, für jeden seit
 deren Beginn ausgelesenen oder geöffneten Patienten; für die übrigen gilt der Beginn der Protokolle als
-spätestes Datum); passen dann mehrere (z.B. gleicher Nachname und erster
+spätestes Datum) und deren erster Behandlungsfall nicht mehr als [SmartPixListe] Vorlauf= Monate (Vorgabe 3)
+nach dem ersten Auslesen begann (das erste Auslesen steht nicht in palist.xml; MOReiter nimmt das früheste
+letzte Auslesen der Geräte des Tagebuchs, das erste lag nicht später, so wird eher zu wenig gestrichen); passen dann mehrere (z.B. gleicher Nachname und erster
 Vorname), gibt es kein Eintragen=j, auch der Echtlauf übergeht sie ohne Rückfrage. Sterne o.ä. vor dem
 Namen zählen beim Vergleich nicht. Nach Ja fragt MOReiter noch, ob die eindeutigen Vorschläge gleich beim Lesen
 eingetragen werden sollen (ohne Rückfragen, für einen unbeaufsichtigten Lauf); die CSV entsteht dann
