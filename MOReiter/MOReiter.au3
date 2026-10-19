@@ -2067,7 +2067,7 @@ Func SmartPixListe()
 	EndIf
 	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0"))
 	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
-	Local $wiederholt = 0
+	Local $wiederholt = 0, $mitDatei = (Einst("SmartPixListe", "Dateiname", "0") = "1")
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
 	Local $nr = $abNr, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
@@ -2079,7 +2079,9 @@ Func SmartPixListe()
 		EndIf
 		$gSmartPixWarnung = ""
 		$gMeldung = ""
-		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
+		; ohne Klick ins Feld "Dateiname" (laesst sich nicht kopieren; Klicks daneben koennen Kaestchen umschalten),
+		; das letzte Auslesen kommt ueber die Protokolle (SmartPixLetztesAuslesen); [SmartPixListe] Dateiname=1 = doch
+		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen And $mitDatei)
 		; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird; "Kein Schreibzugriff" bzw. "Keine
 		; Schreibrechte" kommt bei schnellem Arbeiten ueber das Netz voruebergehend (Sperrdatei palock.xml.lck noch
 		; nicht frei): dann bis zu fuenfmal mit wachsender Pause
@@ -2108,7 +2110,7 @@ Func SmartPixListe()
 			EndIf
 			$gSmartPixWarnung = ""
 			$gMeldung = ""
-			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
+			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen And $mitDatei)
 		WEnd
 		If Not $hDlg Then
 			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? (($gMeldung = "") ? "" : " (" & $gMeldung & ")") : _
