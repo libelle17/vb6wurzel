@@ -204,7 +204,7 @@ Global $gSmartPixWarnung = ""
 ; Text der letzten Meldung (fuer die Abschlussmeldung der Smart Pix-Liste, wo der Hinweis sonst verloren ginge)
 Global $gMeldung = ""
 ; Ablaufprotokoll der Smart Pix-Liste (Pfad, waehrend des Durchgangs; "" = keins)
-Global $gSpLog = "", $gSpNochmal = False
+Global $gSpLog = "", $gSpNochmal = False, $gSpTabs = 0
 ; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
 Global $gSmartPixDateiDy = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
@@ -2651,7 +2651,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 				$fehler += 1
 				$ein = "Fehler"
 			EndIf
-			If Not $listeEnde And Not SmartPixZellenZurueck($hListe, $zurueck, $r, $sp) Then
+			If Not $listeEnde And Not SmartPixZellenZurueck($hListe, $zurueck, $f, $r, $sp) Then
 				$ende = "abgebrochen, nach dem Eintragen den naechsten Patienten nicht wiedergefunden"
 				SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
 				ExitLoop
@@ -2741,7 +2741,7 @@ EndFunc
 ; mehreren Geraeten womoeglich mehrere Daten in einer Zelle); False, wenn ein Datum nicht wie eines aussieht
 ; (Spalten verschoben?), dann steht die Zelle unkenntlich gemacht im Protokoll
 Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
-	Local $c, $verloren
+	Local $c, $verloren, $zp = Int(Einst("SmartPixListe", "ZellePause", "50")), $zleer = Int(Einst("SmartPixListe", "LeerPause", "250"))
 	; ging ein Strg+C verloren, die ganze Zeile noch einmal; dann nicht mehr: abbrechen (False)
 	For $n = 1 To 2
 		$c = 0
@@ -2749,10 +2749,20 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 		For $i = 0 To 4
 			$r[$i] = ""
 			If $i >= 1 And $i <= 3 And $r[0] = "" Then ContinueLoop
-			If $sp[$i] > $c Then Send("{RIGHT " & ($sp[$i] - $c) & "}")
+			If $sp[$i] > $c Then
+				Send("{RIGHT " & ($sp[$i] - $c) & "}")
+				Sleep($zp)
+			EndIf
 			$c = $sp[$i]
 			$r[$i] = SmartPixZelle()
 			If @error Then $verloren &= " " & $sp[$i]
+			; Smart Pix liefert gelegentlich eine gefuellte Zelle leer: leer erst, wenn es nach einer Pause so bleibt
+			If $r[$i] = "" And $verloren = "" Then
+				Sleep($zleer)
+				$r[$i] = SmartPixZelle()
+				If @error Then $verloren &= " " & $sp[$i]
+				If $r[$i] <> "" Then SmartPixLog("Spalte " & $sp[$i] & " erst beim zweiten Mal gelesen")
+			EndIf
 		Next
 		If $c > 0 Then Send("{LEFT " & $c & "}")
 		If $verloren = "" Then ExitLoop
@@ -2902,13 +2912,30 @@ Func SmartPixDialogWeg($ms = 5000)
 	Return False
 EndFunc
 
-; nach dem Dialog zurueck in die Tabelle, in die erste Zeile des naechsten Patienten ($r, schon gelesen): in die
-; Markierung klicken und Pfeil runter, sonst suchen
-Func SmartPixZellenZurueck($hListe, $zurueck, ByRef $r, ByRef $sp)
-	Local $t[5]
+; nach dem Dialog zurueck in die Tabelle, in die erste Zeile des naechsten Patienten ($r, schon gelesen): der Fokus
+; liegt dann auf einem Knopf, mit Umschalt+Tab zurueck in die Tabelle (dort steht der Zellcursor noch beim eben
+; geoeffneten Patienten $f, die Zahl der Tabs wird gemerkt) und Pfeil runter; sonst in die Markierung klicken, sonst
+; suchen
+Func SmartPixZellenZurueck($hListe, $zurueck, ByRef $f, ByRef $r, ByRef $sp)
+	Local $t[5], $z
 	SmartPixDialogWeg(0)
 	WinActivate($hListe)
 	If Not WinWaitActive($hListe, "", 3) Then Return False
+	Sleep(300)
+	For $k = 1 To 8
+		Send("+{TAB}")
+		Sleep(150)
+		If $gSpTabs > 0 And $k < $gSpTabs Then ContinueLoop
+		$z = SmartPixZelle()
+		If @error Or $z <> StringStripWS($f[0], 3) Then ContinueLoop
+		If $gSpTabs <> $k Then SmartPixLog("Tabelle nach " & $k & "x Umschalt+Tab")
+		$gSpTabs = $k
+		Send("{DOWN}")
+		Sleep(200)
+		If SmartPixReiheLesen($t, $sp) And $t[0] = $r[0] And $t[1] = $r[1] And $t[2] = $r[2] And $t[3] = $r[3] Then Return True
+		SmartPixLog("nach Umschalt+Tab in einer anderen Zeile: " & SmartPixKurz($t))
+		ExitLoop
+	Next
 	If SmartPixWeiter($hListe, $zurueck) Then
 		Sleep(200)
 		If SmartPixReiheLesen($t, $sp) And $t[0] = $r[0] And $t[1] = $r[1] And $t[2] = $r[2] And $t[3] = $r[3] Then Return True
