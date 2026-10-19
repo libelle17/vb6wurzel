@@ -2741,11 +2741,17 @@ EndFunc
 ; mehreren Geraeten womoeglich mehrere Daten in einer Zelle); False, wenn ein Datum nicht wie eines aussieht
 ; (Spalten verschoben?), dann steht die Zelle unkenntlich gemacht im Protokoll
 Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
-	Local $c, $verloren, $zp = Int(Einst("SmartPixListe", "ZellePause", "50")), $zleer = Int(Einst("SmartPixListe", "LeerPause", "250"))
-	; ging ein Strg+C verloren, die ganze Zeile noch einmal; dann nicht mehr: abbrechen (False)
-	For $n = 1 To 2
+	Local $c, $falsch, $zp = Int(Einst("SmartPixListe", "ZellePause", "50")), $zleer = Int(Einst("SmartPixListe", "LeerPause", "250"))
+	; ging ein Strg+C oder eine Pfeiltaste verloren (Datum, wo keins sein kann; meist beim Rollen der Liste), die
+	; Zeile noch zweimal, vorher sicher in die erste Spalte; dann abbrechen (False)
+	For $n = 1 To 3
+		If $n > 1 Then
+			Sleep(500 * $n)
+			Send("{LEFT " & ($sp[4] + 2) & "}")
+			Sleep(200)
+		EndIf
 		$c = 0
-		$verloren = ""
+		$falsch = ""
 		For $i = 0 To 4
 			$r[$i] = ""
 			If $i >= 1 And $i <= 3 And $r[0] = "" Then ContinueLoop
@@ -2755,30 +2761,24 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 			EndIf
 			$c = $sp[$i]
 			$r[$i] = SmartPixZelle()
-			If @error Then $verloren &= " " & $sp[$i]
+			If @error Then $falsch &= ", Strg+C ohne Ergebnis in Spalte " & $sp[$i]
 			; Smart Pix liefert gelegentlich eine gefuellte Zelle leer: leer erst, wenn es nach einer Pause so bleibt
-			If $r[$i] = "" And $verloren = "" Then
+			If $r[$i] = "" And $falsch = "" Then
 				Sleep($zleer)
 				$r[$i] = SmartPixZelle()
-				If @error Then $verloren &= " " & $sp[$i]
+				If @error Then $falsch &= ", Strg+C ohne Ergebnis in Spalte " & $sp[$i]
 				If $r[$i] <> "" Then SmartPixLog("Spalte " & $sp[$i] & " erst beim zweiten Mal gelesen")
 			EndIf
 		Next
 		If $c > 0 Then Send("{LEFT " & $c & "}")
-		If $verloren = "" Then ExitLoop
-		SmartPixLog("Strg+C ohne Ergebnis in Spalte" & $verloren & ($n = 1 ? ", Zeile noch einmal" : ""))
-		If $n = 2 Then Return False
-		Sleep(500)
+		If $r[2] <> "" And Not StringRegExp($r[2], "^\d\d\.\d\d\.\d{4}$") Then $falsch &= ", Geburtsdatum unerwartet: " & _
+				SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")"
+		If $r[4] <> "" And Not StringRegExp($r[4], "\d\d\.\d\d\.\d{4}") Then $falsch &= ", Letztes Auslesen unerwartet: " & _
+				SmartPixMaske($r[4]) & " (Spalte " & $sp[4] & ")"
+		If $falsch = "" Then Return True
+		SmartPixLog(StringTrimLeft($falsch, 2) & (($n < 3) ? ", Zeile noch einmal" : ""))
 	Next
-	If $r[2] <> "" And Not StringRegExp($r[2], "^\d\d\.\d\d\.\d{4}$") Then
-		SmartPixLog("Geburtsdatum unerwartet: " & SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")")
-		Return False
-	EndIf
-	If $r[4] <> "" And Not StringRegExp($r[4], "\d\d\.\d\d\.\d{4}") Then
-		SmartPixLog("Letztes Auslesen unerwartet: " & SmartPixMaske($r[4]) & " (Spalte " & $sp[4] & ")")
-		Return False
-	EndIf
-	Return True
+	Return False
 EndFunc
 
 ; Zelleninhalt fuers Protokoll ohne Patientendaten: Ziffern als 9, Buchstaben als x, Zeilenwechsel als |
