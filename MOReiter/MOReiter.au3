@@ -201,6 +201,8 @@ Global $gComFehler = "", $gComHandler = ObjEvent("AutoIt.Error", "ComFehler")
 Global $gSmartPixNachtrag = "", $gSmartPixNachtragZeit = 0
 ; Text der letzten Warnung von Smart Pix (z.B. "Keine Schreibrechte fuer die Datensaetze"), s. SmartPixWarnungWeg
 Global $gSmartPixWarnung = ""
+; Text der letzten Meldung (fuer die Abschlussmeldung der Smart Pix-Liste, wo der Hinweis sonst verloren ginge)
+Global $gMeldung = ""
 ; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
 Global $gSmartPixDateiDy = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
@@ -1975,7 +1977,7 @@ Func SmartPixListe()
 		$a = 6
 	EndIf
 	Local $eintragen = ($a = 7), $vorschlag = ObjCreate("Scripting.Dictionary"), $db = ObjCreate("Scripting.Dictionary")
-	Local $ausgelesen = ObjCreate("Scripting.Dictionary"), $ziel = $datei, $fehlerText
+	Local $ausgelesen = ObjCreate("Scripting.Dictionary"), $puids = ObjCreate("Scripting.Dictionary"), $ziel = $datei, $fehlerText
 	; endete der letzte Durchgang gleicher Art vor dem Ende der Liste (Abbruch, Esc, Max=), dahinter weitermachen?
 	Local $art = $eintragen ? "eintragen" : ($sofort ? "sofort" : "lesen"), $stand = @AppDataDir & "\MOReiter\SmartPixListe-Stand.ini"
 	Local $ab[4], $abNr = 0
@@ -2025,6 +2027,9 @@ Func SmartPixListe()
 			If MsgBox(4 + 48 + 262144, "MOReiter", $palist & " nicht lesbar ([SmartPixListe] Palist=)" & @CRLF & @CRLF & _
 					"Ohne Pruefung des letzten Auslesens weitermachen?") <> 6 Then Return False
 		EndIf
+		; der Dateiname im Dialog laesst sich nicht lesen: Patienten ueber die Protokolle von Smart Pix zuordnen
+		HinweisStehend("Smart Pix-Liste: Protokolle von Smart Pix werden gelesen ...")
+		SmartPixProtokolle($palist, $puids)
 	EndIf
 	Local $hListe = SmartPixListeOeffnen()
 	If Not $hListe Then Return False
@@ -2061,7 +2066,7 @@ Func SmartPixListe()
 		If $modus = 2 Then FileWriteLine($h2, $kopf & ";Grund")
 	EndIf
 	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0"))
-	Local $pause = Int(Einst("SmartPixListe", "Pause", "800")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
+	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
 	Local $wiederholt = 0
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
 	Local $nr = $abNr, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
@@ -2073,12 +2078,13 @@ Func SmartPixListe()
 			ExitLoop
 		EndIf
 		$gSmartPixWarnung = ""
+		$gMeldung = ""
 		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
 		; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird; "Kein Schreibzugriff" bzw. "Keine
 		; Schreibrechte" kommt bei schnellem Arbeiten ueber das Netz voruebergehend (Sperrdatei palock.xml.lck noch
 		; nicht frei): dann bis zu fuenfmal mit wachsender Pause
 		Local $wdh = 0
-		While Not $hDlg And $wdh < (StringInStr($gSmartPixWarnung, "Schreib") ? 5 : 1)
+		While Not $hDlg And $wdh < (StringInStr($gSmartPixWarnung, "Schreib") ? 5 : 3)
 			$wdh += 1
 			$wiederholt += 1
 			ToolTip("Smart Pix-Liste: Patient " & ($nr + 1) & ", " & $wdh & ". Wiederholung" & (($gSmartPixWarnung = "") ? "" : _
@@ -2088,8 +2094,10 @@ Func SmartPixListe()
 			SmartPixWarnungWeg()
 			; hilft das Warten nicht, Smart Pix neu starten (raeumt die eigenen Sperren auf) und zurueck zum Patienten
 			; hinter dem zuletzt gelesenen
-			If $wdh = 3 And StringInStr($gSmartPixWarnung, "Schreib") Then
-				$hListe = SmartPixNeustart()
+			; ist die Liste verschwunden (oder liess sich nicht nach vorn holen), sie neu oeffnen und ebenso zurueck
+			Local $weg = Not BitAND(WinGetState($hListe), 2)
+			If ($wdh = 3 And StringInStr($gSmartPixWarnung, "Schreib")) Or $weg Then
+				$hListe = $weg ? SmartPixListeOeffnen() : SmartPixNeustart()
 				If Not $hListe Or Not SmartPixListeOben($hListe) Then ExitLoop
 				If $vorher <> "" Then
 					Local $vab = StringSplit($vorher, "|", 2)
@@ -2099,10 +2107,12 @@ Func SmartPixListe()
 				EndIf
 			EndIf
 			$gSmartPixWarnung = ""
+			$gMeldung = ""
 			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
 		WEnd
 		If Not $hDlg Then
-			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
+			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? (($gMeldung = "") ? "" : " (" & $gMeldung & ")") : _
+					" (Smart Pix: " & $gSmartPixWarnung & ")")
 			ExitLoop
 		EndIf
 		; weitere Geraete desselben Patienten bzw. das Ende der Liste liefern dieselben Daten
@@ -2145,10 +2155,11 @@ Func SmartPixListe()
 					$grund = "nicht gefunden"
 				EndIf
 				$la = ""
-				If $f[4] = "" Then
-					$ohneDatei += 1
-				ElseIf $ausgelesen.Exists(StringLower($f[4])) Then
+				If $f[4] <> "" And $ausgelesen.Exists(StringLower($f[4])) Then
 					$la = $ausgelesen.Item(StringLower($f[4]))
+				Else
+					$la = SmartPixLetztesAuslesen($puids, $ausgelesen, $f)
+					If $la = "" Then $ohneDatei += 1
 				EndIf
 				; Vorschlag nur bei genau einem passenden Patienten, der vor dem letzten Auslesen schon da war;
 				; mehrere stehen zur Ansicht da, ohne Eintragen=j
@@ -2228,7 +2239,7 @@ Func SmartPixListe()
 			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
 			@CRLF & ($eintragen ? $neu & " Patienten ergaenzt, " & $fehler & " Fehler" : $fehlt & _
 			" weder in Medical Office noch in quelle, " & $mehrdeutig & " mehrdeutig (uebergangen), " & $ohneDatei & _
-			" ohne lesbaren Dateinamen (ohne Pruefung des letzten Auslesens)" & ($sofort ? ", " & $neu & _
+			" ohne bekanntes letztes Auslesen (ohne diese Pruefung)" & ($sofort ? ", " & $neu & _
 			" Patienten ergaenzt, " & $fehler & " Fehler" : "")) & @CRLF & @CRLF & $ziel & _
 			($eintragen ? "" : @CRLF & $pruefen))
 	Return True
@@ -2333,7 +2344,7 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 		; das Springen hat nicht geklappt bzw. schon an allen so beginnenden vorbei
 		If StringLeft(StringLower($f[0]), StringLen($anfang)) <> StringLower($anfang) Then Return False
 		If Not SmartPixWeiter($hListe, $zurueck) Then Return False
-		Sleep(Int(Einst("SmartPixListe", "Pause", "800")))
+		Sleep(Int(Einst("SmartPixListe", "Pause", "200")))
 	Next
 	Return False
 EndFunc
@@ -2570,8 +2581,72 @@ Func SmartPixAuslesen($datei)
 			If Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2]) > $max Then $max = Int($daten[$j] & $daten[$j + 1] & $daten[$j + 2])
 		Next
 		$d.Item(StringLower($dia[0])) = String($max)
+		; auch je interner Nummer, fuer die Zuordnung ueber die Protokolle (SmartPixProtokolle)
+		$dia = StringRegExp($teile[$i], '^UID="(\d+)"', 1)
+		If Not @error Then $d.Item("U|" & $dia[0]) = String($max)
 	Next
 	Return $d
+EndFunc
+
+; Zuordnung Patient -> interne Nummer (UID in palist.xml) aus den Protokollen von Smart Pix neben palist.xml
+; (Log_JJMM.AccessInterface.csv: bei jedem Oeffnen und Auslesen "-PUID 'n' -lname1 '..' -fname2 '..' -bdate '..'
+; -extid '..'"), nach $d: "I|Patienten-ID", "N|Nachname|Vorname|TT.MM.JJJJ" und "M|Nachname|Vorname" (Namen wie
+; SmartPixNorm) -> UID, "" bei mehreren; "?" -> JJJJMMTT des Beginns der Protokolle
+Func SmartPixProtokolle($palist, $d)
+	Local $verz = StringLeft($palist, StringInStr($palist, "\", 0, -1)), $such = FileFindFirstFile($verz & "Log_????.AccessInterface.csv")
+	If $such = -1 Then Return
+	Local $f, $t, $m, $erst = "9999", $k, $g, $z
+	While 1
+		$f = FileFindNextFile($such)
+		If @error Then ExitLoop
+		If StringMid($f, 5, 4) < $erst Then $erst = StringMid($f, 5, 4)
+		$t = FileRead($verz & $f)
+		$m = StringRegExp($t, "-PUID '(\d+)' -lname1 '([^']*)' -fname2 '([^']*)' -bdate '([^']*)'((?: -extid '[^']*')?)", 3)
+		If @error Then ContinueLoop
+		For $i = 0 To UBound($m) - 5 Step 5
+			; Geburtsdatum als JJJJ-MM-TT oder TT.MM.JJJJ, sonst leer
+			$z = StringRegExp($m[$i + 3], "^(\d{4})-(\d\d)-(\d\d)$", 1)
+			If @error Then
+				$g = StringRegExp($m[$i + 3], "^\d\d\.\d\d\.\d{4}$") ? $m[$i + 3] : ""
+			Else
+				$g = $z[2] & "." & $z[1] & "." & $z[0]
+			EndIf
+			$k = SmartPixNorm($m[$i + 1]) & "|" & SmartPixNorm($m[$i + 2])
+			SmartPixUidDazu($d, "N|" & $k & "|" & $g, $m[$i])
+			SmartPixUidDazu($d, "M|" & $k, $m[$i])
+			; die letzte Gruppe ist immer belegt (sonst fehlte sie im Ergebnis und verschoebe die folgenden)
+			$z = StringStripWS(StringRegExpReplace($m[$i + 4], "^ -extid '|'$", ""), 3)
+			If $z <> "" Then SmartPixUidDazu($d, "I|" & $z, $m[$i])
+		Next
+	WEnd
+	FileClose($such)
+	If $erst <> "9999" Then $d.Item("?") = "20" & $erst & "01"
+EndFunc
+
+; Schluessel -> UID; dieselbe UID mehrfach ist gleich, eine andere macht den Schluessel mehrdeutig ("")
+Func SmartPixUidDazu($d, $k, $uid)
+	If Not $d.Exists($k) Then
+		$d.Item($k) = $uid
+	ElseIf $d.Item($k) <> $uid Then
+		$d.Item($k) = ""
+	EndIf
+EndFunc
+
+; letztes Auslesen (JJJJMMTT) des Patienten mit den Feldern $f ueber die Protokolle: erst ueber die Patienten-ID, dann
+; Name und Geburtsdatum, dann nur den Namen; kommt der Name in den Protokollen gar nicht vor, wurde er seit deren
+; Beginn nicht ausgelesen, dann gilt dieser Beginn als spaetestes Datum. "" wenn unbekannt bzw. mehrdeutig
+Func SmartPixLetztesAuslesen($puids, $ausgelesen, ByRef $f)
+	If $puids.Count = 0 Then Return ""
+	Local $k = SmartPixNorm($f[0]) & "|" & SmartPixNorm($f[1]), $schl[3] = ["I|" & $f[3], "N|" & $k & "|" & $f[2], "M|" & $k], $uid
+	For $i = 0 To 2
+		If $i = 0 And $f[3] = "" Then ContinueLoop
+		If Not $puids.Exists($schl[$i]) Then ContinueLoop
+		$uid = $puids.Item($schl[$i])
+		If $uid = "" Then Return ""
+		If $ausgelesen.Exists("U|" & $uid) Then Return $ausgelesen.Item("U|" & $uid)
+		Return ""
+	Next
+	Return $puids.Exists("?") ? $puids.Item("?") : ""
 EndFunc
 
 ; Texte der Markierungen (Tabellen patmark/markier) des Patienten in Medical Office, sortiert nach Nummer der
@@ -4424,6 +4499,7 @@ Func MOStarten()
 EndFunc
 
 Func Meldung($txt)
+	$gMeldung = $txt
 	If $CmdLine[0] > 0 And Not $gLink Then
 		ConsoleWriteError($txt & @CRLF)
 	Else

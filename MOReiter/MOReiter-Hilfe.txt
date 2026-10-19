@@ -112,7 +112,10 @@ Medical Office und quelle (Verstorbene mit "zzz" vorm Nachnamen zählen mit) nac
 in "Dokumente"; fehlt das Geburtsdatum und ist es dort eindeutig, steht es unter Vorschlag, fehlt die
 Patienten-ID und ist die Patientennummer zu Name und Geburtsdatum eindeutig, steht sie unter
 Vorschlag-ID, dann mit Eintragen=j. Dabei zählen nur Patienten, deren erster Behandlungsfall nicht
-nach dem letzten Auslesen in Smart Pix begann; passen dann mehrere (z.B. gleicher Nachname und erster
+nach dem letzten Auslesen in Smart Pix begann (das letzte Auslesen steht in palist.xml; welcher Eintrag dort
+zum Patienten gehört, verraten die Protokolle von Smart Pix, Log_JJMM.AccessInterface.csv, für jeden seit
+deren Beginn ausgelesenen oder geöffneten Patienten; für die übrigen gilt der Beginn der Protokolle als
+spätestes Datum); passen dann mehrere (z.B. gleicher Nachname und erster
 Vorname), gibt es kein Eintragen=j, auch der Echtlauf übergeht sie ohne Rückfrage. Sterne o.ä. vor dem
 Namen zählen beim Vergleich nicht. Nach Ja fragt MOReiter noch, ob die eindeutigen Vorschläge gleich beim Lesen
 eingetragen werden sollen (ohne Rückfragen, für einen unbeaufsichtigten Lauf); die CSV entsteht dann
@@ -128,7 +131,7 @@ merkt sich MOReiter den letzten Patienten (%APPDATA%\MOReiter\SmartPixListe-Stan
 Durchgang derselben Art, ob es dahinter weitermachen soll: es springt dann durch Tippen des Nachnamens dorthin und
 ergänzt die CSV-Dateien, statt sie neu zu schreiben. "Kein Schreibzugriff" bzw. "Keine Schreibrechte" kommt bei schnellem
 Arbeiten über das Netz oft nur vorübergehend: MOReiter wartet dann und versucht denselben Patienten bis zu
-fünfmal neu ([SmartPixListe] Pause= verlängert die Wartezeit zwischen den Patienten); hilft das nicht, startet es
+fünfmal neu; hilft das nicht, startet es
 Smart Pix neu und macht beim nächsten Patienten weiter. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
