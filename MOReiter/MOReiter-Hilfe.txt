@@ -135,7 +135,9 @@ jedem dritten vergeblichen Versuch startet es Smart Pix neu und macht beim näch
 wird erst nach [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten. Lässt sich ein
 Patient auch nach einem Neustart nicht öffnen (z.B. weil er auf einem anderen PC in Smart Pix offen und damit in
 palock.xml gesperrt ist), überspringt MOReiter ihn und vermerkt "uebersprungen" in den CSV-Dateien; erst bei fünf
-solchen hintereinander bricht es ab. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
+solchen hintereinander bricht es ab. Vor jedem Öffnen eines Patienten wartet MOReiter, bis Smart Pix die Sperre des
+zuvor geschlossenen in palock.xml freigegeben hat ([SmartPixListe] FreiWarten=, Vorgabe 5000 ms): wer schneller ist
+als ein Mensch, bekommt beim Speichern sonst "Kein Schreibzugriff". Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
 läuft; die anderer PCs bleiben) und startet bei einer hochgezählten eigenen Listensperre vor dem Durchgang neu;

@@ -1689,6 +1689,7 @@ EndFunc
 ; $f; Handle des Dialogs (der Cursor steht dann in der Patienten-ID) oder 0 nach einer Meldung
 Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
 	Local $dlg = "[TITLE:Patientendaten bearbeiten; CLASS:Qt5QWindowIcon]"
+	SmartPixFreiWarten()
 	WinActivate($hListe)
 	If Not WinWaitActive($hListe, "", 3) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
 	If Not SmartPixKlick($hListe, Einst("SmartPix", "Bearbeiten", "849,-76"), 1) Then Return 0
@@ -1811,7 +1812,10 @@ Func SmartPixBestaetigen($h, $feld, $vor)
 		$t = TimerInit()
 		While TimerDiff($t) < 5000
 			Sleep(250)
-			If Not WinExists($h) Or Not BitAND(WinGetState($h), 2) Then Return ""
+			If Not WinExists($h) Or Not BitAND(WinGetState($h), 2) Then
+				SmartPixFreiWarten()
+				Return ""
+			EndIf
 			$w = SmartPixWarnungWeg()
 			If $w <> "" Then ExitLoop
 		WEnd
@@ -1855,7 +1859,24 @@ Func SmartPixDialogZu($h)
 	WinActivate($h)
 	If WinActive($h) Then Send("{ESC}")
 	If Not SmartPixWeg($h, 3000) Then WinClose($h)
+	SmartPixFreiWarten()
 	Return True
+EndFunc
+
+; Smart Pix gibt die Sperre eines Patienten nach dem Schliessen des Dialogs erst verzoegert frei; wird er (bzw. der
+; naechste) vorher geoeffnet, scheitert das Speichern mit "Kein Schreibzugriff" (von Hand ist man nie so schnell):
+; warten, bis palock.xml.lck weg ist und palock.xml keine Patientensperre dieses PCs mehr enthaelt
+; ([SmartPixListe] FreiWarten= ms, 0 = nicht warten); False, wenn die Zeit ablief
+Func SmartPixFreiWarten()
+	Local $ms = Int(Einst("SmartPixListe", "FreiWarten", "5000"))
+	If $ms <= 0 Then Return True
+	Local $datei = SmartPixSperrDatei(), $t = TimerInit()
+	Local $ich = StringRegExpReplace(SmartPixIch(), "([\\^$.|?*+()\[\]{}])", "\\$1")
+	While TimerDiff($t) < $ms
+		If Not FileExists($datei & ".lck") And Not StringRegExp(FileRead($datei), '(?i)<PATIENTLOCK\b[^>]*\bUser="' & $ich & '"') Then Return True
+		Sleep(100)
+	WEnd
+	Return False
 EndFunc
 
 ; Name fuer Vergleiche: klein, Umlaute ausgeschrieben, ohne Sterne u.ae. und "zzz" (verstorben) vorn, nur Buchstaben
