@@ -2068,6 +2068,8 @@ Func SmartPixListe()
 	Local $alt = ClipGet(), $max = Int(Einst("SmartPixListe", "Max", "0"))
 	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
 	Local $wiederholt = 0, $mitDatei = (Einst("SmartPixListe", "Dateiname", "0") = "1")
+	Local $neustarts = Int(Einst("SmartPixListe", "Neustarts", "5")), $neugestartet = 0
+	If $neustarts < 1 Then $neustarts = 1
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
 	Local $nr = $abNr, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
@@ -2084,21 +2086,23 @@ Func SmartPixListe()
 		$hDlg = SmartPixDialog($hListe, $f, Not $eintragen And $mitDatei)
 		; unbeaufsichtigt: noch einmal versuchen, bevor abgebrochen wird; "Kein Schreibzugriff" bzw. "Keine
 		; Schreibrechte" kommt bei schnellem Arbeiten ueber das Netz voruebergehend (Sperrdatei palock.xml.lck noch
-		; nicht frei): dann bis zu fuenfmal mit wachsender Pause
+		; nicht frei): dann mit wachsender Pause, nach jedem dritten Versuch Smart Pix neu starten, erst nach
+		; [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten abbrechen
 		Local $wdh = 0
-		While Not $hDlg And $wdh < (StringInStr($gSmartPixWarnung, "Schreib") ? 5 : 3)
+		While Not $hDlg And $wdh < (StringInStr($gSmartPixWarnung, "Schreib") ? 3 * $neustarts : 3)
 			$wdh += 1
 			$wiederholt += 1
 			ToolTip("Smart Pix-Liste: Patient " & ($nr + 1) & ", " & $wdh & ". Wiederholung" & (($gSmartPixWarnung = "") ? "" : _
 					" (" & $gSmartPixWarnung & ")"), @DesktopWidth - 330, 0, "MOReiter")
-			Sleep(3000 * $wdh)
+			Sleep(3000 * (Mod($wdh - 1, 3) + 1))
 			SmartPixInfoWeg()
 			SmartPixWarnungWeg()
 			; hilft das Warten nicht, Smart Pix neu starten (raeumt die eigenen Sperren auf) und zurueck zum Patienten
 			; hinter dem zuletzt gelesenen
 			; ist die Liste verschwunden (oder liess sich nicht nach vorn holen), sie neu oeffnen und ebenso zurueck
 			Local $weg = Not BitAND(WinGetState($hListe), 2)
-			If ($wdh = 3 And StringInStr($gSmartPixWarnung, "Schreib")) Or $weg Then
+			If (Mod($wdh, 3) = 0 And StringInStr($gSmartPixWarnung, "Schreib")) Or $weg Then
+				If Not $weg Then $neugestartet += 1
 				$hListe = $weg ? SmartPixListeOeffnen() : SmartPixNeustart()
 				If Not $hListe Or Not SmartPixListeOben($hListe) Then ExitLoop
 				If $vorher <> "" Then
@@ -2239,6 +2243,7 @@ Func SmartPixListe()
 	MsgBox(64 + 262144, "MOReiter: Smart Pix-Patientenliste", (($abNr > 0) ? "ab dem " & ($abNr + 1) & ". bis zum " : "") & _
 			$nr & (($abNr > 0) ? "." : "") & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
 			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
+			(($neugestartet = 0) ? "" : ", " & $neugestartet & " Neustarts von Smart Pix") & _
 			@CRLF & ($eintragen ? $neu & " Patienten ergaenzt, " & $fehler & " Fehler" : $fehlt & _
 			" weder in Medical Office noch in quelle, " & $mehrdeutig & " mehrdeutig (uebergangen), " & $ohneDatei & _
 			" ohne bekanntes letztes Auslesen (ohne diese Pruefung)" & ($sofort ? ", " & $neu & _

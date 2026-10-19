@@ -130,9 +130,9 @@ bis Smart Pix speichert (höchstens fünfmal). Endet ein Durchgang vor dem Ende 
 merkt sich MOReiter den letzten Patienten (%APPDATA%\MOReiter\SmartPixListe-Stand.ini) und fragt beim nächsten
 Durchgang derselben Art, ob es dahinter weitermachen soll: es springt dann durch Tippen des Nachnamens dorthin und
 ergänzt die CSV-Dateien, statt sie neu zu schreiben. "Kein Schreibzugriff" bzw. "Keine Schreibrechte" kommt bei schnellem
-Arbeiten über das Netz oft nur vorübergehend: MOReiter wartet dann und versucht denselben Patienten bis zu
-fünfmal neu; hilft das nicht, startet es
-Smart Pix neu und macht beim nächsten Patienten weiter. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
+Arbeiten über das Netz oft nur vorübergehend: MOReiter wartet dann und versucht denselben Patienten neu; nach
+jedem dritten vergeblichen Versuch startet es Smart Pix neu und macht beim nächsten Patienten weiter, abgebrochen
+wird erst nach [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
 läuft; die anderer PCs bleiben), startet bei einer hochgezählten eigenen Listensperre vor dem Durchgang neu und
