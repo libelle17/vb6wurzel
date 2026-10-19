@@ -1835,13 +1835,26 @@ Func SmartPixBestaetigen($h, $feld, $vor)
 		EndIf
 		SmartPixLog("Speichern gescheitert: " & $w)
 		If Not StringInStr($w, "besteht bereits") Or $vor = "" Or $n = 5 Then Return "Smart Pix: " & $w
-		; zurueck in den Vornamen (Tab-Reihenfolge Nachname, Vorname, Geburtsdatum, Patienten-ID) und ans Ende
+		; zurueck in den Vornamen und ans Ende; nach der Warnung steht der Fokus womoeglich auf einem Knopf, daher
+		; mit Tab reihum, bis das Feld den Vornamen enthaelt
 		WinActivate($h)
-		If Not WinWaitActive($h, "", 2) Then Return "Dialog nicht mehr aktiv"
-		If $feld = "geb" Then Send("+{TAB}")
-		If $feld = "id" Then Send("+{TAB 2}")
-		$feld = "vor"
-		If SmartPixFeld() <> StringStripWS($vor, 3) Then Return "Vorname nicht wiedergefunden"
+		If Not WinWaitActive($h, "", 2) Then
+			SmartPixLog("Speichern: Dialog nicht mehr aktiv")
+			Return "Dialog nicht mehr aktiv"
+		EndIf
+		Local $da = False
+		For $k = 1 To 25
+			If SmartPixFeld() = StringStripWS($vor, 3) Then
+				$da = True
+				ExitLoop
+			EndIf
+			Send("{TAB}")
+			Sleep(100)
+		Next
+		If Not $da Then
+			SmartPixLog("Speichern: Vorname nicht wiedergefunden")
+			Return "Vorname nicht wiedergefunden"
+		EndIf
 		Send("{END} ")
 	Next
 	Return "OK"
@@ -2490,7 +2503,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $zp = Int(Einst("SmartPixListe", "ZeilePause", "30"))
 	Local $nr = $abNr + $abBasis, $nr0 = $nr, $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $k, $vorher = ""
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten, $n
-	Local $pla, $pfa, $varianten, $fx, $t, $idsV, $ids[0]
+	Local $pla, $pfa, $varianten, $fx, $t, $idsV, $ids[0], $kurz
 	Local $gelesen = False, $listeEnde = False, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
 	Local $t0 = TimerInit()
 	SmartPixLog("Zellen lesen ab Patient " & ($nr + 1))
@@ -2607,13 +2620,16 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			Next
 			If UBound($varianten) > 1 Or ($f[2] <> "" And $varianten[0] <> $f[2]) Then SmartPixLog("Geburtsdatum " & StringLen($f[2]) & _
 					" Zeichen, " & UBound($varianten) & " Lesarten, " & UBound($ids) & " passende")
+			; so kurz laesst Smart Pix es beim Speichern nicht stehen ("Ungueltiger Eintrag"): mit ersetzen
+			$kurz = ($f[2] <> "" And (UBound($varianten) > 1 Or $varianten[0] <> $f[2]))
 			$grund = ""
 			If StringLeft($imMO, 2) <> "ja" And StringLeft($inQu, 2) <> "ja" Then
 				$fehlt += 1
 				$grund = "nicht gefunden"
 			EndIf
 			For $i = 0 To UBound($ids) - 1
-				If $f[2] = "" And $db.Item("P|" & $ids[$i]) <> "" Then $vs &= ($vs = "" ? "" : ", ") & $db.Item("P|" & $ids[$i])
+				If ($f[2] = "" Or ($kurz And SmartPixHat($varianten, $db.Item("P|" & $ids[$i])))) And $db.Item("P|" & $ids[$i]) <> "" Then _
+						$vs &= ($vs = "" ? "" : ", ") & $db.Item("P|" & $ids[$i])
 				If $f[3] = "" Then $vid &= ($vid = "" ? "" : ", ") & $ids[$i]
 			Next
 			If UBound($ids) > 1 Then $mehrdeutig += 1
@@ -2801,6 +2817,9 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 	For $n = 1 To 3
 		If $n > 1 Then
 			Sleep(500 * $n)
+			; ein zu spaet erschienener Dialog bzw. eine Warnung nimmt der Liste den Fokus
+			SmartPixWarnungWeg()
+			If SmartPixDialogWeg(0) Then Send("+{TAB " & (($gSpTabs > 0) ? $gSpTabs : 2) & "}")
 			Send("{LEFT " & ($sp[4] + 2) & "}")
 			Sleep(200)
 		EndIf
@@ -2923,7 +2942,7 @@ Func SmartPixZellenSetzen($hListe, ByRef $f, ByRef $geb, ByRef $id)
 	$gMeldung = ""
 	$hDlg = SmartPixDialog($hListe, $f2)
 	If Not $hDlg Then
-		SmartPixDialogWeg()
+		SmartPixDialogWeg(Int(Einst("SmartPix", "DialogMax", "30000")))
 		Return "nicht zu oeffnen" & (($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")")
 	EndIf
 	For $i = 0 To 3
