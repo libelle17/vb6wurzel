@@ -2199,6 +2199,7 @@ Func SmartPixListe()
 				If $geb <> "" Or $id <> "" Then
 					If SmartPixSetzen($hDlg, $geb, $id, $f[1]) Then
 						$neu += 1
+						SmartPixGemerkt($f, $vorher, $geb, $id)
 						SmartPixZeile($h, $nr, $f, "", "", "", $geb, $id, "eingetragen")
 					Else
 						$fehler += 1
@@ -2247,6 +2248,7 @@ Func SmartPixListe()
 					EndIf
 					If $ein = "eingetragen" Then
 						$neu += 1
+						SmartPixGemerkt($f, $vorher, $vs, $vid)
 					Else
 						$fehler += 1
 					EndIf
@@ -2409,7 +2411,7 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 		Next
 		If Not $h Then Return False
 		SmartPixDialogZu($h)
-		If $f[0] = $ab[0] And $f[1] = $ab[1] And $f[2] = $ab[2] And $f[3] = $ab[3] Then
+		If SmartPixPasst($f, $ab) Then
 			ToolTip("")
 			Return SmartPixWeiter($hListe, $zurueck)
 		EndIf
@@ -2419,6 +2421,26 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 		Sleep(Int(Einst("SmartPixListe", "Pause", "200")))
 	Next
 	Return False
+EndFunc
+
+; nach dem Eintragen gilt der Patient mit den neuen Werten (Wiederfinden nach einem Neustart, Stand, gleiche Daten
+; bei weiteren Geraeten); $vs, $vid: eingetragenes Geburtsdatum bzw. Patienten-ID ("" = unveraendert)
+Func SmartPixGemerkt(ByRef $f, ByRef $vorher, $vs, $vid)
+	If $vs <> "" Then $f[2] = $vs
+	If $vid <> "" Then $f[3] = $vid
+	$vorher = $f[0] & "|" & $f[1] & "|" & $f[2] & "|" & $f[3]
+EndFunc
+
+; gelesener Patient $f = gemerkter $ab? Leerzeichen am Rand zaehlen nicht (beim Speichern womoeglich an den Vornamen
+; angehaengt), ein gemerkt leeres Geburtsdatum bzw. leere Patienten-ID passt auf jeden Wert (inzwischen ergaenzt)
+Func SmartPixPasst(ByRef $f, ByRef $ab)
+	Local $a, $b
+	For $i = 0 To 3
+		$a = StringStripWS($ab[$i], 3)
+		$b = StringStripWS($f[$i], 3)
+		If $a <> $b And Not ($i >= 2 And $a = "") Then Return False
+	Next
+	Return True
 EndFunc
 
 ; nach dem Wiederfinden noch $n Patienten weiter (die zuvor uebersprungenen); False, wenn es nicht weitergeht
