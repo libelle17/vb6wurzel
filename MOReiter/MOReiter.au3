@@ -204,7 +204,7 @@ Global $gSmartPixWarnung = ""
 ; Text der letzten Meldung (fuer die Abschlussmeldung der Smart Pix-Liste, wo der Hinweis sonst verloren ginge)
 Global $gMeldung = ""
 ; Ablaufprotokoll der Smart Pix-Liste (Pfad, waehrend des Durchgangs; "" = keins)
-Global $gSpLog = ""
+Global $gSpLog = "", $gSpNochmal = False
 ; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
 Global $gSmartPixDateiDy = 0
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
@@ -1804,7 +1804,8 @@ EndFunc
 ; weggeklickt und an den Vornamen ein Leerzeichen angehaengt, bis es geht (hoechstens fuenfmal); $feld: Feld mit
 ; dem Cursor ("geb" oder "id"), $vor: Vorname im Dialog (leer: kein Anhaengen)
 Func SmartPixBestaetigen($h, $feld, $vor)
-	Local $ok = Einst("SmartPix", "OK", ""), $w, $t
+	Local $ok = Einst("SmartPix", "OK", ""), $w, $t, $palist = Einst("SmartPixListe", "Palist", "P:\Datenbanken\AccuChek\Diaries\palist.xml")
+	Local $stand = SmartPixDateiStand($palist)
 	For $n = 0 To 5
 		If $ok = "" Then
 			Send("{ENTER}")
@@ -1816,8 +1817,13 @@ Func SmartPixBestaetigen($h, $feld, $vor)
 		While TimerDiff($t) < 5000
 			Sleep(250)
 			If Not WinExists($h) Or Not BitAND(WinGetState($h), 2) Then
-				SmartPixLog("gespeichert")
 				SmartPixFreiWarten(True)
+				If Not SmartPixGeschrieben($palist, $stand) Then
+					SmartPixLog("Dialog zu, aber palist.xml unveraendert: nicht gespeichert")
+					$gSmartPixWarnung = "Speichern nicht angekommen (palist.xml unveraendert)"
+					Return "Smart Pix: " & $gSmartPixWarnung
+				EndIf
+				SmartPixLog("gespeichert")
 				Return ""
 			EndIf
 			$w = SmartPixWarnungWeg()
@@ -1839,6 +1845,25 @@ Func SmartPixBestaetigen($h, $feld, $vor)
 		Send("{END} ")
 	Next
 	Return "OK"
+EndFunc
+
+; Aenderungszeit und Groesse einer Datei, zum Erkennen, ob Smart Pix sie geschrieben hat
+Func SmartPixDateiStand($datei)
+	Return FileGetTime($datei, 0, 1) & "|" & FileGetSize($datei)
+EndFunc
+
+; hat Smart Pix palist.xml seit $stand neu geschrieben? Der Dialog schliesst sich auch, wenn das Speichern im
+; Hintergrund scheitert (dann ist die Ergaenzung nach dem naechsten Neustart weg); bis [SmartPixListe] Pruefen= ms
+; (Vorgabe 10000, 0 = nicht pruefen) warten
+Func SmartPixGeschrieben($datei, $stand)
+	Local $ms = Int(Einst("SmartPixListe", "Pruefen", "10000"))
+	If $ms <= 0 Or Not FileExists($datei) Then Return True
+	Local $t = TimerInit()
+	While SmartPixDateiStand($datei) = $stand
+		If TimerDiff($t) > $ms Then Return False
+		Sleep(250)
+	WEnd
+	Return True
 EndFunc
 
 ; Warnung von Smart Pix ("Accu-Chek Smart Pix Software - Warnung"): Text lesen (Qt-Meldungen kopieren ihn mit
@@ -2135,7 +2160,14 @@ Func SmartPixListe()
 			If Not $hListe Or Not SmartPixListeOben($hListe) Then Return False
 		EndIf
 		$gSmartPixWarnung = ""
-		$gefunden = SmartPixAnspringen($hListe, $ab, $zurueck) And SmartPixUeberspringen($hListe, $zurueck, $abWeiter)
+		$gefunden = SmartPixAnspringen($hListe, $ab, $zurueck)
+		; Ergaenzung nicht gespeichert: dieser Patient noch einmal (mit seiner Nummer), die uebersprungenen danach auch
+		If $gefunden And $gSpNochmal Then
+			$abNr -= 1
+			$abWeiter = 0
+		ElseIf $gefunden Then
+			$gefunden = SmartPixUeberspringen($hListe, $zurueck, $abWeiter)
+		EndIf
 		If _IsPressed("1B") Then Return False
 	Next
 	If Not $gefunden Then
@@ -2147,7 +2179,7 @@ Func SmartPixListe()
 		If Not SmartPixListeOben($hListe) Then Return False
 	EndIf
 	; beim Weitermachen anhaengen (1), sonst neu schreiben (2)
-	Local $modus = ($abNr > 0 Or ($abMarkiert And FileExists($ziel))) ? 1 : 2
+	Local $modus = ($abNr > 0 Or $gSpNochmal Or ($abMarkiert And FileExists($ziel))) ? 1 : 2
 	Local $h = FileOpen($ziel, $modus + 8 + 128)
 	If $h = -1 Then Return SmartPixFehler("Smart Pix-Liste: " & $ziel & " laesst sich nicht schreiben ([SmartPixListe] Datei=)")
 	Local $kopf = "Nr;Nachname;Vorname;Geburtsdatum;Patienten-ID;Letztes Auslesen;Medical Office;quelle;Vorschlag;Vorschlag-ID;Eintragen"
@@ -2211,7 +2243,15 @@ Func SmartPixListe()
 				ElseIf $abNr > 0 Then
 					$verloren = Not SmartPixAnspringen($hListe, $ab, $zurueck)
 				EndIf
-				If Not $verloren Then $verloren = Not SmartPixUeberspringen($hListe, $zurueck, $skip)
+				; Ergaenzung des zuletzt gelesenen nicht gespeichert: er kommt mit seiner Nummer noch einmal dran
+				If Not $verloren And $gSpNochmal Then
+					SmartPixLog("Patient " & $nr & " noch einmal")
+					$nr -= 1
+					$skip = 0
+					$hier = -1
+				ElseIf Not $verloren Then
+					$verloren = Not SmartPixUeberspringen($hListe, $zurueck, $skip)
+				EndIf
 				If _IsPressed("1B") Then ExitLoop
 				If $verloren Then
 					If StringInStr($gSmartPixWarnung, "Schreib") Then $schreib = True
@@ -2344,7 +2384,7 @@ Func SmartPixListe()
 			EndIf
 			; scheitert das Eintragen wiederholt an fehlenden Schreibrechten (z.B. Sperre eines anderen Smart Pix in
 			; palock.xml), scheitert auch jeder weitere Patient
-			If StringInStr($gSmartPixWarnung, "Schreib") And $fehler >= 5 Then
+			If (StringInStr($gSmartPixWarnung, "Schreib") Or StringInStr($gSmartPixWarnung, "nicht angekommen")) And $fehler >= 5 Then
 				$ende = "abgebrochen, Smart Pix: " & $gSmartPixWarnung & " (Sperre in palock.xml? Smart Pix ueberall schliessen)"
 				ExitLoop
 			EndIf
@@ -2481,7 +2521,8 @@ EndFunc
 ; Tabelle zum ersten so beginnenden; von dort mit SmartPixWeiter weiter, bis alle vier Felder passen, solange der
 ; Nachname noch so beginnt. False, wenn nicht gefunden
 Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
-	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $f[4], $h
+	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $f[4], $h, $passt, $ohne
+	$gSpNochmal = False
 	If $anfang = "" Then Return False
 	HinweisStehend("Smart Pix-Liste: suche " & $ab[1] & " " & $ab[0] & " ...")
 	SmartPixLog("suche " & SmartPixKurz($ab))
@@ -2502,8 +2543,16 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 			Return False
 		EndIf
 		SmartPixDialogZu($h)
-		If SmartPixPasst($f, $ab) Then
+		$passt = SmartPixPasst($f, $ab)
+		$ohne = @extended
+		If $passt Then
 			ToolTip("")
+			; die gemerkte Ergaenzung ist in Smart Pix nicht angekommen: auf ihm stehenbleiben, er kommt noch einmal dran
+			If $ohne Then
+				SmartPixLog("gefunden, aber ohne die eingetragenen Werte (nicht gespeichert): noch einmal")
+				$gSpNochmal = True
+				Return True
+			EndIf
 			SmartPixLog("gefunden")
 			Return SmartPixWeiter($hListe, $zurueck)
 		EndIf
@@ -2527,15 +2576,21 @@ Func SmartPixGemerkt(ByRef $f, ByRef $vorher, $vs, $vid)
 EndFunc
 
 ; gelesener Patient $f = gemerkter $ab? Leerzeichen am Rand zaehlen nicht (beim Speichern womoeglich an den Vornamen
-; angehaengt), ein gemerkt leeres Geburtsdatum bzw. leere Patienten-ID passt auf jeden Wert (inzwischen ergaenzt)
+; angehaengt), ein gemerkt leeres Geburtsdatum bzw. leere Patienten-ID passt auf jeden Wert (inzwischen ergaenzt);
+; ist es in Smart Pix leer, gemerkt aber nicht (Ergaenzung nicht gespeichert), passt es auch, mit @extended = 1
 Func SmartPixPasst(ByRef $f, ByRef $ab)
-	Local $a, $b
+	Local $a, $b, $verloren = 0
 	For $i = 0 To 3
 		$a = StringStripWS($ab[$i], 3)
 		$b = StringStripWS($f[$i], 3)
-		If $a <> $b And Not ($i >= 2 And $a = "") Then Return False
+		If $a = $b Or ($i >= 2 And $a = "") Then ContinueLoop
+		If $i >= 2 And $b = "" Then
+			$verloren = 1
+			ContinueLoop
+		EndIf
+		Return False
 	Next
-	Return True
+	Return SetExtended($verloren, True)
 EndFunc
 
 ; nach dem Wiederfinden noch $n Patienten weiter (die zuvor uebersprungenen); False, wenn es nicht weitergeht

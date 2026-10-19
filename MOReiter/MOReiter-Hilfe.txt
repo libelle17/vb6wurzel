@@ -143,7 +143,10 @@ palock.xml gesperrt ist), überspringt MOReiter ihn und vermerkt "uebersprungen"
 solchen hintereinander bricht es ab. Vor jedem Öffnen eines Patienten wartet MOReiter, bis Smart Pix die Sperre des
 zuvor geschlossenen in palock.xml freigegeben hat ([SmartPixListe] FreiWarten=, Vorgabe 5000 ms): wer schneller ist
 als ein Mensch, bekommt beim Speichern sonst "Kein Schreibzugriff"; nach dem Schließen wartet es danach noch
-[SmartPixListe] Nachlauf= ms (Vorgabe 1000). Jeder Durchgang schreibt ein Ablaufprotokoll ohne Patientennamen (nur
+[SmartPixListe] Nachlauf= ms (Vorgabe 1000). Der Dialog schließt sich auch, wenn Smart Pix das Speichern im
+Hintergrund nicht schafft; MOReiter wartet deshalb nach dem Speichern bis zu [SmartPixListe] Pruefen= ms (Vorgabe
+10000, 0 = nicht prüfen), bis palist.xml neu geschrieben ist, sonst zählt es als Fehler ("Speichern nicht
+angekommen"). Fehlt die Ergänzung des zuletzt bearbeiteten Patienten beim Wiederfinden, kommt er noch einmal dran. Jeder Durchgang schreibt ein Ablaufprotokoll ohne Patientennamen (nur
 Anfangsbuchstaben und Länge der Namen) nach %APPDATA%\MOReiter\SmartPixListe.log ([SmartPixListe] Protokoll=0 = keins). Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
