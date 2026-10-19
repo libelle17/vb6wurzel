@@ -1813,7 +1813,7 @@ Func SmartPixBestaetigen($h, $feld, $vor)
 		While TimerDiff($t) < 5000
 			Sleep(250)
 			If Not WinExists($h) Or Not BitAND(WinGetState($h), 2) Then
-				SmartPixFreiWarten()
+				SmartPixFreiWarten(True)
 				Return ""
 			EndIf
 			$w = SmartPixWarnungWeg()
@@ -1859,15 +1859,21 @@ Func SmartPixDialogZu($h)
 	WinActivate($h)
 	If WinActive($h) Then Send("{ESC}")
 	If Not SmartPixWeg($h, 3000) Then WinClose($h)
-	SmartPixFreiWarten()
+	SmartPixFreiWarten(True)
 	Return True
 EndFunc
 
 ; Smart Pix gibt die Sperre eines Patienten nach dem Schliessen des Dialogs erst verzoegert frei; wird er (bzw. der
 ; naechste) vorher geoeffnet, scheitert das Speichern mit "Kein Schreibzugriff" (von Hand ist man nie so schnell):
 ; warten, bis palock.xml.lck weg ist und palock.xml keine Patientensperre dieses PCs mehr enthaelt
-; ([SmartPixListe] FreiWarten= ms, 0 = nicht warten); False, wenn die Zeit ablief
-Func SmartPixFreiWarten()
+; ([SmartPixListe] FreiWarten= ms, 0 = nicht warten); False, wenn die Zeit ablief. $nachSchliessen: danach noch
+; [SmartPixListe] Nachlauf= ms (Vorgabe 1000, 0 = nicht) warten, das Freigeben allein genuegt nicht immer
+Func SmartPixFreiWarten($nachSchliessen = False)
+	If $nachSchliessen Then
+		Local $ok = SmartPixFreiWarten()
+		Sleep(Int(Einst("SmartPixListe", "Nachlauf", "1000")))
+		Return $ok
+	EndIf
 	Local $ms = Int(Einst("SmartPixListe", "FreiWarten", "5000"))
 	If $ms <= 0 Then Return True
 	Local $datei = SmartPixSperrDatei(), $t = TimerInit()
