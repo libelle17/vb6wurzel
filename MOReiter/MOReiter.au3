@@ -2699,10 +2699,17 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 				$fehler += 1
 				$ein = "Fehler"
 			EndIf
+			; nach dem Speichern sortiert Smart Pix die Liste womoeglich neu (geaenderter Vorname bzw. Geburtsdatum),
+			; der gelesene naechste ist dann ein anderer: hinter dem eben bearbeiteten weitermachen
 			If Not $listeEnde And Not SmartPixZellenZurueck($hListe, $zurueck, $f, $r, $sp) Then
-				$ende = "abgebrochen, nach dem Eintragen den naechsten Patienten nicht wiedergefunden"
-				SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
-				ExitLoop
+				If Not SmartPixZellenFinden($hListe, $f, $sp) Then
+					$ende = "abgebrochen, nach dem Eintragen weder den naechsten noch diesen Patienten wiedergefunden"
+					SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
+					ExitLoop
+				EndIf
+				SmartPixLog("weiter hinter Patient " & $nr)
+				$erledigt = True
+				$gelesen = False
 			EndIf
 		EndIf
 		SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
@@ -2909,7 +2916,7 @@ EndFunc
 ; Anfangsbuchstaben tippen (springt zum ersten so beginnenden Nachnamen) und von dort die Zeilen vergleichen; True
 ; mit dem Zellcursor in seiner ersten Zeile, @extended = 1, wenn ihm die gemerkte Ergaenzung fehlt
 Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
-	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $r[5], $vorig = "", $gleich = 0, $passt, $ohne, $z
+	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $r[5], $vorig = "", $gleich = 0, $passt, $ohne, $z, $nochmal = False, $erster = True
 	If $anfang = "" Then Return False
 	HinweisStehend("Smart Pix-Liste: suche " & $ab[1] & " " & $ab[0] & " ...")
 	SmartPixLog("suche " & SmartPixKurz($ab))
@@ -2935,8 +2942,20 @@ Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
 			SmartPixLog("suche: Zelle nicht lesbar")
 			Return False
 		EndIf
+		If $erster Then SmartPixLog("suche: gesprungen nach " & SmartPixKurz($r))
 		If $r[0] <> "" Then
-			If StringLeft(StringLower($r[0]), StringLen($anfang)) <> StringLower($anfang) Then ExitLoop
+			If StringLeft(StringLower($r[0]), StringLen($anfang)) <> StringLower($anfang) Then
+				; der Sprung per Anfangsbuchstaben klappte nicht: einmal noch tippen
+				If $erster And Not $nochmal Then
+					$nochmal = True
+					Sleep(1000)
+					Send($anfang, 1)
+					Sleep(1500)
+					ContinueLoop
+				EndIf
+				SmartPixLog("suche: hinter den so beginnenden (" & SmartPixKurz($r) & ")")
+				ExitLoop
+			EndIf
 			$passt = SmartPixPasst($r, $ab)
 			$ohne = @extended
 			If $passt Then
@@ -2952,6 +2971,7 @@ Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
 			$gleich = 0
 		EndIf
 		$vorig = SmartPixReiheText($r)
+		$erster = False
 		Send("{DOWN}")
 		Sleep(30)
 	Next
