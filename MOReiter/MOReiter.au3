@@ -1490,6 +1490,8 @@ Func SmartPixListeOeffnen()
 			Sleep(1000)
 		EndIf
 		If Not $hHaupt Then
+			; nach hartem Beenden (oder Absturz) haengen die Sperren dieses PCs noch in palock.xml
+			SmartPixSperrenAufraeumen()
 			Local $exe = Einst("SmartPix", "Programm", "C:\AccuChek\SPIXSW\Accu-Chek Smart Pix Software.exe")
 			If Not FileExists($exe) Then Return Meldung("Smart Pix nicht gefunden: " & $exe & " ([SmartPix] Programm=)")
 			HinweisStehend("Smart Pix wird gestartet ...")
@@ -2027,24 +2029,23 @@ Func SmartPixListe()
 	Local $hListe = SmartPixListeOeffnen()
 	If Not $hListe Then Return False
 	ToolTip("")
-	; ganze Liste: Suche leeren, eine Zeile anklicken (damit die Tabelle den Fokus hat) und mit Strg+Pos1 nach oben
-	If Not SmartPixKlick($hListe, Einst("SmartPix", "Suche", "357,-76"), 1) Then Return False
-	Send("^a{DEL}")
-	Sleep(Int(Einst("SmartPixListe", "ListeWarten", "5000")))
-	If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 1) Then Return False
-	Sleep(300)
-	Send("^{HOME}")
-	Sleep(500)
+	; hochgezaehlte eigene Listensperre (Smart Pix frueher hart beendet): dann scheitert jedes Speichern, also neu starten
+	Local $fremd = SmartPixSperren()
+	If @extended > 1 Then
+		$hListe = SmartPixNeustart()
+		If Not $hListe Then Return False
+		$fremd = SmartPixSperren()
+	EndIf
+	If $fremd <> "" And MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", "Smart Pix ist auch auf anderen PCs geoeffnet " & _
+			"(Sperren in palock.xml: " & $fremd & "); das Speichern kann dann scheitern." & @CRLF & @CRLF & "Trotzdem anfangen?") <> 6 Then Return False
+	If Not SmartPixListeOben($hListe) Then Return False
 	Local $zurueck = Einst("SmartPixListe", "ZurTabelle", "")
 	If $abNr > 0 And Not SmartPixAnspringen($hListe, $ab, $zurueck) Then
 		ToolTip("")
 		If MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", $ab[1] & " " & $ab[0] & " nicht wiedergefunden." & _
 				@CRLF & @CRLF & "Von vorn anfangen (die CSV-Dateien werden neu geschrieben)?") <> 6 Then Return False
 		$abNr = 0
-		If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 1) Then Return False
-		Sleep(300)
-		Send("^{HOME}")
-		Sleep(500)
+		If Not SmartPixListeOben($hListe) Then Return False
 	EndIf
 	; beim Weitermachen anhaengen (1), sonst neu schreiben (2)
 	Local $modus = ($abNr > 0) ? 1 : 2
@@ -2085,6 +2086,18 @@ Func SmartPixListe()
 			Sleep(3000 * $wdh)
 			SmartPixInfoWeg()
 			SmartPixWarnungWeg()
+			; hilft das Warten nicht, Smart Pix neu starten (raeumt die eigenen Sperren auf) und zurueck zum Patienten
+			; hinter dem zuletzt gelesenen
+			If $wdh = 3 And StringInStr($gSmartPixWarnung, "Schreib") Then
+				$hListe = SmartPixNeustart()
+				If Not $hListe Or Not SmartPixListeOben($hListe) Then ExitLoop
+				If $vorher <> "" Then
+					Local $vab = StringSplit($vorher, "|", 2)
+					If Not SmartPixAnspringen($hListe, $vab, $zurueck) Then ExitLoop
+				ElseIf $abNr > 0 Then
+					If Not SmartPixAnspringen($hListe, $ab, $zurueck) Then ExitLoop
+				EndIf
+			EndIf
 			$gSmartPixWarnung = ""
 			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen)
 		WEnd
@@ -2224,6 +2237,80 @@ EndFunc
 ; zum naechsten Patienten der Liste: ohne [SmartPixListe] ZurTabelle= wird die dunkle Unterkante der Markierung
 ; (alle Zeilen des markierten Patienten) in der Spalte Nachname gesucht, knapp darueber in dessen letzte Zeile
 ; geklickt (damit hat die Tabelle den Fokus) und Pfeil runter gedrueckt; sonst erst die Tasten aus ZurTabelle=
+; ganze Liste: Suche leeren, eine Zeile anklicken (damit die Tabelle den Fokus hat) und mit Strg+Pos1 nach oben
+Func SmartPixListeOben($hListe)
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Suche", "357,-76"), 1) Then Return False
+	Send("^a{DEL}")
+	Sleep(Int(Einst("SmartPixListe", "ListeWarten", "5000")))
+	If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 1) Then Return False
+	Sleep(300)
+	Send("^{HOME}")
+	Sleep(500)
+	Return True
+EndFunc
+
+; Smart Pix beenden (nur das Programm selbst, nicht das Connection Framework) und mit der Patientenliste neu starten;
+; SmartPixListeOeffnen raeumt vor dem Start die Sperren dieses PCs auf. Handle der Liste oder 0
+Func SmartPixNeustart()
+	HinweisStehend("Smart Pix wird neu gestartet (Sperren in palock.xml) ...")
+	Local $pl = ProcessList(SmartPixExe())
+	For $i = 1 To $pl[0][0]
+		ProcessClose($pl[$i][1])
+		ProcessWaitClose($pl[$i][1], 10)
+	Next
+	Sleep(1000)
+	Return SmartPixListeOeffnen()
+EndFunc
+
+; Sperrdatei von Smart Pix: palock.xml neben palist.xml ([SmartPixListe] Palist=)
+Func SmartPixSperrDatei()
+	Local $p = Einst("SmartPixListe", "Palist", "P:\Datenbanken\AccuChek\Diaries\palist.xml")
+	Return StringLeft($p, StringInStr($p, "\", 0, -1)) & "palock.xml"
+EndFunc
+
+; so steht dieser PC in palock.xml (User="PC/Benutzer")
+Func SmartPixIch()
+	Return @ComputerName & "/" & @UserName
+EndFunc
+
+; Sperren laut palock.xml: Rueckgabe die anderer PCs als Text ("" = keine), @extended = LockCount der eigenen
+; Listensperre (0 = keine)
+Func SmartPixSperren()
+	Local $t = FileRead(SmartPixSperrDatei()), $eigen = 0, $fremd = "", $u, $c
+	Local $m = StringRegExp($t, '<PATIENT(?:LIST)?LOCK\b[^>]*>', 3)
+	If @error Then Return SetExtended(0, "")
+	For $e In $m
+		$u = StringRegExp($e, 'User="([^"]*)"', 1)
+		If @error Then ContinueLoop
+		$c = StringRegExp($e, 'LockCount="(\d+)"', 1)
+		If StringLower($u[0]) = StringLower(SmartPixIch()) Then
+			If StringInStr($e, "PATIENTLISTLOCK") And IsArray($c) Then $eigen = Int($c[0])
+		Else
+			$fremd &= ", " & $u[0] & (StringInStr($e, "PATIENTLISTLOCK") ? " (Liste)" : " (Patient)")
+		EndIf
+	Next
+	Return SetExtended($eigen, StringTrimLeft($fremd, 2))
+EndFunc
+
+; entfernt die Sperren dieses PCs aus palock.xml, aber nur, wenn Smart Pix hier nicht laeuft: hart beendet gibt es
+; sie nicht frei und zaehlt sie beim naechsten Start weiter (LockCount 2, 3 ...), dann scheitert jedes Speichern
+; ("Kein Schreibzugriff"); Sperren anderer PCs bleiben
+Func SmartPixSperrenAufraeumen()
+	If ProcessExists(SmartPixExe()) Then Return False
+	Local $datei = SmartPixSperrDatei(), $t = FileRead($datei)
+	If @error Then Return False
+	Local $ich = StringRegExpReplace(SmartPixIch(), "([\\^$.|?*+()\[\]{}])", "\\$1")
+	Local $neu = StringRegExpReplace($t, '(?i)[ \t]*<PATIENT(?:LIST)?LOCK\b[^>]*\bUser="' & $ich & '"[^>]*/>\r?\n?', "")
+	If $neu == $t Then Return True
+	$neu = StringRegExpReplace($neu, '<PATIENTLOCKS>\s*</PATIENTLOCKS>', '<PATIENTLOCKS/>')
+	; 2 = ueberschreiben, 256 = UTF-8 ohne BOM wie bei Smart Pix
+	Local $h = FileOpen($datei, 2 + 256)
+	If $h = -1 Then Return False
+	FileWrite($h, $neu)
+	FileClose($h)
+	Return True
+EndFunc
+
 ; nach Strg+Pos1 zum Patienten $ab (Nachname, Vorname, Geburtsdatum, Patienten-ID wie gelesen) springen und auf den
 ; naechsten stellen: das Tippen des Nachnamens (bis zum ersten Leerzeichen, das waehlt sonst die Zeile) springt in der
 ; Tabelle zum ersten so beginnenden; von dort mit SmartPixWeiter weiter, bis alle vier Felder passen, solange der

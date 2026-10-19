@@ -128,8 +128,12 @@ merkt sich MOReiter den letzten Patienten (%APPDATA%\MOReiter\SmartPixListe-Stan
 Durchgang derselben Art, ob es dahinter weitermachen soll: es springt dann durch Tippen des Nachnamens dorthin und
 ergänzt die CSV-Dateien, statt sie neu zu schreiben. "Kein Schreibzugriff" bzw. "Keine Schreibrechte" kommt bei schnellem
 Arbeiten über das Netz oft nur vorübergehend: MOReiter wartet dann und versucht denselben Patienten bis zu
-fünfmal neu ([SmartPixListe] Pause= verlängert die Wartezeit zwischen den Patienten). Bleibt es dabei, hält meist
-ein anderes (oder abgestürztes) Smart Pix noch eine Sperre in Diaries\palock.xml.
+fünfmal neu ([SmartPixListe] Pause= verlängert die Wartezeit zwischen den Patienten); hilft das nicht, startet es
+Smart Pix neu und macht beim nächsten Patienten weiter. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
+Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
+MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
+läuft; die anderer PCs bleiben), startet bei einer hochgezählten eigenen Listensperre vor dem Durchgang neu und
+fragt nach, wenn Smart Pix auch auf anderen PCs offen ist.
 Strg+Z=Zucker: liest die Markierungen des Patienten aus der Datenbank von Medical Office und ruft für
 jede Zucker-Markierung das passende Portal bzw. Programm auf, mehrere nacheinander (z.B. "Libre-Handy"
 und "Omnipod 5 Glooko": erst LibreView, dann Glooko). Welche Markierung wohin führt, steht in [Zucker].
