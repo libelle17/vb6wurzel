@@ -1535,6 +1535,23 @@ Func SmartPixListeOeffnen()
 	Return SetExtended($warDa ? 1 : 0, $hListe)
 EndFunc
 
+; Tasten fuer die Liste nur, wenn sie das aktive Fenster ist: ein (zu spaet erschienener) Dialog "Patientendaten
+; bearbeiten" bzw. eine Warnung bekaeme sie sonst (Strg+A, Entf leerten dort den Nachnamen); die werden verworfen,
+; dann die Liste nach vorn; False, wenn das nicht gelingt
+Func SmartPixListeVorn()
+	If SmartPixListeAktiv() Then Return True
+	SmartPixLog("Patientenliste nicht aktiv: " & WinGetTitle("[ACTIVE]"))
+	For $v = 1 To 3
+		SmartPixWarnungWeg()
+		SmartPixDialogWeg(0)
+		WinActivate("[TITLE:Patientenliste; CLASS:Qt5QWindowIcon]")
+		Sleep(500)
+		If SmartPixListeAktiv() Then Return True
+		Sleep(1000 * $v)
+	Next
+	Return False
+EndFunc
+
 ; True, wenn die Patientenliste von Smart Pix das aktive Fenster ist (fuer den Tastatur-Hook, daher ohne Warten)
 Func SmartPixListeAktiv()
 	Local $h = _WinAPI_GetForegroundWindow()
@@ -2831,6 +2848,7 @@ EndFunc
 ; mehreren Geraeten womoeglich mehrere Daten in einer Zelle); False, wenn ein Datum nicht wie eines aussieht
 ; (Spalten verschoben?), dann steht die Zelle unkenntlich gemacht im Protokoll
 Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
+	If Not SmartPixListeVorn() Then Return False
 	Local $c, $falsch, $zp = Int(Einst("SmartPixListe", "ZellePause", "50")), $zleer = Int(Einst("SmartPixListe", "LeerPause", "250"))
 	; ging ein Strg+C oder eine Pfeiltaste verloren (Datum, wo keins sein kann; meist beim Rollen der Liste), die
 	; Zeile noch zweimal, vorher sicher in die erste Spalte; dann abbrechen (False)
@@ -2933,7 +2951,7 @@ Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
 		SmartPixLog("suche: Tabelle hat den Fokus nicht")
 		Sleep(2000)
 	Next
-	If Not $ok Then Return False
+	If Not $ok Or Not SmartPixListeVorn() Then Return False
 	Send($anfang, 1)
 	Sleep(1500)
 	For $i = 1 To 5000
@@ -2949,6 +2967,7 @@ Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
 				If $erster And Not $nochmal Then
 					$nochmal = True
 					Sleep(1000)
+					If Not SmartPixListeVorn() Then Return False
 					Send($anfang, 1)
 					Sleep(1500)
 					ContinueLoop
@@ -3071,7 +3090,9 @@ EndFunc
 ; geklickt (damit hat die Tabelle den Fokus) und Pfeil runter gedrueckt; sonst erst die Tasten aus ZurTabelle=
 ; ganze Liste: Suche leeren, eine Zeile anklicken (damit die Tabelle den Fokus hat) und mit Strg+Pos1 nach oben
 Func SmartPixListeOben($hListe)
+	If Not SmartPixListeVorn() Then Return False
 	If Not SmartPixKlick($hListe, Einst("SmartPix", "Suche", "357,-76"), 1) Then Return False
+	If Not SmartPixListeAktiv() Then Return False
 	Send("^a{DEL}")
 	Sleep(Int(Einst("SmartPixListe", "ListeWarten", "5000")))
 	If Not SmartPixKlick($hListe, Einst("SmartPix", "Zeile", "60,88"), 1) Then Return False
