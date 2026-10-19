@@ -149,8 +149,8 @@ Hintergrund nicht schafft; MOReiter wartet deshalb nach dem Speichern bis zu [Sm
 angekommen"). Fehlt die Ergänzung des zuletzt bearbeiteten Patienten beim Wiederfinden, kommt er noch einmal dran.
 Gelesen wird die Liste über ihre Zellen, ohne jeden Patienten zu öffnen ([SmartPixListe] Zellen=1, 0 = wie
 früher): Strg+C kopiert die Zelle mit dem unsichtbaren Zellcursor, Pfeil rechts/links wechselt die Spalte, Pfeil
-runter die Zeile. Jedes Gerät ist eine Zeile, Name, Geburtsdatum und Patienten-ID stehen nur in der ersten Zeile
-eines Patienten, das letzte Auslesen je Gerät ([SmartPixListe] Spalten=0,1,2,3,6). Geöffnet wird ein Patient nur
+runter den Patienten. Aus der Spalte Letztes Auslesen zählen alle Daten der Geräte, das späteste als letztes,
+das früheste als erstes Auslesen ([SmartPixListe] Spalten=0,1,2,3,6). Geöffnet wird ein Patient nur
 zum Eintragen; der Dialog muss dabei genau die gelesenen Werte zeigen. Danach geht es per Klick in die Markierung
 zum nächsten Patienten zurück; liegt der Zellcursor dann woanders, sucht MOReiter ihn. Scheitert das Eintragen
 dreimal hintereinander, startet es Smart Pix neu und versucht diesen Patienten noch einmal. Die Nummern zählen

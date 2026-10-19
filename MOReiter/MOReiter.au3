@@ -2489,7 +2489,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $max = Int(Einst("SmartPixListe", "Max", "0")), $grenze = Int(Einst("SmartPixListe", "GleichZeilen", "10"))
 	Local $zp = Int(Einst("SmartPixListe", "ZeilePause", "30"))
 	Local $nr = $abNr + $abBasis, $nr0 = $nr, $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $k, $vorher = ""
-	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen
+	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten
 	Local $gelesen = False, $listeEnde = False, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
 	Local $t0 = TimerInit()
 	SmartPixLog("Zellen lesen ab Patient " & ($nr + 1))
@@ -2518,7 +2518,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 		$p = $r
 		$la = ""
 		$fa = 0
-		SmartPixDatumDazu($r[4], $la, $fa)
+		$daten = SmartPixDatumDazu($r[4], $la, $fa)
 		$zeilen = 1
 		; weitere Geraete: folgende Zeilen ohne Nachnamen; am Ende der Liste bleibt Pfeil runter in der letzten Zeile
 		$vorig = SmartPixReiheText($r)
@@ -2542,7 +2542,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 				$gelesen = True
 				ExitLoop
 			EndIf
-			SmartPixDatumDazu($r[4], $la, $fa)
+			$daten += SmartPixDatumDazu($r[4], $la, $fa)
 			$zeilen += 1
 		WEnd
 		If Not $gelesen And Not $listeEnde Then
@@ -2561,7 +2561,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			ContinueLoop
 		EndIf
 		$nr += 1
-		SmartPixLog("Patient " & $nr & ": " & SmartPixKurz($f) & ", " & $zeilen & " Zeilen")
+		SmartPixLog("Patient " & $nr & ": " & SmartPixKurz($f) & ", " & $zeilen & " Zeilen, " & $daten & " Daten")
 		$geb = ""
 		$id = ""
 		$ein = ""
@@ -2723,8 +2723,9 @@ Func SmartPixZelle()
 EndFunc
 
 ; eine Zeile der Liste lesen; der Zellcursor steht vorher und nachher in der ersten Spalte. $r[0..3] Nachname,
-; Vorname, Geburtsdatum, Patienten-ID (nur in der ersten Zeile eines Patienten), $r[4] Letztes Auslesen; False,
-; wenn ein Datum nicht wie eines aussieht (Spalten verschoben?)
+; Vorname, Geburtsdatum, Patienten-ID (nur in der ersten Zeile eines Patienten), $r[4] Letztes Auslesen (bei
+; mehreren Geraeten womoeglich mehrere Daten in einer Zelle); False, wenn ein Datum nicht wie eines aussieht
+; (Spalten verschoben?), dann steht die Zelle unkenntlich gemacht im Protokoll
 Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 	Local $c = 0
 	For $i = 0 To 4
@@ -2735,21 +2736,39 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 		$r[$i] = SmartPixZelle()
 	Next
 	If $c > 0 Then Send("{LEFT " & $c & "}")
-	If $r[2] <> "" And Not StringRegExp($r[2], "^\d\d\.\d\d\.\d{4}$") Then Return False
-	If $r[4] <> "" And Not StringRegExp($r[4], "^\d\d\.\d\d\.\d{4}$") Then Return False
+	If $r[2] <> "" And Not StringRegExp($r[2], "^\d\d\.\d\d\.\d{4}$") Then
+		SmartPixLog("Geburtsdatum unerwartet: " & SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")")
+		Return False
+	EndIf
+	If $r[4] <> "" And Not StringRegExp($r[4], "\d\d\.\d\d\.\d{4}") Then
+		SmartPixLog("Letztes Auslesen unerwartet: " & SmartPixMaske($r[4]) & " (Spalte " & $sp[4] & ")")
+		Return False
+	EndIf
 	Return True
+EndFunc
+
+; Zelleninhalt fuers Protokoll ohne Patientendaten: Ziffern als 9, Buchstaben als x, Zeilenwechsel als |
+Func SmartPixMaske($s)
+	$s = StringRegExpReplace(StringRegExpReplace(StringRegExpReplace($s, "\R", "|"), "\d", "9"), "[^9|.,:;/() -]", "x")
+	Return StringLen($s) & " Zeichen: " & StringLeft($s, 120)
 EndFunc
 
 Func SmartPixReiheText(ByRef $r)
 	Return $r[0] & "|" & $r[1] & "|" & $r[2] & "|" & $r[3] & "|" & $r[4]
 EndFunc
 
-; Datum TT.MM.JJJJ eines Geraets: $la = spaetestes (JJJJMMTT), $fa = fruehestes (Zahl JJJJMMTT)
+; Daten TT.MM.JJJJ der Geraete (eins je Zeile oder mehrere in einer Zelle): $la = spaetestes (JJJJMMTT), $fa =
+; fruehestes (Zahl JJJJMMTT); gibt die Zahl der Daten zurueck
 Func SmartPixDatumDazu($d, ByRef $la, ByRef $fa)
-	If Not StringRegExp($d, "^\d\d\.\d\d\.\d{4}$") Then Return
-	Local $j = StringRight($d, 4) & StringMid($d, 4, 2) & StringLeft($d, 2)
-	If $la = "" Or Int($j) > Int($la) Then $la = $j
-	If $fa = 0 Or Int($j) < $fa Then $fa = Int($j)
+	Local $a = StringRegExp($d, "(\d\d)\.(\d\d)\.(\d{4})", 4), $j, $m
+	If @error Then Return 0
+	For $i = 0 To UBound($a) - 1
+		$m = $a[$i]
+		$j = $m[3] & $m[2] & $m[1]
+		If $la = "" Or Int($j) > Int($la) Then $la = $j
+		If $fa = 0 Or Int($j) < $fa Then $fa = Int($j)
+	Next
+	Return UBound($a)
 EndFunc
 
 ; vom Klick in eine Zeile des markierten Patienten hinauf in seine erste (die mit dem Nachnamen)
