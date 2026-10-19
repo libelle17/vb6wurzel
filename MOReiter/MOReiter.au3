@@ -1980,7 +1980,7 @@ Func SmartPixListe()
 	Local $ausgelesen = ObjCreate("Scripting.Dictionary"), $puids = ObjCreate("Scripting.Dictionary"), $ziel = $datei, $fehlerText
 	; endete der letzte Durchgang gleicher Art vor dem Ende der Liste (Abbruch, Esc, Max=), dahinter weitermachen?
 	Local $art = $eintragen ? "eintragen" : ($sofort ? "sofort" : "lesen"), $stand = @AppDataDir & "\MOReiter\SmartPixListe-Stand.ini"
-	Local $ab[4], $abNr = 0
+	Local $ab[4], $abNr = 0, $abWeiter = 0
 	If IniRead($stand, "Stand", "Art", "") = $art And Int(IniRead($stand, "Stand", "Nr", "0")) > 0 Then
 		For $i = 0 To 3
 			$ab[$i] = IniRead($stand, "Stand", "F" & $i, "")
@@ -1989,7 +1989,10 @@ Func SmartPixListe()
 				") endete beim " & IniRead($stand, "Stand", "Nr", "") & ". Patienten (" & $ab[1] & " " & $ab[0] & ")." & @CRLF & @CRLF & _
 				"Ja: hinter ihm weitermachen, die CSV-Dateien werden ergaenzt" & @CRLF & "Nein: von vorn, die CSV-Dateien werden neu geschrieben")
 		If $w <> 6 And $w <> 7 Then Return False
-		If $w = 6 Then $abNr = Int(IniRead($stand, "Stand", "Nr", "0"))
+		If $w = 6 Then
+			$abNr = Int(IniRead($stand, "Stand", "Nr", "0"))
+			$abWeiter = Int(IniRead($stand, "Stand", "Weiter", "0"))
+		EndIf
 	EndIf
 	If $eintragen Then
 		If Not SmartPixVorschlaege($datei, $vorschlag) Then Return False
@@ -2055,14 +2058,16 @@ Func SmartPixListe()
 			$hListe = SmartPixNeustart()
 			If Not $hListe Or Not SmartPixListeOben($hListe) Then Return False
 		EndIf
-		$gefunden = SmartPixAnspringen($hListe, $ab, $zurueck)
+		$gSmartPixWarnung = ""
+		$gefunden = SmartPixAnspringen($hListe, $ab, $zurueck) And SmartPixUeberspringen($hListe, $zurueck, $abWeiter)
 		If _IsPressed("1B") Then Return False
 	Next
 	If Not $gefunden Then
 		ToolTip("")
-		If MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", $ab[1] & " " & $ab[0] & " nicht wiedergefunden." & _
-				@CRLF & @CRLF & "Von vorn anfangen (die CSV-Dateien werden neu geschrieben)?") <> 6 Then Return False
+		If MsgBox(4 + 48 + 262144, "MOReiter: Smart Pix-Patientenliste", $ab[1] & " " & $ab[0] & " nicht wiedergefunden" & _
+				(($gSmartPixWarnung = "") ? "" : " (Smart Pix: " & $gSmartPixWarnung & ")") & "." & @CRLF & @CRLF & "Von vorn anfangen (die CSV-Dateien werden neu geschrieben)?") <> 6 Then Return False
 		$abNr = 0
+		$abWeiter = 0
 		If Not SmartPixListeOben($hListe) Then Return False
 	EndIf
 	; beim Weitermachen anhaengen (1), sonst neu schreiben (2)
@@ -2082,8 +2087,10 @@ Func SmartPixListe()
 	Local $pause = Int(Einst("SmartPixListe", "Pause", "200")), $grenze = Int(Einst("SmartPixListe", "Gleich", "30"))
 	Local $wiederholt = 0, $mitDatei = (Einst("SmartPixListe", "Dateiname", "0") = "1")
 	; beim Weitermachen zaehlt die Nummer weiter (beim Eintragen gehoert sie zum Schluessel aus der CSV)
-	Local $nr = $abNr, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
+	Local $nr = $abNr + $abWeiter, $gleich = 0, $vorher = "", $f[5], $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $hDlg, $k
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $ids, $ohneDatei = 0, $mehrdeutig = 0, $ein, $f2[4]
+	; hinter dem zuletzt gelesenen uebersprungene Patienten (lassen sich auch nach einem Neustart nicht oeffnen)
+	Local $skip = $abWeiter, $uebersprungen = 0, $aufgeben = False, $leer[4]
 	Local $t0 = TimerInit()
 	While 1
 		If _IsPressed("1B") Then
@@ -2099,7 +2106,7 @@ Func SmartPixListe()
 		; Schreibrechte" kommt bei schnellem Arbeiten ueber das Netz voruebergehend (Sperrdatei palock.xml.lck noch
 		; nicht frei): dann mit wachsender Pause, nach jedem dritten Versuch Smart Pix neu starten, erst nach
 		; [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten abbrechen
-		Local $wdh = 0, $schreib = StringInStr($gSmartPixWarnung, "Schreib"), $verloren = False
+		Local $wdh = 0, $schreib = StringInStr($gSmartPixWarnung, "Schreib"), $verloren = False, $hier = 0
 		While Not $hDlg And $wdh < (($schreib Or $verloren) ? 3 * $neustarts : 3)
 			$wdh += 1
 			$wiederholt += 1
@@ -2125,10 +2132,37 @@ Func SmartPixListe()
 				ElseIf $abNr > 0 Then
 					$verloren = Not SmartPixAnspringen($hListe, $ab, $zurueck)
 				EndIf
+				If Not $verloren Then $verloren = Not SmartPixUeberspringen($hListe, $zurueck, $skip)
 				If _IsPressed("1B") Then ExitLoop
 				If $verloren Then
 					If StringInStr($gSmartPixWarnung, "Schreib") Then $schreib = True
 					ContinueLoop
+				EndIf
+				; hat schon ein Neustart bei diesem Patienten nicht geholfen, liegt es an ihm (z.B. auf einem anderen
+				; PC geoeffnet, Sperre in palock.xml): ueberspringen, in der Liste vermerken, beim naechsten weiter
+				If Not $weg Then $hier += 1
+				If $hier >= 2 And $schreib Then
+					If Not SmartPixWeiter($hListe, $zurueck) Then
+						$verloren = True
+						ContinueLoop
+					EndIf
+					Sleep($pause)
+					$nr += 1
+					$skip += 1
+					$uebersprungen += 1
+					$leer[0] = "?"
+					$leer[1] = "(nach " & (($vorher <> "") ? StringReplace($vorher, "|", " ") : $ab[0] & " " & $ab[1]) & ")"
+					SmartPixZeile($h, $nr, $leer, "", "", "", "", "", "uebersprungen")
+					If $h2 <> -1 Then SmartPixZeile($h2, $nr, $leer, "", "", "", "", "", "uebersprungen;laesst sich nicht oeffnen (Smart Pix: " & _
+							$gSmartPixWarnung & ")")
+					IniWrite($stand, "Stand", "Weiter", $skip)
+					If $skip >= 5 Then
+						$ende = "abgebrochen, " & $skip & " Patienten hintereinander nicht zu oeffnen (Smart Pix: " & $gSmartPixWarnung & ")"
+						$aufgeben = True
+						ExitLoop
+					EndIf
+					$wdh = 0
+					$hier = 0
 				EndIf
 			EndIf
 			$gSmartPixWarnung = ""
@@ -2136,6 +2170,7 @@ Func SmartPixListe()
 			$hDlg = SmartPixDialog($hListe, $f, Not $eintragen And $mitDatei)
 			If StringInStr($gSmartPixWarnung, "Schreib") Then $schreib = True
 		WEnd
+		If $aufgeben Then ExitLoop
 		If Not $hDlg Then
 			$ende = "abgebrochen, Dialog nicht lesbar" & (($gSmartPixWarnung = "") ? (($gMeldung = "") ? "" : " (" & $gMeldung & ")") : _
 					" (Smart Pix: " & $gSmartPixWarnung & ")")
@@ -2148,6 +2183,7 @@ Func SmartPixListe()
 			If $gleich >= $grenze Then ExitLoop
 		Else
 			$gleich = 0
+			$skip = 0
 			$vorher = $f[0] & "|" & $f[1] & "|" & $f[2] & "|" & $f[3]
 			$nr += 1
 			$k = $nr & "|" & SmartPixNorm($f[0]) & "|" & SmartPixNorm($f[1])
@@ -2229,6 +2265,7 @@ Func SmartPixListe()
 			; erreichter Stand, fuer das Weitermachen beim naechsten Mal
 			IniWrite($stand, "Stand", "Art", $art)
 			IniWrite($stand, "Stand", "Nr", $nr)
+			IniWrite($stand, "Stand", "Weiter", 0)
 			For $i = 0 To 3
 				IniWrite($stand, "Stand", "F" & $i, $f[$i])
 			Next
@@ -2264,6 +2301,7 @@ Func SmartPixListe()
 			$nr & (($abNr > 0) ? "." : "") & " Patienten, " & $ende & ", " & Round(TimerDiff($t0) / 60000) & " min" & _
 			(($wiederholt = 0) ? "" : ", " & $wiederholt & " Wiederholungen") & _
 			(($neugestartet = 0) ? "" : ", " & $neugestartet & " Neustarts von Smart Pix") & _
+			(($uebersprungen = 0) ? "" : ", " & $uebersprungen & " Patienten nicht zu oeffnen (uebersprungen)") & _
 			@CRLF & ($eintragen ? $neu & " Patienten ergaenzt, " & $fehler & " Fehler" : $fehlt & _
 			" weder in Medical Office noch in quelle, " & $mehrdeutig & " mehrdeutig (uebergangen), " & $ohneDatei & _
 			" ohne bekanntes letztes Auslesen (ohne diese Pruefung)" & ($sofort ? ", " & $neu & _
@@ -2381,6 +2419,15 @@ Func SmartPixAnspringen($hListe, ByRef $ab, $zurueck)
 		Sleep(Int(Einst("SmartPixListe", "Pause", "200")))
 	Next
 	Return False
+EndFunc
+
+; nach dem Wiederfinden noch $n Patienten weiter (die zuvor uebersprungenen); False, wenn es nicht weitergeht
+Func SmartPixUeberspringen($hListe, $zurueck, $n)
+	For $i = 1 To $n
+		Sleep(Int(Einst("SmartPixListe", "Pause", "200")))
+		If Not SmartPixWeiter($hListe, $zurueck) Then Return False
+	Next
+	Return True
 EndFunc
 
 Func SmartPixWeiter($hListe, $zurueck)

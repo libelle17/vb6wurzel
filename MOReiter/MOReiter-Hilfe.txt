@@ -132,7 +132,10 @@ Durchgang derselben Art, ob es dahinter weitermachen soll: es springt dann durch
 ergänzt die CSV-Dateien, statt sie neu zu schreiben. "Kein Schreibzugriff" bzw. "Keine Schreibrechte" kommt bei schnellem
 Arbeiten über das Netz oft nur vorübergehend: MOReiter wartet dann und versucht denselben Patienten neu; nach
 jedem dritten vergeblichen Versuch startet es Smart Pix neu und macht beim nächsten Patienten weiter, abgebrochen
-wird erst nach [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
+wird erst nach [SmartPixListe] Neustarts= (Vorgabe 5) vergeblichen Neustarts beim selben Patienten. Lässt sich ein
+Patient auch nach einem Neustart nicht öffnen (z.B. weil er auf einem anderen PC in Smart Pix offen und damit in
+palock.xml gesperrt ist), überspringt MOReiter ihn und vermerkt "uebersprungen" in den CSV-Dateien; erst bei fünf
+solchen hintereinander bricht es ab. Ursache sind meist Sperren in Diaries\palock.xml: wird Smart
 Pix hart beendet, gibt es sie nicht frei und zählt sie beim nächsten Start weiter, dann scheitert jedes Speichern.
 MOReiter entfernt deshalb vor jedem Start von Smart Pix die Sperren dieses PCs (nur wenn Smart Pix hier nicht
 läuft; die anderer PCs bleiben) und startet bei einer hochgezählten eigenen Listensperre vor dem Durchgang neu;
