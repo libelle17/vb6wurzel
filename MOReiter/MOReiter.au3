@@ -1695,9 +1695,16 @@ Func SmartPixDialog($hListe, ByRef $f, $mitDatei = False)
 	WinActivate($hListe)
 	If Not WinWaitActive($hListe, "", 3) Then Return Meldung("Smart Pix: Patientenliste nicht aktiv")
 	If Not SmartPixKlick($hListe, Einst("SmartPix", "Bearbeiten", "849,-76"), 1) Then Return 0
-	Local $t = TimerInit(), $h = 0, $w = "", $max = Int(Einst("SmartPix", "DialogMax", "30000"))
+	Local $t = TimerInit(), $h = 0, $w = "", $max = Int(Einst("SmartPix", "DialogMax", "30000")), $nochmal = 10000
 	While Not $h And TimerDiff($t) < $max
 		Sleep(200)
+		; der Klick auf den Knopf kommt bei beschaeftigtem Smart Pix manchmal nicht an: alle 10 s noch einmal
+		If TimerDiff($t) > $nochmal And Not SmartPixFenster($dlg) Then
+			SmartPixLog("Patientendaten bearbeiten: Knopf noch einmal")
+			WinActivate($hListe)
+			If WinActive($hListe) Then SmartPixKlick($hListe, Einst("SmartPix", "Bearbeiten", "849,-76"), 1)
+			$nochmal += 10000
+		EndIf
 		$h = SmartPixFenster($dlg)
 		If Not $h Then $w = SmartPixWarnungWeg()
 		If $w <> "" Then Return Meldung("Smart Pix: " & $w)
@@ -2465,9 +2472,15 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $alt = ClipGet(), $r[5], $p[5], $f[5], $erledigt = False, $nochmal = False
 	; Anfang: oben (die Liste ist schon nach oben gestellt), beim markierten bzw. beim gemerkten Patienten
 	If $abMarkiert Then
-		If Not SmartPixWeiter($hListe, $zurueck, False) Or Not SmartPixZurErstenZeile() Then
+		If Not SmartPixWeiter($hListe, $zurueck, False) Or Not SmartPixZurErstenZeile() Or Not SmartPixReiheLesen($r, $sp) Then
 			ClipPut($alt)
 			Return SmartPixFehler("Smart Pix-Liste: markierter Patient nicht gefunden")
+		EndIf
+		; womoeglich ueber das Suchfeld gefunden (die Liste zeigt dann nur die passenden): Suche leeren und ihn in der
+		; ganzen Liste wieder anspringen
+		If Not SmartPixZellenFinden($hListe, $r, $sp) Then
+			ClipPut($alt)
+			Return SmartPixFehler("Smart Pix-Liste: markierter Patient nach dem Leeren der Suche nicht wiedergefunden")
 		EndIf
 	ElseIf $abNr > 0 Then
 		If SmartPixZellenFinden($hListe, $ab, $sp) Then
@@ -2861,8 +2874,10 @@ Func SmartPixMaske($s)
 	Return StringLen($s) & " Zeichen: " & StringLeft($s, 120)
 EndFunc
 
+; Zeile als Text zum Vergleich (gleiche Zeile = Pfeil runter ging nicht weiter, Ende der Liste); das Datum zaehlt nur
+; in Geraetezeilen, in der ersten Zeile eines Patienten kam es gelegentlich verschieden an
 Func SmartPixReiheText(ByRef $r)
-	Return $r[0] & "|" & $r[1] & "|" & $r[2] & "|" & $r[3] & "|" & $r[4]
+	Return $r[0] & "|" & $r[1] & "|" & $r[2] & "|" & $r[3] & (($r[0] = "") ? "|" & $r[4] : "")
 EndFunc
 
 ; Daten TT.MM.JJJJ der Geraete (eins je Zeile oder mehrere in einer Zelle): $la = spaetestes (JJJJMMTT), $fa =
@@ -2894,11 +2909,24 @@ EndFunc
 ; Anfangsbuchstaben tippen (springt zum ersten so beginnenden Nachnamen) und von dort die Zeilen vergleichen; True
 ; mit dem Zellcursor in seiner ersten Zeile, @extended = 1, wenn ihm die gemerkte Ergaenzung fehlt
 Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
-	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $r[5], $vorig = "", $gleich = 0, $passt, $ohne
+	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $r[5], $vorig = "", $gleich = 0, $passt, $ohne, $z
 	If $anfang = "" Then Return False
 	HinweisStehend("Smart Pix-Liste: suche " & $ab[1] & " " & $ab[0] & " ...")
 	SmartPixLog("suche " & SmartPixKurz($ab))
-	If Not SmartPixListeOben($hListe) Then Return False
+	; die Anfangsbuchstaben muessen in die Tabelle gehen, nicht ins Suchfeld (das filterte die Liste): vorher pruefen,
+	; dass Strg+C eine Zelle liefert, sonst noch einmal von oben
+	Local $ok = False
+	For $v = 1 To 3
+		If Not SmartPixListeOben($hListe) Then Return False
+		$z = SmartPixZelle()
+		If Not @error And $z <> "" Then
+			$ok = True
+			ExitLoop
+		EndIf
+		SmartPixLog("suche: Tabelle hat den Fokus nicht")
+		Sleep(2000)
+	Next
+	If Not $ok Then Return False
 	Send($anfang, 1)
 	Sleep(1500)
 	For $i = 1 To 5000
