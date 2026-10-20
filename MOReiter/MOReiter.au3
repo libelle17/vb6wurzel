@@ -2763,9 +2763,22 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 					SmartPixLog("weiter hinter Patient " & $nr)
 					$erledigt = True
 				Else
-					$ende = "abgebrochen, nach dem Eintragen weder den naechsten noch diesen Patienten wiedergefunden"
-					SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
-					ExitLoop
+					; zuletzt Smart Pix neu starten (Zwischenablage bzw. Fokus der Tabelle verloren)
+					Local $hNeu = SmartPixNeustart()
+					If $hNeu Then
+						$hListe = $hNeu
+						$neugestartet += 1
+					EndIf
+					If $hNeu And SmartPixZellenFinden($hListe, $r, $sp) Then
+						SmartPixLog("nach dem Neustart weiter beim naechsten")
+					ElseIf $hNeu And SmartPixZellenFinden($hListe, $f, $sp) Then
+						SmartPixLog("nach dem Neustart weiter hinter Patient " & $nr)
+						$erledigt = True
+					Else
+						$ende = "abgebrochen, nach dem Eintragen weder den naechsten noch diesen Patienten wiedergefunden"
+						SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
+						ExitLoop
+					EndIf
 				EndIf
 				$gelesen = False
 			EndIf
@@ -2868,17 +2881,26 @@ EndFunc
 
 ; Inhalt der Zelle mit dem Zellcursor (Strg+C), "" wenn leer: vorher steht ein Merkzeichen in der Zwischenablage;
 ; eine leere Zelle ersetzt es sofort durch nichts, bleibt es [SmartPixListe] Kopieren= ms (Vorgabe 300) stehen,
-; ging das Strg+C verloren: noch bis zu zweimal, dann @error = 1
+; ging das Strg+C verloren: noch bis zu zweimal, dann @error = 1; ist die Zwischenablage gerade nicht zugaenglich
+; (von einem anderen Programm geoeffnet), zaehlt das nicht als leere Zelle: warten, sonst @error = 2
 Func SmartPixZelle()
-	Local $merk = "<MOReiter " & Random(100000, 999999, 1) & ">", $ms = Int(Einst("SmartPixListe", "Kopieren", "300")), $s, $t
-	ClipPut($merk)
+	Local $merk = "<MOReiter " & Random(100000, 999999, 1) & ">", $ms = Int(Einst("SmartPixListe", "Kopieren", "300")), $s, $e, $t
+	For $v = 1 To 10
+		If ClipPut($merk) And ClipGet() == $merk Then ExitLoop
+		If $v = 10 Then
+			SmartPixLog("Zwischenablage nicht zugaenglich")
+			Return SetError(2, 0, "")
+		EndIf
+		Sleep(300)
+	Next
 	For $n = 1 To 3
 		Send("^c")
 		$t = TimerInit()
 		Do
 			Sleep(10)
 			$s = ClipGet()
-			If $s <> $merk Then Return StringStripWS($s, 3)
+			$e = @error
+			If $e < 3 And $s <> $merk Then Return StringStripWS($s, 3)
 		Until TimerDiff($t) > $ms * $n
 	Next
 	Return SetError(1, 0, "")
