@@ -1566,8 +1566,14 @@ Func SmartPixHaengtWarten()
 	WEnd
 	If TimerDiff($t) > 1500 Then
 		SmartPixLog("Smart Pix antwortet wieder nach " & Round(TimerDiff($t) / 1000) & " s")
-		Sleep(2000)
+		Sleep(5000)
 	EndIf
+	Return True
+EndFunc
+
+Func SmartPixPause($ms)
+	SmartPixLog("suche nach " & Round($ms / 1000) & " s Pause noch einmal")
+	Sleep($ms)
 	Return True
 EndFunc
 
@@ -2746,13 +2752,20 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			; nach dem Speichern sortiert Smart Pix die Liste womoeglich neu (geaenderter Vorname bzw. Geburtsdatum),
 			; der gelesene naechste ist dann ein anderer: hinter dem eben bearbeiteten weitermachen
 			If Not $listeEnde And Not SmartPixZellenZurueck($hListe, $zurueck, $f, $r, $sp) Then
-				If Not SmartPixZellenFinden($hListe, $f, $sp) Then
+				; zuletzt (Smart Pix nach dem Speichern womoeglich noch traege) nach einer Pause beide noch einmal
+				If SmartPixZellenFinden($hListe, $f, $sp) Then
+					SmartPixLog("weiter hinter Patient " & $nr)
+					$erledigt = True
+				ElseIf SmartPixPause(10000) And SmartPixZellenFinden($hListe, $r, $sp) Then
+					SmartPixLog("weiter beim naechsten")
+				ElseIf SmartPixZellenFinden($hListe, $f, $sp) Then
+					SmartPixLog("weiter hinter Patient " & $nr)
+					$erledigt = True
+				Else
 					$ende = "abgebrochen, nach dem Eintragen weder den naechsten noch diesen Patienten wiedergefunden"
 					SmartPixZeilenSchreiben($h, $h2, $nr, $f, $la, $imMO, $inQu, $vs, $vid, $ein, $grund, $ids, $eintragen, $geb, $id)
 					ExitLoop
 				EndIf
-				SmartPixLog("weiter hinter Patient " & $nr)
-				$erledigt = True
 				$gelesen = False
 			EndIf
 		EndIf
@@ -2987,7 +3000,7 @@ Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
 			SmartPixLog("suche: Zelle nicht lesbar")
 			Return False
 		EndIf
-		If $erster Then SmartPixLog("suche: gesprungen nach " & SmartPixKurz($r))
+		SmartPixLog("suche: " & ($erster ? "gesprungen nach " : "dann ") & SmartPixKurz($r))
 		If $r[0] <> "" Then
 			If StringLeft(StringLower($r[0]), StringLen($anfang)) <> StringLower($anfang) Then
 				; der Sprung per Anfangsbuchstaben klappte nicht: einmal noch tippen
