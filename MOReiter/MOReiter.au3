@@ -2890,7 +2890,7 @@ EndFunc
 ; (Spalten verschoben?), dann steht die Zelle unkenntlich gemacht im Protokoll
 Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 	If Not SmartPixListeVorn() Then Return False
-	Local $c, $falsch, $zp = Int(Einst("SmartPixListe", "ZellePause", "50")), $zleer = Int(Einst("SmartPixListe", "LeerPause", "250"))
+	Local $c, $falsch, $ohneGeraet = 0, $zp = Int(Einst("SmartPixListe", "ZellePause", "50")), $zleer = Int(Einst("SmartPixListe", "LeerPause", "250"))
 	; ging ein Strg+C oder eine Pfeiltaste verloren (Datum, wo keins sein kann; meist beim Rollen der Liste), die
 	; Zeile noch zweimal, vorher sicher in die erste Spalte; dann abbrechen (False)
 	For $n = 1 To 3
@@ -2913,7 +2913,10 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 			EndIf
 			$c = $sp[$i]
 			$r[$i] = SmartPixZelle()
-			If @error Then $falsch &= ", Strg+C ohne Ergebnis in Spalte " & $sp[$i]
+			If @error Then
+				$falsch &= ", Strg+C ohne Ergebnis in Spalte " & $sp[$i]
+				If $i = 4 Then $ohneGeraet += 1
+			EndIf
 			; Smart Pix liefert gelegentlich eine gefuellte Zelle leer: leer erst, wenn es nach einer Pause so bleibt
 			If $r[$i] = "" And $falsch = "" Then
 				Sleep($zleer)
@@ -2930,6 +2933,13 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 		If $r[4] <> "" And Not StringRegExp($r[4], "\d\d\.\d\d\.\d{4}") Then $falsch &= ", Letztes Auslesen unerwartet: " & _
 				SmartPixMaske($r[4]) & " (Spalte " & $sp[4] & ")"
 		If $falsch = "" Then Return True
+		; ein Patient ganz ohne Geraet hat in den Geraetespalten keine Zelle, Strg+C kopiert dort nichts: kam das zweimal
+		; als einziger Fehler, gilt das letzte Auslesen als leer
+		If $ohneGeraet >= 2 And $falsch = ", Strg+C ohne Ergebnis in Spalte " & $sp[4] Then
+			SmartPixLog("Spalte " & $sp[4] & " auch beim zweiten Mal ohne Ergebnis: Patient ohne Geraet")
+			$r[4] = ""
+			Return True
+		EndIf
 		SmartPixLog(StringTrimLeft($falsch, 2) & (($n < 3) ? ", Zeile noch einmal" : ""))
 	Next
 	Return False
