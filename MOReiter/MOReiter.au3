@@ -94,6 +94,7 @@
 ; Die Reiterleiste ist ein Delphi-Control (TmoTabSet) ohne eigene Handles je Reiter,
 ; deshalb wird relativ zur linken oberen Ecke dieses Controls geklickt.
 #include <Misc.au3>
+#include <Date.au3>
 #include <WinAPI.au3>
 #include <WindowsNotifsConstants.au3>
 #include <ScreenCapture.au3>
@@ -2922,6 +2923,7 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 			EndIf
 		Next
 		If $c > 0 Then Send("{LEFT " & $c & "}")
+		$r[4] = SmartPixHeute($r[4])
 		; Geburtsdatum auch mit zweistelligem Jahr oder einstelligem Tag/Monat (so eingegeben)
 		If $r[2] <> "" And Not StringRegExp($r[2], "^\d{1,2}\.\d{1,2}\.(\d\d|\d{4})$") Then $falsch &= ", Geburtsdatum unerwartet: " & _
 				SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")"
@@ -2931,6 +2933,13 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 		SmartPixLog(StringTrimLeft($falsch, 2) & (($n < 3) ? ", Zeile noch einmal" : ""))
 	Next
 	Return False
+EndFunc
+
+; Smart Pix zeigt beim letzten Auslesen "Heute" bzw. "Gestern" statt des Datums: als TT.MM.JJJJ
+Func SmartPixHeute($s)
+	Local $g = StringSplit(_DateAdd("D", -1, _NowCalcDate()), "/")
+	$s = StringRegExpReplace($s, "(?i)\b(heute|today)\b", @MDAY & "." & @MON & "." & @YEAR)
+	Return StringRegExpReplace($s, "(?i)\b(gestern|yesterday)\b", $g[3] & "." & $g[2] & "." & $g[1])
 EndFunc
 
 ; Zelleninhalt fuers Protokoll ohne Patientendaten: Ziffern als 9, Buchstaben als x, Zeilenwechsel als |
