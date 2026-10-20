@@ -2903,7 +2903,8 @@ Func SmartPixZelle()
 			If $e < 3 And $s <> $merk Then Return StringStripWS($s, 3)
 		Until TimerDiff($t) > $ms * $n
 	Next
-	Return SetError(1, 0, "")
+	; @extended: 0 = Merkzeichen blieb (Strg+C kam nicht an), 3/4 = Zwischenablage nicht lesbar
+	Return SetError(1, $e, "")
 EndFunc
 
 ; eine Zeile der Liste lesen; der Zellcursor steht vorher und nachher in der ersten Spalte. $r[0..3] Nachname,
@@ -3002,9 +3003,22 @@ EndFunc
 
 ; vom Klick in eine Zeile des markierten Patienten hinauf in seine erste (die mit dem Nachnamen)
 Func SmartPixZurErstenZeile()
+	Local $z, $tot = 0
 	Sleep(200)
 	For $i = 1 To 500
-		If SmartPixZelle() <> "" Then Return True
+		$z = SmartPixZelle()
+		If @error Then
+			; kopiert Strg+C gar nichts mehr, nicht durch die ganze Liste hinauf
+			$tot += 1
+			If $tot >= 5 Then
+				SmartPixLog("markierter Patient: Strg+C kopiert nichts (" & ((@extended = 0) ? "Zwischenablage unveraendert" : _
+						"Zwischenablage nicht lesbar") & "), Smart Pix bzw. Windows neu starten?")
+				Return False
+			EndIf
+		Else
+			$tot = 0
+			If $z <> "" Then Return True
+		EndIf
 		Send("{UP}")
 		Sleep(30)
 	Next
@@ -3014,22 +3028,33 @@ EndFunc
 ; Patient $ab (Nachname, Vorname, Geburtsdatum, Patienten-ID) in der Liste suchen: Suche leeren, oben anfangen, die
 ; Anfangsbuchstaben tippen (springt zum ersten so beginnenden Nachnamen) und von dort die Zeilen vergleichen; True
 ; mit dem Zellcursor in seiner ersten Zeile, @extended = 1, wenn ihm die gemerkte Ergaenzung fehlt
-Func SmartPixZellenFinden($hListe, ByRef $ab, ByRef $sp)
+Func SmartPixZellenFinden(ByRef $hListe, ByRef $ab, ByRef $sp)
 	Local $anfang = StringRegExpReplace($ab[0], "\s.*$", ""), $r[5], $vorig = "", $gleich = 0, $passt, $ohne, $z, $nochmal = False, $erster = True
 	If $anfang = "" Then Return False
 	HinweisStehend("Smart Pix-Liste: suche " & $ab[1] & " " & $ab[0] & " ...")
 	SmartPixLog("suche " & SmartPixKurz($ab))
 	; die Anfangsbuchstaben muessen in die Tabelle gehen, nicht ins Suchfeld (das filterte die Liste): vorher pruefen,
 	; dass Strg+C eine Zelle liefert, sonst noch einmal von oben
-	Local $ok = False
-	For $v = 1 To 3
+	Local $ok = False, $ze, $zx, $hNeu
+	For $v = 1 To 4
+		; kopiert Strg+C gar nichts mehr (Smart Pix beschaeftigt, Sanduhr), Smart Pix einmal neu starten
+		If $v = 4 Then
+			If $ze = 0 Or $zx <> 0 Then ExitLoop
+			SmartPixLog("suche: Strg+C ohne Wirkung, Smart Pix neu starten")
+			$hNeu = SmartPixNeustart()
+			If Not $hNeu Then Return False
+			$hListe = $hNeu
+		EndIf
 		If Not SmartPixListeOben($hListe) Then Return False
 		$z = SmartPixZelle()
-		If Not @error And $z <> "" Then
+		$ze = @error
+		$zx = @extended
+		If Not $ze And $z <> "" Then
 			$ok = True
 			ExitLoop
 		EndIf
-		SmartPixLog("suche: Tabelle hat den Fokus nicht")
+		SmartPixLog("suche: Tabelle hat den Fokus nicht" & (($ze = 0) ? " (leere Zelle)" : ($zx = 0) ? _
+				" (Strg+C ohne Wirkung)" : " (Zwischenablage nicht lesbar)"))
 		Sleep(2000)
 	Next
 	If Not $ok Or Not SmartPixListeVorn() Then Return False
@@ -3138,7 +3163,7 @@ EndFunc
 ; liegt dann auf einem Knopf, mit Umschalt+Tab zurueck in die Tabelle (dort steht der Zellcursor noch beim eben
 ; geoeffneten Patienten $f, die Zahl der Tabs wird gemerkt) und Pfeil runter; sonst in die Markierung klicken, sonst
 ; suchen
-Func SmartPixZellenZurueck($hListe, $zurueck, ByRef $f, ByRef $r, ByRef $sp)
+Func SmartPixZellenZurueck(ByRef $hListe, $zurueck, ByRef $f, ByRef $r, ByRef $sp)
 	Local $t[5], $z
 	SmartPixDialogWeg(0)
 	WinActivate($hListe)
