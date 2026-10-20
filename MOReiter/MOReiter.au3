@@ -1541,6 +1541,7 @@ EndFunc
 Func SmartPixListeVorn()
 	If SmartPixListeAktiv() Then Return True
 	SmartPixLog("Patientenliste nicht aktiv: " & WinGetTitle("[ACTIVE]"))
+	SmartPixHaengtWarten()
 	For $v = 1 To 3
 		SmartPixWarnungWeg()
 		SmartPixDialogWeg(0)
@@ -1550,6 +1551,32 @@ Func SmartPixListeVorn()
 		Sleep(1000 * $v)
 	Next
 	Return False
+EndFunc
+
+; antwortet Smart Pix nicht (Windows zeigt dann ein Ersatzfenster "... (Keine Rueckmeldung)"), bis [SmartPix] HaengtMax= ms warten
+Func SmartPixHaengtWarten()
+	Local $h = WinGetHandle("[TITLE:Patientenliste; CLASS:Qt5QWindowIcon]"), $t = TimerInit()
+	Local $max = Int(Einst("SmartPix", "HaengtMax", "300000"))
+	While SmartPixHaengt($h)
+		If TimerDiff($t) > $max Then
+			SmartPixLog("Smart Pix antwortet nach " & Round(TimerDiff($t) / 1000) & " s noch immer nicht")
+			Return False
+		EndIf
+		Sleep(1000)
+	WEnd
+	If TimerDiff($t) > 1500 Then
+		SmartPixLog("Smart Pix antwortet wieder nach " & Round(TimerDiff($t) / 1000) & " s")
+		Sleep(2000)
+	EndIf
+	Return True
+EndFunc
+
+Func SmartPixHaengt($h)
+	Local $a = _WinAPI_GetForegroundWindow()
+	If _WinAPI_GetClassName($a) = "Ghost" Or StringInStr(_WinAPI_GetWindowText($a), "(Keine R") Then Return True
+	If Not $h Then Return False
+	Local $r = DllCall("user32.dll", "bool", "IsHungAppWindow", "hwnd", $h)
+	Return Not @error And $r[0]
 EndFunc
 
 ; True, wenn die Patientenliste von Smart Pix das aktive Fenster ist (fuer den Tastatur-Hook, daher ohne Warten)
