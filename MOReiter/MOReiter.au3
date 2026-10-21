@@ -2568,7 +2568,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $nr = $abNr + $abBasis, $nr0 = $nr, $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $k, $vorher = ""
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten, $n
 	Local $pla, $pfa, $varianten, $fx, $t, $idsV, $ids[0], $kurz
-	Local $gelesen = False, $listeEnde = False, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
+	Local $gelesen = False, $listeEnde = False, $neuLesen = False, $scheinEnde = -1, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
 	Local $t0 = TimerInit()
 	SmartPixLog("Zellen lesen ab Patient " & ($nr + 1))
 	While 1
@@ -2609,7 +2609,19 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			If SmartPixReiheText($r) = $vorig Then
 				$gleich += 1
 				If $gleich >= $grenze Then
-					$listeEnde = True
+					; bei demselben Patienten nur einmal anzweifeln (sonst ohne Ende, falls Strg+Ende/Pos1 woanders hinfuehren)
+					If $scheinEnde = $nr Or SmartPixEndeEcht($hListe, $vorig, $sp) Then
+						$listeEnde = True
+						ExitLoop
+					EndIf
+					; Pfeil runter ging nur nicht (Smart Pix klemmte): diesen Patienten wieder anspringen und neu lesen
+					If Not SmartPixZellenFinden($hListe, $p, $sp) Then
+						$ende = "abgebrochen, Liste blieb stehen, Patient " & ($nr + 1) & " nicht wiedergefunden"
+						ExitLoop 2
+					EndIf
+					SmartPixLog("weiter bei Patient " & ($nr + 1))
+					$scheinEnde = $nr
+					$neuLesen = True
 					ExitLoop
 				EndIf
 				ContinueLoop
@@ -2623,6 +2635,10 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 			$daten += SmartPixDatumDazu($r[4], $la, $fa)
 			$zeilen += 1
 		WEnd
+		If $neuLesen Then
+			$neuLesen = False
+			ContinueLoop
+		EndIf
 		If Not $gelesen And Not $listeEnde Then
 			$ende = _IsPressed("1B") ? "mit Esc abgebrochen" : "abgebrochen, Zelle nicht lesbar oder unerwartet (s. %APPDATA%\MOReiter\SmartPixListe.log, [SmartPixListe] Spalten=)"
 			ExitLoop
@@ -2965,6 +2981,33 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 		EndIf
 		SmartPixLog(StringTrimLeft($falsch, 2) & (($n < 3) ? ", Zeile noch einmal" : ""))
 	Next
+	Return False
+EndFunc
+
+; blieb Pfeil runter [SmartPixListe] GleichZeilen= mal in derselben Zeile, ist das nur das Ende der Liste, wenn auch
+; Strg+Ende (letzte Zeile) dort hinfuehrt; klemmte Smart Pix bzw. ist es weg, vorher abwarten bzw. neu starten
+Func SmartPixEndeEcht(ByRef $hListe, $vorig, ByRef $sp)
+	Local $t[5], $hNeu
+	SmartPixHaengtWarten()
+	Sleep(3000)
+	If Not WinExists("[TITLE:Patientenliste; CLASS:Qt5QWindowIcon]") Then
+		SmartPixLog("Ende der Liste? Patientenliste weg, Smart Pix neu starten")
+		$hNeu = SmartPixNeustart()
+		If Not $hNeu Then Return True
+		$hListe = $hNeu
+		Return False
+	EndIf
+	If Not SmartPixListeVorn() Then Return True
+	Send("^{END}")
+	Sleep(500)
+	Send("{HOME}")
+	Sleep(500)
+	If Not SmartPixReiheLesen($t, $sp) Then
+		SmartPixLog("Ende der Liste? letzte Zeile nicht lesbar")
+		Return False
+	EndIf
+	If SmartPixReiheText($t) = $vorig Then Return True
+	SmartPixLog("Ende der Liste nur scheinbar, die letzte Zeile ist eine andere")
 	Return False
 EndFunc
 
