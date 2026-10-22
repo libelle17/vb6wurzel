@@ -832,6 +832,12 @@ Func BriefKlick($was)
 	Local $x, $y
 	If Not BriefZiel($hWnd, $was, $x, $y) Then Return Meldung($was & " im Briefversand nicht gefunden (Strg+Alt+Umsch+D listet die Controls)")
 	ModifierAus()
+	; der Mausklick auf "Versenden/Drucken" kam nicht an (womoeglich wegen der noch gehaltenen Tasten): den Knopf
+	; direkt anklicken lassen; die Maus braucht es nur noch fuer die anderen Stellen
+	If $was = "Versenden" Then
+		If ControlClick($hWnd, "", TextControl($hWnd, "Versenden/Drucken")) Then Return True
+		Return Meldung("Versenden/Drucken im Briefversand nicht anzuklicken")
+	EndIf
 	Opt("MouseCoordMode", 1)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
