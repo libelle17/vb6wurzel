@@ -282,4 +282,5 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
                    Schreibweise, falls die automatische Suche danebenliegt
 
 
-Hinweis: AutoIt-Skript, Quelltext MOReiter.au3; kompilieren mit Kompilieren.bat (AutoIt3 nötig).
+Hinweis: AutoIt-Skript, Quelltext MOReiter.au3; kompilieren mit Kompilieren.bat (AutoIt3 nötig;
+beendet den laufenden MOReiter und startet den neuen); auf anderen PCs danach nur Einrichten.bat (beenden und neu starten).
