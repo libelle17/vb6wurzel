@@ -832,17 +832,31 @@ Func BriefKlick($was)
 	If StringLeft(_WinAPI_GetWindowText($hWnd), StringLen($BriefTitel)) <> $BriefTitel Then Return False
 	Local $x, $y
 	If Not BriefZiel($hWnd, $was, $x, $y) Then Return Meldung($was & " im Briefversand nicht gefunden (Strg+Alt+Umsch+D listet die Controls)")
+	BriefLog($was & " bei " & $x & "," & $y & ", gehalten: " & BriefTastenStand())
+	; Versenden: erst klicken, wenn Strg und Alt wirklich losgelassen sind (ueber Fernsteuerungen wie RemotePC
+	; kommt das von ModifierAus gemeldete Loslassen womoeglich nicht an, der Knopf nimmt Strg+Alt+Klick nicht an)
+	If $was = "Versenden" Then
+		Local $t = TimerInit()
+		While ($gGehaltenMod[0] Or $gGehaltenMod[1] Or $gGehaltenMod[2]) And TimerDiff($t) < 5000
+			Sleep(50)
+		WEnd
+		BriefLog("nach " & Round(TimerDiff($t)) & " ms: " & BriefTastenStand())
+	EndIf
 	ModifierAus()
 	Opt("MouseCoordMode", 1)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
-	; "Versenden/Drucken" reagiert oft erst auf den zweiten Klick (der erste nimmt wohl nur einem Eingabefeld den
-	; Fokus): steht der Briefversand nach einer Pause unveraendert vorn und ist bedienbar, noch einmal
+	; "Versenden/Drucken" reagiert womoeglich erst auf den zweiten Klick: steht der Briefversand nach einer Pause
+	; unveraendert vorn und ist bedienbar, noch einmal
 	If $was = "Versenden" Then
 		Sleep(Int(Einst("Briefversand", "ZweitKlick", "800")))
-		If _WinAPI_GetForegroundWindow() = $hWnd And BitAND(WinGetState($hWnd), 4) Then MouseClick("left", $x, $y, 1, 0)
+		If _WinAPI_GetForegroundWindow() = $hWnd And BitAND(WinGetState($hWnd), 4) Then
+			BriefLog("Versenden: zweiter Klick")
+			MouseClick("left", $x, $y, 1, 0)
+		EndIf
 	EndIf
 	MouseMove($alt[0], $alt[1], 0)
+	BriefLog("vorn danach: " & BriefFensterText(_WinAPI_GetForegroundWindow()))
 	; nach der Auswahl eines Anhangs (bzw. Esc) steht sonst die Zentrale vorn, nicht wieder der Briefversand
 	If $was = "Krankenblatt" Or $was = "Ordner" Then
 		$gBriefFenster = $hWnd
@@ -853,20 +867,47 @@ Func BriefKlick($was)
 	Return True
 EndFunc
 
-; wartet, bis die Anhang-Auswahl zu ist, und holt dann den Briefversand wieder nach vorn, falls die Zentrale den
-; Fokus bekam (Strg+Alt zeigte sonst die Kuerzel der Karteikarte, die Tasten gingen in die Zentrale)
+; wartet, bis die Anhang-Auswahl zu ist, und holt dann den Briefversand wieder nach vorn, falls ein anderes Fenster
+; von Medical Office (die Zentrale) bzw. keins den Fokus bekam (Strg+Alt zeigte sonst die Kuerzel der Karteikarte,
+; die Tasten gingen in die Zentrale); ein Wechsel in ein anderes Programm bleibt unberuehrt
 Func BriefZurueck()
 	Local $vorn = _WinAPI_GetForegroundWindow()
 	If Not WinExists($gBriefFenster) Or TimerDiff($gBriefZeit) > 600000 Then Return AdlibUnRegister("BriefZurueck")
 	If $vorn = $gBriefFenster Then
-		If $gBriefWeg Then AdlibUnRegister("BriefZurueck")
+		If $gBriefWeg Then
+			BriefLog("Briefversand wieder vorn")
+			AdlibUnRegister("BriefZurueck")
+		EndIf
 		Return
 	EndIf
+	If Not $gBriefWeg Then BriefLog("Auswahl vorn: " & BriefFensterText($vorn))
 	$gBriefWeg = True
-	If StringLeft(_WinAPI_GetWindowText($vorn), 25) = "Medical Office - Zentrale" Then
-		WinActivate($gBriefFenster)
+	; noch ein Fenster, das dem Briefversand gehoert (die Auswahl selbst): weiter warten
+	If $vorn And _WinAPI_GetAncestor($vorn, 3) = $gBriefFenster Then Return
+	If $vorn And _WinAPI_GetWindow($vorn, 4) = $gBriefFenster Then Return
+	If $vorn And WinGetProcess($vorn) <> WinGetProcess($gBriefFenster) Then Return
+	If BitAND(WinGetState($gBriefFenster), 4) = 0 Then Return
+	BriefLog("vorn statt Briefversand: " & BriefFensterText($vorn))
+	WinActivate($gBriefFenster)
+	If WinWaitActive($gBriefFenster, "", 2) Then
+		BriefLog("Briefversand nach vorn geholt")
 		AdlibUnRegister("BriefZurueck")
 	EndIf
+EndFunc
+
+Func BriefFensterText($h)
+	If Not $h Then Return "(keins)"
+	Return _WinAPI_GetClassName($h) & " """ & StringLeft(_WinAPI_GetWindowText($h), 40) & """"
+EndFunc
+
+Func BriefTastenStand()
+	Return "Strg " & ($gGehaltenMod[0] Or $gGehaltenMod[1]) & ", Alt " & $gGehaltenMod[2] & ", Strg async " & Gedrueckt(0x11) & ", Alt async " & Gedrueckt(0x12)
+EndFunc
+
+; Protokoll fuer die Briefversand-Tasten: %APPDATA%\MOReiter\Briefversand.log
+Func BriefLog($txt)
+	DirCreate(@AppDataDir & "\MOReiter")
+	FileWriteLine(@AppDataDir & "\MOReiter\Briefversand.log", @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC & "  " & $txt)
 EndFunc
 
 ; Schildchen fuer die Einblendung im Briefversand: Buchstabe der Taste an der Klickstelle
