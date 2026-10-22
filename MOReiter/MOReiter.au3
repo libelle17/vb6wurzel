@@ -186,6 +186,7 @@ Global $gEinblendung = 0, $gEinblendungWnd = 0, $gEinblendungKnoepfe = 0, $gHalt
 ; Tastatur-Hook: der Rueckruf merkt sich nur die Aufgabe, ausgefuehrt wird sie in der Hauptschleife,
 ; weil Windows einen Hook, der zu lange braucht, stillschweigend abhaengt
 Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
+Global $gBriefFenster = 0, $gBriefWeg = False, $gBriefZeit = 0
 ; Strg+Alt+Esc: MOReiter neu starten (NeustartPruefen), auch wenn es gerade in einer Aufgabe haengt
 Global $gNeustart = False, $gHookAdlib = TimerInit()
 ; offenes Hilfefenster (0 = keins)
@@ -842,7 +843,30 @@ Func BriefKlick($was)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
 	MouseMove($alt[0], $alt[1], 0)
+	; nach der Auswahl eines Anhangs (bzw. Esc) steht sonst die Zentrale vorn, nicht wieder der Briefversand
+	If $was = "Krankenblatt" Or $was = "Ordner" Then
+		$gBriefFenster = $hWnd
+		$gBriefWeg = False
+		$gBriefZeit = TimerInit()
+		AdlibRegister("BriefZurueck", 250)
+	EndIf
 	Return True
+EndFunc
+
+; wartet, bis die Anhang-Auswahl zu ist, und holt dann den Briefversand wieder nach vorn, falls die Zentrale den
+; Fokus bekam (Strg+Alt zeigte sonst die Kuerzel der Karteikarte, die Tasten gingen in die Zentrale)
+Func BriefZurueck()
+	Local $vorn = _WinAPI_GetForegroundWindow()
+	If Not WinExists($gBriefFenster) Or TimerDiff($gBriefZeit) > 600000 Then Return AdlibUnRegister("BriefZurueck")
+	If $vorn = $gBriefFenster Then
+		If $gBriefWeg Then AdlibUnRegister("BriefZurueck")
+		Return
+	EndIf
+	$gBriefWeg = True
+	If StringLeft(_WinAPI_GetWindowText($vorn), 25) = "Medical Office - Zentrale" Then
+		WinActivate($gBriefFenster)
+		AdlibUnRegister("BriefZurueck")
+	EndIf
 EndFunc
 
 ; Schildchen fuer die Einblendung im Briefversand: Buchstabe der Taste an der Klickstelle
