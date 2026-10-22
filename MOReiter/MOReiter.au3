@@ -833,15 +833,15 @@ Func BriefKlick($was)
 	Local $x, $y
 	If Not BriefZiel($hWnd, $was, $x, $y) Then Return Meldung($was & " im Briefversand nicht gefunden (Strg+Alt+Umsch+D listet die Controls)")
 	ModifierAus()
-	; der Mausklick auf "Versenden/Drucken" kam nicht an (womoeglich wegen der noch gehaltenen Tasten): den Knopf
-	; direkt anklicken lassen; die Maus braucht es nur noch fuer die anderen Stellen
-	If $was = "Versenden" Then
-		If ControlClick($hWnd, "", TextControl($hWnd, "Versenden/Drucken")) Then Return True
-		Return Meldung("Versenden/Drucken im Briefversand nicht anzuklicken")
-	EndIf
 	Opt("MouseCoordMode", 1)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
+	; "Versenden/Drucken" reagiert oft erst auf den zweiten Klick (der erste nimmt wohl nur einem Eingabefeld den
+	; Fokus): steht der Briefversand nach einer Pause unveraendert vorn und ist bedienbar, noch einmal
+	If $was = "Versenden" Then
+		Sleep(Int(Einst("Briefversand", "ZweitKlick", "800")))
+		If _WinAPI_GetForegroundWindow() = $hWnd And BitAND(WinGetState($hWnd), 4) Then MouseClick("left", $x, $y, 1, 0)
+	EndIf
 	MouseMove($alt[0], $alt[1], 0)
 	; nach der Auswahl eines Anhangs (bzw. Esc) steht sonst die Zentrale vorn, nicht wieder der Briefversand
 	If $was = "Krankenblatt" Or $was = "Ordner" Then
