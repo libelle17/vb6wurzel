@@ -351,14 +351,16 @@ Func TastenHook($nCode, $wParam, $lParam)
 			EndIf
 			; auch kuenstlich erzeugte Tasten (LLKHF_INJECTED) auswerten: RemotePC, TeamViewer u.ae.
 			; liefern alle Tasten so; MOReiter selbst sendet nie Strg+Alt+Taste
+			; automatische Wiederholung beim Festhalten schlucken, auch wenn die Taste im jetzt aktiven Fenster nichts
+			; mehr bedeutet (Strg+Alt+V im Briefversand: das Fenster schliesst sich, ModifierAus hat Strg/Alt schon
+			; losgelassen gemeldet, die Wiederholungen kaemen sonst als V bzw. Strg+V in der Karteikarte an); nur
+			; innerhalb 1 s, weil Fernsteuerungen das Loslassen manchmal verschlucken und die Taste sonst taub bliebe
+			If $vk = $gGehalten And TimerDiff($gGehaltenZeit) < 1000 Then
+				$gGehaltenZeit = TimerInit()
+				Return 1
+			EndIf
 			Local $aufgabe = HookAufgabe($vk)
 			If $aufgabe <> "" Then
-				; automatische Wiederholung beim Festhalten schlucken; nur innerhalb 1 s, weil
-				; Fernsteuerungen das Loslassen manchmal verschlucken und die Taste sonst taub bliebe
-				If $vk = $gGehalten And TimerDiff($gGehaltenZeit) < 1000 Then
-					$gGehaltenZeit = TimerInit()
-					Return 1
-				EndIf
 				$gGehalten = $vk
 				$gGehaltenZeit = TimerInit()
 				$gAufgabe = FolgeAufgabe($vk, $aufgabe)
