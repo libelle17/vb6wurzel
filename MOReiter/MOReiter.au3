@@ -2596,6 +2596,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $alt = ClipGet(), $r[5], $p[5], $f[5], $erledigt = False, $nochmal = False
 	; Anfang: oben (die Liste ist schon nach oben gestellt), beim markierten bzw. beim gemerkten Patienten
 	If $abMarkiert Then
+		SmartPixLog("beim markierten Patienten anfangen")
 		If Not SmartPixWeiter($hListe, $zurueck, False) Or Not SmartPixZurErstenZeile() Or Not SmartPixReiheLesen($r, $sp) Then
 			ClipPut($alt)
 			Return SmartPixFehler("Smart Pix-Liste: markierter Patient nicht gefunden")
@@ -3058,7 +3059,9 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 EndFunc
 
 ; blieb Pfeil runter [SmartPixListe] GleichZeilen= mal in derselben Zeile, ist das nur das Ende der Liste, wenn auch
-; Strg+Ende (letzte Zeile) dort hinfuehrt; klemmte Smart Pix bzw. ist es weg, vorher abwarten bzw. neu starten
+; Strg+Ende (letzte Zeile) dort hinfuehrt und es auch nach einem Neustart von Smart Pix dabei bleibt (False nach dem
+; Neustart, der Aufrufer liest den Patienten noch einmal); klemmte Smart Pix bzw. ist es weg, vorher abwarten bzw. neu
+; starten
 Func SmartPixEndeEcht(ByRef $hListe, $vorig, ByRef $sp)
 	Local $t[5], $hNeu
 	SmartPixHaengtWarten()
@@ -3079,8 +3082,16 @@ Func SmartPixEndeEcht(ByRef $hListe, $vorig, ByRef $sp)
 		SmartPixLog("Ende der Liste? letzte Zeile nicht lesbar")
 		Return False
 	EndIf
-	If SmartPixReiheText($t) = $vorig Then Return True
-	SmartPixLog("Ende der Liste nur scheinbar, die letzte Zeile ist eine andere")
+	If SmartPixReiheText($t) <> $vorig Then
+		SmartPixLog("Ende der Liste nur scheinbar, die letzte Zeile ist eine andere")
+		Return False
+	EndIf
+	; auch Strg+Ende kann zu frueh enden (die Liste womoeglich nach dem Speichern noch nicht ganz geladen): Smart
+	; Pix neu starten, der Aufrufer springt den Patienten wieder an und liest weiter; endet es dann wieder hier, gilt es
+	SmartPixLog("Ende der Liste? auch Strg+Ende endet hier, zur Sicherheit Smart Pix neu starten")
+	$hNeu = SmartPixNeustart()
+	If Not $hNeu Then Return True
+	$hListe = $hNeu
 	Return False
 EndFunc
 
@@ -3121,6 +3132,10 @@ EndFunc
 Func SmartPixZurErstenZeile()
 	Local $z, $tot = 0
 	Sleep(200)
+	; nach links in die erste Spalte (Nachname): ist die Liste seitlich gerollt, traf der Klick womoeglich eine
+	; andere Spalte, etwa die Patienten-ID, die oft leer ist
+	Send("{HOME}")
+	Sleep(200)
 	For $i = 1 To 500
 		$z = SmartPixZelle()
 		If @error Then
@@ -3133,11 +3148,15 @@ Func SmartPixZurErstenZeile()
 			EndIf
 		Else
 			$tot = 0
-			If $z <> "" Then Return True
+			If $z <> "" Then
+				If $i > 1 Then SmartPixLog("markierter Patient: " & ($i - 1) & " Zeilen hinauf zu seiner ersten")
+				Return True
+			EndIf
 		EndIf
 		Send("{UP}")
 		Sleep(30)
 	Next
+	SmartPixLog("markierter Patient: 500 Zeilen hinauf ohne Nachnamen")
 	Return False
 EndFunc
 
