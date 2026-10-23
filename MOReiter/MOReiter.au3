@@ -2596,8 +2596,14 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $alt = ClipGet(), $r[5], $p[5], $f[5], $erledigt = False, $nochmal = False
 	; Anfang: oben (die Liste ist schon nach oben gestellt), beim markierten bzw. beim gemerkten Patienten
 	If $abMarkiert Then
+		; erst ohne Klick (die Tabelle hat noch den Fokus und den Zellcursor vom Markieren), dann mit Klick in die Markierung
 		SmartPixLog("beim markierten Patienten anfangen")
-		If Not SmartPixWeiter($hListe, $zurueck, False) Or Not SmartPixZurErstenZeile() Or Not SmartPixReiheLesen($r, $sp) Then
+		Local $start = SmartPixListeVorn() And SmartPixZurErstenZeile()
+		If Not $start And SmartPixListeVorn() Then
+			SmartPixLog("markierter Patient: noch einmal mit Klick in die Markierung")
+			$start = SmartPixWeiter($hListe, $zurueck, False) And SmartPixZurErstenZeile()
+		EndIf
+		If Not $start Or Not SmartPixReiheLesen($r, $sp) Then
 			ClipPut($alt)
 			Return SmartPixFehler("Smart Pix-Liste: markierter Patient nicht gefunden")
 		EndIf
@@ -2990,7 +2996,8 @@ Func SmartPixZelle()
 			Sleep(10)
 			$s = ClipGet()
 			$e = @error
-			If $e < 3 And $s <> $merk Then Return StringStripWS($s, 3)
+			; @extended 1 = Zwischenablage leer, 2 = kein Text
+			If $e < 3 And $s <> $merk Then Return SetExtended($e, StringStripWS($s, 3))
 		Until TimerDiff($t) > $ms * $n
 	Next
 	; @extended: 0 = Merkzeichen blieb (Strg+C kam nicht an), 3/4 = Zwischenablage nicht lesbar
@@ -3129,9 +3136,9 @@ Func SmartPixDatumDazu($d, ByRef $la, ByRef $fa)
 	Return UBound($a)
 EndFunc
 
-; vom Klick in eine Zeile des markierten Patienten hinauf in seine erste (die mit dem Nachnamen)
+; von einer Zeile des markierten Patienten hinauf in seine erste (die mit dem Nachnamen)
 Func SmartPixZurErstenZeile()
-	Local $z, $tot = 0
+	Local $z, $tot = 0, $art = ""
 	Sleep(200)
 	; nach links in die erste Spalte (Nachname; Pos1 wirkt in Smart Pix nicht): stand der Zellcursor in einer
 	; anderen Spalte, etwa einer, die oft leer ist, liefe er sonst durch die ganze Liste hinauf
@@ -3148,6 +3155,7 @@ Func SmartPixZurErstenZeile()
 				Return False
 			EndIf
 		Else
+			If $i = 1 Then $art = (@extended = 2) ? "kein Text" : (@extended = 1) ? "Zwischenablage leer" : "leerer Text"
 			$tot = 0
 			If $z <> "" Then
 				If $i > 1 Then SmartPixLog("markierter Patient: " & ($i - 1) & " Zeilen hinauf zu seiner ersten")
@@ -3157,7 +3165,8 @@ Func SmartPixZurErstenZeile()
 		Send("{UP}")
 		Sleep(30)
 	Next
-	SmartPixLog("markierter Patient: 60 Zeilen hinauf ohne Nachnamen (Zellcursor nicht in der Spalte Nachname?)")
+	SmartPixLog("markierter Patient: 60 Zeilen hinauf ohne Nachnamen (Strg+C: " & $art & ", aktiv: " & _
+			StringLeft(WinGetTitle("[ACTIVE]"), 40) & ", Fokus: " & ControlGetFocus("[ACTIVE]") & ")")
 	Return False
 EndFunc
 
