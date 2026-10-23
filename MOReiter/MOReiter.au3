@@ -3074,9 +3074,10 @@ Func SmartPixEndeEcht(ByRef $hListe, $vorig, ByRef $sp)
 		Return False
 	EndIf
 	If Not SmartPixListeVorn() Then Return True
+	; Strg+Ende fuehrt in die letzte Spalte, Pos1 wirkt in Smart Pix nicht: nach links in die erste
 	Send("^{END}")
 	Sleep(500)
-	Send("{HOME}")
+	Send("{LEFT 30}")
 	Sleep(500)
 	If Not SmartPixReiheLesen($t, $sp) Then
 		SmartPixLog("Ende der Liste? letzte Zeile nicht lesbar")
@@ -3132,11 +3133,11 @@ EndFunc
 Func SmartPixZurErstenZeile()
 	Local $z, $tot = 0
 	Sleep(200)
-	; nach links in die erste Spalte (Nachname): ist die Liste seitlich gerollt, traf der Klick womoeglich eine
-	; andere Spalte, etwa die Patienten-ID, die oft leer ist
-	Send("{HOME}")
-	Sleep(200)
-	For $i = 1 To 500
+	; nach links in die erste Spalte (Nachname; Pos1 wirkt in Smart Pix nicht): stand der Zellcursor in einer
+	; anderen Spalte, etwa einer, die oft leer ist, liefe er sonst durch die ganze Liste hinauf
+	Send("{LEFT 30}")
+	Sleep(300)
+	For $i = 1 To 60
 		$z = SmartPixZelle()
 		If @error Then
 			; kopiert Strg+C gar nichts mehr, nicht durch die ganze Liste hinauf
@@ -3156,7 +3157,7 @@ Func SmartPixZurErstenZeile()
 		Send("{UP}")
 		Sleep(30)
 	Next
-	SmartPixLog("markierter Patient: 500 Zeilen hinauf ohne Nachnamen")
+	SmartPixLog("markierter Patient: 60 Zeilen hinauf ohne Nachnamen (Zellcursor nicht in der Spalte Nachname?)")
 	Return False
 EndFunc
 
