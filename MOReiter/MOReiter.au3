@@ -5400,6 +5400,25 @@ Func Abhaken()
 	Opt("MouseCoordMode", 1)
 	Local $mitte = MarkierteZeile($g)
 	If $mitte < 0 Then Return Meldung("Keine markierte Zeile sichtbar")
+	; MO baut die Liste nach "erledigt" neu auf und zeigt dann wieder die erste Seite: Bildlaufposition
+	; und Bild der nachrueckenden Zeile (der darunter, am Listenende der darueber) merken, um danach
+	; dorthin zurueckzublaettern und sie wiederzufinden
+	Local $nameX = $g[0] + Int(Einst("Tagesuebersicht", "NameX", $defNameX))
+	Local $pos = ScrollPos($hGrid), $folge = "", $fy = -1
+	If ZeileSichtbar($g, $mitte + $ZeilenHoehe) Then
+		If PixelGetColor($nameX, $mitte + $ZeilenHoehe) <> 0xFFFFFF Then
+			$fy = $mitte + $ZeilenHoehe
+		ElseIf ZeileSichtbar($g, $mitte - $ZeilenHoehe) Then
+			$fy = $mitte - $ZeilenHoehe
+		EndIf
+	EndIf
+	If $fy >= 0 Then $folge = ZeilenBild($g, $fy)
+	; Fehlersuche: [Tagesuebersicht] Bilder=1 speichert die Liste vor dem Abhaken, nach dem Neuaufbau,
+	; nach dem Zurueckblaettern und am Ende; protokolliert wird dann auch ohne [Aufrufe] Protokoll=1
+	Local $bilder = (Einst("Tagesuebersicht", "Bilder", "0") = "1"), $prot = $gAufrufProtokoll Or $bilder
+	If $prot Then Protokoll("Abhaken: vorher " & ScrollText($hGrid) & ", markierte Zeile y=" & $mitte - $g[1] & _
+			", nachrueckende gemerkt: " & ($fy < 0 ? "nein" : ($fy > $mitte ? "darunter" : "darueber")))
+	If $bilder Then ListeBild($g, 1)
 	Local $alt = MouseGetPos()
 	MouseClick("left", $g[0] + Int(Einst("Tagesuebersicht", "BereichX", $defBereichX)), $mitte, 1, 0)
 	; Kontextmenue (Offen / In Arbeit / erledigt) abwarten
@@ -5410,13 +5429,105 @@ Func Abhaken()
 	Send("e")
 	MenueWarten(False)
 	Sleep(Int(Einst("Tagesuebersicht", "Warten", $defAbhakenWarten)))
-	; nachrueckende Zeile markieren; war es die letzte Zeile, ist dort jetzt leere (weisse) Flaeche,
-	; dann die daruber
-	Local $nameX = $g[0] + Int(Einst("Tagesuebersicht", "NameX", $defNameX))
-	If PixelGetColor($nameX, $mitte) = 0xFFFFFF And $mitte - $ZeilenHoehe > $g[1] + $KopfHoehe Then $mitte -= $ZeilenHoehe
-	If PixelGetColor($nameX, $mitte) <> 0xFFFFFF Then MouseClick("left", $nameX, $mitte, 1, 0)
+	; zurueckblaettern, falls die Liste wieder oben steht
+	Local $neu = ScrollPos($hGrid)
+	If $prot Then Protokoll("Abhaken: nach Neuaufbau " & ScrollText($hGrid))
+	If $bilder Then ListeBild($g, 2)
+	If $neu < $pos Then
+		Local $schritte = ScrollAuf($hGrid, $pos)
+		Sleep(150)
+		If $prot Then Protokoll("Abhaken: zurueckgeblaettert " & ScrollText($hGrid) & ", Positionen: " & $schritte)
+		If $bilder Then ListeBild($g, 3)
+	EndIf
+	; nachrueckende Zeile an ihrem Bild suchen
+	Local $ziel = -1
+	If $folge <> "" Then
+		For $k = -30 To 30
+			Local $y = $mitte + $k * $ZeilenHoehe
+			If Not ZeileSichtbar($g, $y) Then ContinueLoop
+			If ZeilenBild($g, $y) = $folge Then
+				If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & $k & " Zeilen neben der abgehakten wiedergefunden")
+				$ziel = $y
+				ExitLoop
+			EndIf
+		Next
+	EndIf
+	If $ziel < 0 Then
+		If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & ($folge = "" ? "nicht gemerkt" : "nicht wiedergefunden") & _
+				", Klick an der alten Stelle")
+		; wie bisher: die Zeile an derselben Stelle; war es die letzte Zeile, ist dort jetzt leere
+		; (weisse) Flaeche, dann die daruber
+		If PixelGetColor($nameX, $mitte) = 0xFFFFFF And $mitte - $ZeilenHoehe > $g[1] + $KopfHoehe Then $mitte -= $ZeilenHoehe
+		If PixelGetColor($nameX, $mitte) <> 0xFFFFFF Then $ziel = $mitte
+	EndIf
+	If $ziel >= 0 Then MouseClick("left", $nameX, $ziel, 1, 0)
 	MouseMove($alt[0], $alt[1], 0)
+	If $bilder Then
+		Sleep(300)
+		ListeBild($g, 4)
+		If $prot Then Protokoll("Abhaken: am Ende " & ScrollText($hGrid) & ", Bilder in " & @AppDataDir & "\MOReiter\Abhaken1-4.png")
+	EndIf
 	Return True
+EndFunc
+
+; Bildlaufleiste der Liste fuer das Protokoll: "Pos x von min-max, Seite n"
+Func ScrollText($hGrid)
+	Local $si = DllStructCreate("uint cbSize;uint fMask;int nMin;int nMax;uint nPage;int nPos;int nTrackPos")
+	$si.cbSize = DllStructGetSize($si)
+	$si.fMask = 0x17 ; SIF_ALL
+	Local $r = DllCall("user32.dll", "bool", "GetScrollInfo", "hwnd", $hGrid, "int", 1, "struct*", $si)
+	If @error Or Not $r[0] Then Return "Bildlauf nicht lesbar"
+	Return "Bildlauf " & $si.nPos & " von " & $si.nMin & "-" & $si.nMax & ", Seite " & $si.nPage
+EndFunc
+
+; speichert die Liste als Abhaken<$nr>.png
+Func ListeBild($g, $nr)
+	DirCreate(@AppDataDir & "\MOReiter")
+	_ScreenCapture_Capture(@AppDataDir & "\MOReiter\Abhaken" & $nr & ".png", $g[0], $g[1], $g[0] + $g[2] - 1, $g[1] + $g[3] - 1, False)
+EndFunc
+
+; liegt die Zeile mit Mitte $y ganz im sichtbaren Teil der Liste $g?
+Func ZeileSichtbar($g, $y)
+	Return $y - Int($ZeilenHoehe / 2) >= $g[1] + $KopfHoehe And $y + Int($ZeilenHoehe / 2) <= $g[1] + $g[3] - 3
+EndFunc
+
+; Pruefsumme der Zeile mit Mitte $y ohne Randspalte, Rahmen und Bildlaufleiste
+Func ZeilenBild($g, $y)
+	Return PixelChecksum($g[0] + $RandSpalteX + 6, $y - 6, $g[0] + $g[2] - 22, $y + 6)
+EndFunc
+
+; senkrechte Bildlaufposition der Liste (Fensterbildlaufleiste)
+Func ScrollPos($hGrid)
+	Local $r = DllCall("user32.dll", "int", "GetScrollPos", "hwnd", $hGrid, "int", 1)
+	If @error Then Return 0
+	Return $r[0]
+EndFunc
+
+; blaettert die Liste auf die Bildlaufposition $pos: Leiste setzen und "Schieber losgelassen" melden;
+; reicht das nicht, zeilenweise weiter. Rueckgabe fuers Protokoll: Position nach dem Schieber, dann je
+; Zeilenschritt die Position, gleiche nacheinander zusammengefasst ("12 13x3 14" = 3 Schritte auf 13)
+Func ScrollAuf($hGrid, $pos)
+	DllCall("user32.dll", "int", "SetScrollPos", "hwnd", $hGrid, "int", 1, "int", $pos, "bool", True)
+	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", BitOR(4, BitShift($pos, -16)), "lparam", 0)
+	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 8, "lparam", 0)
+	Local $vorher = ScrollPos($hGrid), $gleich = 0, $txt = "Schieber " & $vorher & ", Zeilen:", $n = 0
+	For $i = 1 To 2000
+		If $vorher >= $pos Or $gleich >= 30 Then ExitLoop
+		DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 1, "lparam", 0)
+		Local $p = ScrollPos($hGrid)
+		If $p = $vorher And $n > 0 Then
+			$n += 1
+		Else
+			If $n > 1 Then $txt &= "x" & $n
+			$txt &= " " & $p
+			$n = 1
+		EndIf
+		$gleich = ($p = $vorher) ? $gleich + 1 : 0
+		$vorher = $p
+	Next
+	If $n > 1 Then $txt &= "x" & $n
+	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 8, "lparam", 0)
+	Return $txt
 EndFunc
 
 ; wartet bis zu 2 s, bis ein Kontextmenue sichtbar ($offen = True) bzw. keins mehr sichtbar ist;
