@@ -2605,6 +2605,9 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 		EndIf
 		If Not $start Or Not SmartPixReiheLesen($r, $sp) Then
 			ClipPut($alt)
+			; liefert Strg+C selbst in der ersten Zeile der Liste nichts, liegt es nicht an der Markierung
+			If Not $start And Not SmartPixKopiertProbe($hListe) Then Return SmartPixFehler("Smart Pix-Liste: Strg+C liefert in " & _
+					"der Patientenliste nur leere Zellen, Smart Pix neu starten (hilft das nicht: Windows neu starten)")
 			Return SmartPixFehler("Smart Pix-Liste: markierter Patient nicht gefunden")
 		EndIf
 		; womoeglich ueber das Suchfeld gefunden (die Liste zeigt dann nur die passenden): Suche leeren und ihn in der
@@ -2648,7 +2651,7 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 	Local $nr = $abNr + $abBasis, $nr0 = $nr, $fehlt = 0, $neu = 0, $fehler = 0, $ende = "Ende der Liste", $k, $vorher = ""
 	Local $imMO, $inQu, $vs, $vid, $geb, $id, $teile, $la, $fa, $ohneDatei = 0, $mehrdeutig = 0, $ein, $zeilen, $daten, $n
 	Local $pla, $pfa, $varianten, $fx, $t, $idsV, $ids[0], $kurz
-	Local $gelesen = False, $listeEnde = False, $neuLesen = False, $scheinEnde = -1, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0
+	Local $gelesen = False, $listeEnde = False, $neuLesen = False, $scheinEnde = -1, $gleich, $vorig, $warum, $folge = 0, $neugestartet = 0, $neustartFolge = 0, $leerRettung = 0
 	Local $t0 = TimerInit()
 	SmartPixLog("Zellen lesen ab Patient " & ($nr + 1))
 	While 1
@@ -2670,6 +2673,20 @@ Func SmartPixListeZellen($hListe, $zurueck, $eintragen, $sofort, $art, $stand, B
 		EndIf
 		$gelesen = False
 		If $r[0] = "" Then
+			; liefert Strg+C nur noch leere Zellen (Smart Pix bzw. Windows klemmt), Smart Pix neu starten, wieder hinter
+			; den letzten Patienten (bzw. oben) und weiter; hoechstens dreimal je Durchgang
+			If $leerRettung < 3 And ($nr > $nr0 Or $nr0 = 0) Then
+				$leerRettung += 1
+				$warum = SmartPixKopierenRetten($hListe)
+				If $warum = "" And ($nr = $nr0 Or SmartPixZellenFinden($hListe, $p, $sp)) Then
+					If $nr > $nr0 Then $erledigt = True
+					ContinueLoop
+				EndIf
+				If $warum <> "" Then
+					$ende = "abgebrochen, " & $warum
+					ExitLoop
+				EndIf
+			EndIf
 			$ende = "abgebrochen, Zeile ohne Nachnamen am Anfang eines Patienten (Zellcursor verloren?)"
 			ExitLoop
 		EndIf
@@ -3184,8 +3201,9 @@ Func SmartPixZellenFinden(ByRef $hListe, ByRef $ab, ByRef $sp)
 	For $v = 1 To 4
 		; kopiert Strg+C gar nichts mehr (Smart Pix beschaeftigt, Sanduhr), Smart Pix einmal neu starten
 		If $v = 4 Then
-			If $ze = 0 Or $zx <> 0 Then ExitLoop
-			SmartPixLog("suche: Strg+C ohne Wirkung, Smart Pix neu starten")
+			; Zwischenablage nicht lesbar: kein Neustart; ohne Wirkung bzw. leer (die erste Zeile hat immer einen Nachnamen)
+			If $ze <> 0 And $zx <> 0 Then ExitLoop
+			SmartPixLog("suche: Strg+C " & (($ze = 0) ? "liefert nur Leeres" : "ohne Wirkung") & ", Smart Pix neu starten")
 			$hNeu = SmartPixNeustart()
 			If Not $hNeu Then Return False
 			$hListe = $hNeu
@@ -3351,6 +3369,38 @@ Func SmartPixListeOben($hListe)
 	Send("^{HOME}")
 	Sleep(500)
 	Return True
+EndFunc
+
+; kopiert Strg+C ueberhaupt? Liste nach oben (Suche leeren), die erste Zeile hat immer einen Nachnamen
+Func SmartPixKopiertProbe($hListe)
+	If Not SmartPixListeOben($hListe) Then Return False
+	Send("{LEFT 30}")
+	Sleep(300)
+	Local $z = SmartPixZelle()
+	If @error Then
+		SmartPixLog("Probe: Strg+C ohne Ergebnis in der ersten Zeile")
+		Return False
+	EndIf
+	If $z = "" Then SmartPixLog("Probe: Strg+C liefert in der ersten Zeile " & ((@extended = 1) ? "eine leere Zwischenablage" : "leeren Text"))
+	Return $z <> ""
+EndFunc
+
+; Strg+C lieferte eine leere Zelle, wo ein Nachname stehen muss: kopiert es auch oben nichts, Smart Pix neu starten
+; und noch einmal pruefen; "" = kopiert (die Liste steht dann oben), sonst der Grund des Abbruchs
+Func SmartPixKopierenRetten(ByRef $hListe)
+	If SmartPixKopiertProbe($hListe) Then
+		SmartPixLog("Probe: Strg+C kopiert, weiter")
+		Return ""
+	EndIf
+	SmartPixLog("Strg+C liefert nur Leeres, Smart Pix neu starten")
+	Local $hNeu = SmartPixNeustart()
+	If Not $hNeu Then Return "Smart Pix laesst sich nicht neu starten"
+	$hListe = $hNeu
+	If SmartPixKopiertProbe($hListe) Then
+		SmartPixLog("nach dem Neustart kopiert Strg+C wieder")
+		Return ""
+	EndIf
+	Return "Strg+C liefert auch nach dem Neustart von Smart Pix nur leere Zellen, Windows neu starten"
 EndFunc
 
 ; Smart Pix beenden (nur das Programm selbst, nicht das Connection Framework) und mit der Patientenliste neu starten;
