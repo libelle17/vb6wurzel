@@ -209,6 +209,8 @@ Global $gMeldung = ""
 Global $gSpLog = "", $gSpNochmal = False, $gSpTabs = 0
 ; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
 Global $gSmartPixDateiDy = 0
+; warum OffeneToDos zuletzt False lieferte (fuer die Meldung)
+Global $gOffenGrund = ""
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
@@ -5391,7 +5393,7 @@ Func Abhaken()
 	If _WinAPI_GetClassName($hWnd) <> $TagesKlasse Then Return False
 	Local $hGrid = ControlGetHandle($hWnd, "", "[CLASS:TNewStringGrid; INSTANCE:1]")
 	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
-	If Not OffeneToDos($hWnd) Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich")
+	If Not OffeneToDos($hWnd) Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich (" & $gOffenGrund & ")")
 	; erst loslassen lassen, sonst kaemen Klick und "e" mit gedrueckter Strg+Alt an
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
 	Local $g = WinGetPos($hGrid)
@@ -5554,15 +5556,24 @@ Func MarkierteZeile($g)
 	Return $p[1] + Int($ZeilenHoehe / 2)
 EndFunc
 
-; der Knopf "Offene To-Dos" ist eingedrueckt hellblau hinterlegt
+; der Knopf "Offene To-Dos" ist eingedrueckt hellblau hinterlegt; sonst steht in $gOffenGrund, warum nicht
 Func OffeneToDos($hWnd)
 	Local $hKnopf = ControlGetHandle($hWnd, "", "[CLASS:TAdvGlowButton; TEXT:Offene To-Dos]")
-	If @error Then Return False
+	If @error Then
+		$gOffenGrund = "Knopf ""Offene To-Dos"" nicht gefunden"
+		Return False
+	EndIf
 	Local $p = WinGetPos($hKnopf)
-	If @error Then Return False
+	If @error Then
+		$gOffenGrund = "Knopf ""Offene To-Dos"" nicht sichtbar"
+		Return False
+	EndIf
 	Opt("PixelCoordMode", 1)
 	PixelSearch($p[0] + 3, $p[1] + 3, $p[0] + 5, $p[1] + 5, $OffenFarbe, 30)
-	Return Not @error
+	If Not @error Then Return True
+	$gOffenGrund = "Knopf bei " & $p[0] & "," & $p[1] & " hat Farbe 0x" & Hex(PixelGetColor($p[0] + 4, $p[1] + 4), 6) & _
+			" statt 0x" & Hex($OffenFarbe, 6)
+	Return False
 EndFunc
 
 ; wartet bis zu 3 s, bis Strg, Alt, AltGr und Umschalt losgelassen sind
