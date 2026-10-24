@@ -5446,10 +5446,17 @@ Func Abhaken()
 	If $prot Then Protokoll("Abhaken: vorher " & ScrollText($hGrid) & ", markierte Zeile y=" & $mitte - $g[1] & _
 			", nachrueckende gemerkt: " & ($fy < 0 ? "nein" : ($fy > $mitte ? "darunter" : "darueber")))
 	If $bilder Then ListeBild($g, 1)
-	Local $alt = MouseGetPos()
-	MouseClick("left", $g[0] + Int(Einst("Tagesuebersicht", "BereichX", $defBereichX)), $mitte, 1, 0)
-	; Kontextmenue (Offen / In Arbeit / erledigt) abwarten
-	If Not MenueWarten(True) Then
+	Local $alt = MouseGetPos(), $tAbhaken = TimerInit()
+	; Kontextmenue (Offen / In Arbeit / erledigt) abwarten; hatte die Liste den Fokus noch nicht, holt
+	; der erste Klick ihn nur, dann ein zweites Mal
+	Local $bx = $g[0] + Int(Einst("Tagesuebersicht", "BereichX", $defBereichX)), $menue = False
+	For $i = 1 To 2
+		MouseClick("left", $bx, $mitte, 1, 0)
+		$menue = MenueWarten(True, ($i = 1) ? 1000 : 2000)
+		If $menue Then ExitLoop
+		If $prot Then Protokoll("Abhaken: Menue nach dem " & $i & ". Klick auf Bereich nicht erschienen")
+	Next
+	If Not $menue Then
 		MouseMove($alt[0], $alt[1], 0)
 		Return Meldung("Menue Offen/In Arbeit/erledigt ist nicht erschienen")
 	EndIf
@@ -5479,6 +5486,8 @@ Func Abhaken()
 					Round(TimerDiff($tr)) & " ms wieder ruhig" : "nach 5 s noch unruhig") & ", suche erneut")
 			ContinueLoop
 		EndIf
+		; schon einmal markiert und danach nicht wiedergefunden: nicht blind klicken
+		If $ziel < 0 And $versuch > 1 Then ExitLoop
 		If $ziel < 0 Then
 			If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & ($folge = "" ? "nicht gemerkt" : "nicht wiedergefunden") & _
 					", Klick an der alten Stelle")
@@ -5490,12 +5499,14 @@ Func Abhaken()
 		EndIf
 		If $bilder And $seiten > 0 Then ListeBild($g, 3)
 		MouseClick("left", $nameX, $ziel, 1, 0)
-		; springt die Liste danach nochmal nach oben, von vorn suchen
+		; springt die Liste danach nochmal nach oben, von vorn suchen; beobachtet wird die oberste Zeile (bzw.
+		; die zweite, wenn die markierte oben steht), die markierte selbst zeichnet MO nach dem Klick noch um
+		Local $ref = ($ziel = $y0) ? $y0 + $ZeilenHoehe : $y0
 		Sleep(150)
-		Local $bild = ZeilenBild($g, $ziel), $t = TimerInit(), $gesprungen = False
+		Local $bild = ZeilenBild($g, $ref), $t = TimerInit(), $gesprungen = False
 		While TimerDiff($t) < $nachkontrolle
 			Sleep(100)
-			If ZeilenBild($g, $ziel) <> $bild Then
+			If ZeilenBild($g, $ref) <> $bild Then
 				$gesprungen = True
 				ExitLoop
 			EndIf
@@ -5506,6 +5517,7 @@ Func Abhaken()
 		ListeRuhig($g, $ruhe)
 	Next
 	MouseMove($alt[0], $alt[1], 0)
+	If $prot Then Protokoll("Abhaken: fertig nach " & Round(TimerDiff($tAbhaken)) & " ms")
 	If $bilder Then
 		Sleep(300)
 		ListeBild($g, 4)
@@ -5539,11 +5551,38 @@ EndFunc
 ; die Spalte "Wart" ([Tagesuebersicht] WartVon bis WartBis, vom linken Rand der Liste): die zaehlt minuetlich
 ; weiter, sonst waere die Zeile nach einem Minutenwechsel nicht wiederzuerkennen
 Func ZeilenBild($g, $y)
-	Local $x1 = $g[0] + $RandSpalteX + 6, $x2 = $g[0] + $g[2] - 40
+	If Not BildLesen($g[0], $y - 6, $g[0] + $g[2] - 1, $y + 6) Then Return ""
+	Local $sp = ZeilenSpalten($g), $r = ZeilenSumme($y, $sp)
+	$gBild = 0
+	Return $r
+EndFunc
+
+; Bildschirm-x der verglichenen Abschnitte einer Zeile: [0]..[1] und [2]..[3]; [2] = -1, wenn die Spalte
+; "Wart" nicht ausgelassen werden kann
+Func ZeilenSpalten($g)
+	Local $sp[4] = [$g[0] + $RandSpalteX + 6, $g[0] + $g[2] - 40, -1, -1]
 	Local $w1 = $g[0] + Int(Einst("Tagesuebersicht", "WartVon", $defWartVon))
 	Local $w2 = $g[0] + Int(Einst("Tagesuebersicht", "WartBis", $defWartBis))
-	If $w1 <= $x1 Or $w2 >= $x2 Or $w2 <= $w1 Then Return PixelChecksum($x1, $y - 6, $x2, $y + 6)
-	Return PixelChecksum($x1, $y - 6, $w1 - 1, $y + 6) & "|" & PixelChecksum($w2 + 1, $y - 6, $x2, $y + 6)
+	If $w1 <= $sp[0] Or $w2 >= $sp[1] Or $w2 <= $w1 Then Return $sp
+	$sp[2] = $w2 + 1
+	$sp[3] = $sp[1]
+	$sp[1] = $w1 - 1
+	Return $sp
+EndFunc
+
+; CRC32 der Zeile mit Mitte $y (13 Bildzeilen, Abschnitte $sp) aus dem eingelesenen Bild (BildLesen)
+Func ZeilenSumme($y, $sp)
+	Local $p = DllStructGetPtr($gBild), $crc = 0, $r
+	For $yy = $y - 6 To $y + 6
+		For $a = 0 To 2 Step 2
+			If $sp[$a] < 0 Then ContinueLoop
+			$r = DllCall("ntdll.dll", "dword", "RtlComputeCrc32", "dword", $crc, _
+					"ptr", $p + (($yy - $gBildY) * $gBildB + $sp[$a] - $gBildX) * 4, "int", ($sp[$a + 1] - $sp[$a] + 1) * 4)
+			If @error Then Return ""
+			$crc = $r[0]
+		Next
+	Next
+	Return Hex($crc, 8)
 EndFunc
 
 ; sucht die nachrueckende Zeile (Bild $folge) unter den sichtbaren; nicht zu sehen und steht die Liste wieder
@@ -5588,10 +5627,17 @@ EndFunc
 ; sichtbare Zeile im Raster von $mitte mit dem Bild $bild: Bildschirm-Y ihrer Mitte, $k = Abstand zu
 ; $mitte in Zeilen; -1 wenn keine
 Func ZeileFinden($g, $mitte, $bild, ByRef $k)
+	; die Liste einmal einlesen und die Zeilen im Speicher vergleichen
+	If $bild = "" Or Not BildLesen($g[0], $g[1], $g[0] + $g[2] - 1, $g[1] + $g[3] - 1) Then Return -1
+	Local $sp = ZeilenSpalten($g)
 	For $k = -60 To 60
 		Local $y = $mitte + $k * $ZeilenHoehe
-		If ZeileSichtbar($g, $y) And ZeilenBild($g, $y) = $bild Then Return $y
+		If ZeileSichtbar($g, $y) And ZeilenSumme($y, $sp) = $bild Then
+			$gBild = 0
+			Return $y
+		EndIf
 	Next
+	$gBild = 0
 	Return -1
 EndFunc
 
@@ -5617,11 +5663,11 @@ Func SeiteHinunter($g, $nameX, $y0, $zuerst)
 	Return False
 EndFunc
 
-; wartet bis zu 2 s, bis ein Kontextmenue sichtbar ($offen = True) bzw. keins mehr sichtbar ist;
+; wartet bis zu $ms ms, bis ein Kontextmenue sichtbar ($offen = True) bzw. keins mehr sichtbar ist;
 ; unsichtbare Menuefenster haelt Windows oft vorraetig, die zaehlen nicht
-Func MenueWarten($offen)
+Func MenueWarten($offen, $ms = 2000)
 	Local $t = TimerInit()
-	While TimerDiff($t) < 2000
+	While TimerDiff($t) < $ms
 		Local $sichtbar = False, $liste = WinList("[CLASS:#32768]")
 		For $i = 1 To $liste[0][0]
 			If BitAND(WinGetState($liste[$i][1]), 2) Then $sichtbar = True
