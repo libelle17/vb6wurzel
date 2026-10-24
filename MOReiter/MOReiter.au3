@@ -5466,8 +5466,17 @@ Func Abhaken()
 	For $versuch = 1 To 3
 		$ziel = Nachrueckende($g, $mitte, $folge, $nameX, $y0, $obenBild, $seiten, $prot)
 		If $ziel < 0 And $seiten > 0 Then
-			MouseMove($alt[0], $alt[1], 0)
-			Return Meldung("Abgehakt, die nachrueckende Zeile aber nicht wiedergefunden")
+			If $versuch = 3 Then
+				MouseMove($alt[0], $alt[1], 0)
+				Return Meldung("Abgehakt, die nachrueckende Zeile aber nicht wiedergefunden")
+			EndIf
+			; MO baut die Liste teils in zwei Schueben mit einer Pause dazwischen neu auf, der zweite kann
+			; das Blaettern zunichte machen: nochmal auf Ruhe warten und von vorn suchen
+			$tr = TimerInit()
+			$ruhig = ListeRuhig($g, $ruhe)
+			If $prot Then Protokoll("Abhaken: " & $versuch & ". Versuch erfolglos, Liste " & ($ruhig ? "nach " & _
+					Round(TimerDiff($tr)) & " ms wieder ruhig" : "nach 5 s noch unruhig") & ", suche erneut")
+			ContinueLoop
 		EndIf
 		If $ziel < 0 Then
 			If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & ($folge = "" ? "nicht gemerkt" : "nicht wiedergefunden") & _
