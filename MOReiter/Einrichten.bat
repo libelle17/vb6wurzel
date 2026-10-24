@@ -1,6 +1,8 @@
 @echo off
-rem Richtet den MOReiter dieses Ordners auf diesem PC ein: beendet den laufenden MOReiter (Tray) und startet die
-rem exe aus diesem Ordner neu, z.B. nachdem sie auf einem anderen PC kompiliert wurde.
+rem Richtet den MOReiter dieses Ordners auf diesem PC ein: beendet den laufenden MOReiter (Tray), kopiert
+rem MOReiter.exe und MOReiter-Vorgaben.ini, wenn sie hier neuer sind, nach %APPDATA%\MOReiter (wie NVerb beim
+rem Anmelden) und startet MOReiter von dort neu, z.B. nachdem die exe auf einem anderen PC kompiliert wurde.
+rem Eigene Einstellungen dieses PCs gehoeren in %APPDATA%\MOReiter\MOReiter.ini, die Vorgaben dort werden ersetzt.
 rem   Einrichten.bat           beenden und neu starten
 rem   Einrichten.bat beenden   nur beenden (Kompilieren.bat, die exe laesst sich nicht ueberschreiben, solange sie laeuft)
 rem   Einrichten.bat starten   nur starten
@@ -20,4 +22,8 @@ timeout /t 1 /nobreak >nul
 :beendet
 if /i "%~1"=="beenden" goto :eof
 :starten
-if exist MOReiter.exe start "" "%~dp0MOReiter.exe"
+if not exist MOReiter.exe goto :eof
+if not exist "%APPDATA%\MOReiter" md "%APPDATA%\MOReiter"
+xcopy /d /y /q MOReiter.exe "%APPDATA%\MOReiter\" >nul
+if exist MOReiter-Vorgaben.ini xcopy /d /y /q MOReiter-Vorgaben.ini "%APPDATA%\MOReiter\" >nul
+start "" /d "%APPDATA%\MOReiter" "%APPDATA%\MOReiter\MOReiter.exe"

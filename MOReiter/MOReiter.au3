@@ -128,7 +128,8 @@ Const $defFilterWarten = 400 ; ms nach dem Reiterwechsel, bis die Filterliste st
 ; Tagesuebersicht (gemessen 28.9.26, Pixel relativ zur Liste): Spalten "Bereich" und "Name",
 ; farbige Randspalte links, Kopfzeile, Zeilenhoehe, Farbe des eingedrueckten Knopfs "Offene To-Dos"
 Const $TagesKlasse = "TfrmTagesUebersicht"
-Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500, $defPfeilX = 26, $defPfeilY = 18
+Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500, $defPfeilX = 26, $defPfeilY = 18, _
+		$defAbhakenRuhe = 700, $defAbhakenNachkontrolle = 2000
 Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7ABEE7
 ; Bereichsauswahl links (gemessen 30.9.26): der gewaehlte Eintrag hat 2 Pixel eingerueckt einen gelben
 ; Rahmen (8F8F1E, innen E2E178); die blaue Hervorhebung unter der Maus kann auf jedem Eintrag liegen und
@@ -1354,7 +1355,7 @@ Func AufrufeLaden()
 		Next
 	Next
 	$gAufrufProtokoll = (Einst("Aufrufe", "Protokoll", "0") = "1")
-	If $gAufrufProtokoll Then Protokoll("MOReiter gestartet, " & $n & " Aufrufe eingerichtet")
+	If $gAufrufProtokoll Then Protokoll("MOReiter gestartet (" & @ScriptFullPath & ", Stand " & Stand() & "), " & $n & " Aufrufe eingerichtet")
 EndFunc
 
 Func Protokoll($txt)
@@ -5402,20 +5403,28 @@ Func Abhaken()
 	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
 	; erst loslassen lassen, sonst kaemen Klick und "e" mit gedrueckter Strg+Alt an
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
-	Local $fehler = SymbolleisteAuf($hWnd, $hGrid)
+	; bei eingeklappter Symbolleiste nur kurz zum Nachsehen aufklappen: aufgeklappt waere die Liste kuerzer
+	; und anders gerollt
+	Local $aufgeklappt = False
+	Local $fehler = Symbolleiste($hWnd, $hGrid, True, $aufgeklappt)
 	If $fehler <> "" Then Return Meldung($fehler)
-	If Not OffeneToDos($hWnd) Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich (" & $gOffenGrund & ")")
+	Local $offen = OffeneToDos($hWnd)
+	If $aufgeklappt Then
+		$fehler = Symbolleiste($hWnd, $hGrid, False, $aufgeklappt)
+		If $fehler <> "" Then Return Meldung($fehler)
+	EndIf
+	If Not $offen Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich (" & $gOffenGrund & ")")
 	Local $g = WinGetPos($hGrid)
 	If @error Then Return False
 	Opt("PixelCoordMode", 1)
 	Opt("MouseCoordMode", 1)
 	Local $mitte = MarkierteZeile($g)
 	If $mitte < 0 Then Return Meldung("Keine markierte Zeile sichtbar")
-	; MO baut die Liste nach "erledigt" neu auf und zeigt dann wieder die erste Seite: Bildlaufposition
-	; und Bild der nachrueckenden Zeile (der darunter, am Listenende der darueber) merken, um danach
-	; dorthin zurueckzublaettern und sie wiederzufinden
+	; MO baut die Liste nach "erledigt" neu auf und zeigt dann wieder die erste Seite: Bild der
+	; nachrueckenden Zeile (der darunter, am Listenende der darueber) merken, um danach dorthin
+	; zurueckzublaettern und sie wiederzufinden
 	Local $nameX = $g[0] + Int(Einst("Tagesuebersicht", "NameX", $defNameX))
-	Local $pos = ScrollPos($hGrid), $folge = "", $fy = -1
+	Local $folge = "", $fy = -1
 	If ZeileSichtbar($g, $mitte + $ZeilenHoehe) Then
 		If PixelGetColor($nameX, $mitte + $ZeilenHoehe) <> 0xFFFFFF Then
 			$fy = $mitte + $ZeilenHoehe
@@ -5446,46 +5455,46 @@ Func Abhaken()
 	Send("e")
 	MenueWarten(False)
 	Sleep(Int(Einst("Tagesuebersicht", "Warten", $defAbhakenWarten)))
-	; zurueckblaettern, falls die Liste wieder oben steht
-	Local $neu = ScrollPos($hGrid)
-	If $prot Then Protokoll("Abhaken: nach Neuaufbau " & ScrollText($hGrid))
+	; MO baut die Liste nach "erledigt" teils mehrmals neu auf und steht danach jedesmal wieder oben:
+	; erst warten, bis sie ruhig ist
+	Local $ruhe = Int(Einst("Tagesuebersicht", "Ruhe", $defAbhakenRuhe))
+	Local $nachkontrolle = Int(Einst("Tagesuebersicht", "Nachkontrolle", $defAbhakenNachkontrolle))
+	Local $tr = TimerInit(), $ruhig = ListeRuhig($g, $ruhe)
+	If $prot Then Protokoll("Abhaken: nach Neuaufbau " & ($ruhig ? "nach " & Round(TimerDiff($tr)) & " ms ruhig" : "nach 5 s noch unruhig"))
 	If $bilder Then ListeBild($g, 2)
-	If $neu < $pos Then
-		Local $schritte = ScrollAuf($hGrid, $pos)
+	Local $ziel = -1, $seiten = 0
+	For $versuch = 1 To 3
+		$ziel = Nachrueckende($g, $mitte, $folge, $nameX, $y0, $obenBild, $seiten, $prot)
+		If $ziel < 0 And $seiten > 0 Then
+			MouseMove($alt[0], $alt[1], 0)
+			Return Meldung("Abgehakt, die nachrueckende Zeile aber nicht wiedergefunden")
+		EndIf
+		If $ziel < 0 Then
+			If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & ($folge = "" ? "nicht gemerkt" : "nicht wiedergefunden") & _
+					", Klick an der alten Stelle")
+			; wie bisher: die Zeile an derselben Stelle; war es die letzte Zeile, ist dort jetzt leere
+			; (weisse) Flaeche, dann die daruber
+			If PixelGetColor($nameX, $mitte) = 0xFFFFFF And $mitte - $ZeilenHoehe > $g[1] + $KopfHoehe Then $mitte -= $ZeilenHoehe
+			If PixelGetColor($nameX, $mitte) <> 0xFFFFFF Then MouseClick("left", $nameX, $mitte, 1, 0)
+			ExitLoop
+		EndIf
+		If $bilder And $seiten > 0 Then ListeBild($g, 3)
+		MouseClick("left", $nameX, $ziel, 1, 0)
+		; springt die Liste danach nochmal nach oben, von vorn suchen
 		Sleep(150)
-		If $prot Then Protokoll("Abhaken: zurueckgeblaettert " & ScrollText($hGrid) & ", Positionen: " & $schritte)
-		If $bilder Then ListeBild($g, 3)
-	EndIf
-	; nachrueckende Zeile an ihrem Bild suchen; nicht zu sehen, dann seitenweise hinunterblaettern, bis
-	; sie auftaucht oder sich die Liste nicht mehr bewegt (die Bildlaufleiste der Liste ist nicht immer lesbar)
-	Local $ziel = -1, $seiten = 0, $k
-	If $folge <> "" Then
-		While True
-			$ziel = ZeileFinden($g, $mitte, $folge, $k)
-			If $ziel >= 0 Then
-				If $prot Then Protokoll("Abhaken: nachrueckende Zeile nach " & $seiten & " Seiten hinunter " & $k & _
-						" Zeilen neben der Stelle der abgehakten wiedergefunden")
+		Local $bild = ZeilenBild($g, $ziel), $t = TimerInit(), $gesprungen = False
+		While TimerDiff($t) < $nachkontrolle
+			Sleep(100)
+			If ZeilenBild($g, $ziel) <> $bild Then
+				$gesprungen = True
 				ExitLoop
 			EndIf
-			If $seiten >= 100 Or ZeilenBild($g, $y0) = $obenBild Or Not SeiteHinunter($hGrid, $g) Then ExitLoop
-			$seiten += 1
 		WEnd
-		If $ziel < 0 And $prot Then Protokoll("Abhaken: nach " & $seiten & " Seiten hinunter nicht gefunden, " & ScrollText($hGrid))
-		If $bilder And $seiten > 0 Then ListeBild($g, 3)
-	EndIf
-	If $ziel < 0 And $seiten > 0 Then
-		MouseMove($alt[0], $alt[1], 0)
-		Return Meldung("Abgehakt, die nachrueckende Zeile aber nicht wiedergefunden")
-	EndIf
-	If $ziel < 0 Then
-		If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & ($folge = "" ? "nicht gemerkt" : "nicht wiedergefunden") & _
-				", Klick an der alten Stelle")
-		; wie bisher: die Zeile an derselben Stelle; war es die letzte Zeile, ist dort jetzt leere
-		; (weisse) Flaeche, dann die daruber
-		If PixelGetColor($nameX, $mitte) = 0xFFFFFF And $mitte - $ZeilenHoehe > $g[1] + $KopfHoehe Then $mitte -= $ZeilenHoehe
-		If PixelGetColor($nameX, $mitte) <> 0xFFFFFF Then $ziel = $mitte
-	EndIf
-	If $ziel >= 0 Then MouseClick("left", $nameX, $ziel, 1, 0)
+		If Not $gesprungen Then ExitLoop
+		If $prot Then Protokoll("Abhaken: Liste " & Round(TimerDiff($t)) & " ms nach dem Markieren nochmal neu aufgebaut (" & _
+				$versuch & ". Versuch)")
+		ListeRuhig($g, $ruhe)
+	Next
 	MouseMove($alt[0], $alt[1], 0)
 	If $bilder Then
 		Sleep(300)
@@ -5521,6 +5530,45 @@ Func ZeilenBild($g, $y)
 	Return PixelChecksum($g[0] + $RandSpalteX + 6, $y - 6, $g[0] + $g[2] - 40, $y + 6)
 EndFunc
 
+; sucht die nachrueckende Zeile (Bild $folge) unter den sichtbaren; nicht zu sehen und steht die Liste wieder
+; oben (oberste Zeile $y0 hat nicht mehr das Bild $obenBild), dann seitenweise hinunterblaettern, bis sie
+; auftaucht oder sich die Liste nicht mehr bewegt. Rueckgabe Bildschirm-Y ihrer Mitte oder -1,
+; $seiten = Zahl der geblaetterten Seiten
+Func Nachrueckende($g, $mitte, $folge, $nameX, $y0, $obenBild, ByRef $seiten, $prot)
+	Local $ziel = -1, $k
+	$seiten = 0
+	If $folge = "" Then Return -1
+	While True
+		$ziel = ZeileFinden($g, $mitte, $folge, $k)
+		If $ziel >= 0 Then
+			If $prot Then Protokoll("Abhaken: nachrueckende Zeile nach " & $seiten & " Seiten hinunter " & $k & _
+					" Zeilen neben der Stelle der abgehakten wiedergefunden")
+			Return $ziel
+		EndIf
+		If $seiten >= 100 Or ZeilenBild($g, $y0) = $obenBild Or Not SeiteHinunter($g, $nameX, $y0, $seiten = 0) Then ExitLoop
+		$seiten += 1
+	WEnd
+	If $prot Then Protokoll("Abhaken: nach " & $seiten & " Seiten hinunter nicht gefunden")
+	Return -1
+EndFunc
+
+; wartet, bis sich die Liste $ruhig ms lang nicht mehr veraendert hat, hoechstens 5 s; False, wenn nicht
+Func ListeRuhig($g, $ruhig = 700)
+	Local $x2 = $g[0] + $g[2] - 40, $y1 = $g[1] + $KopfHoehe, $y2 = $g[1] + $g[3] - 4
+	Local $bild = PixelChecksum($g[0] + $RandSpalteX + 6, $y1, $x2, $y2), $t = TimerInit(), $ruhe = TimerInit()
+	While TimerDiff($t) < 5000
+		Sleep(50)
+		Local $neu = PixelChecksum($g[0] + $RandSpalteX + 6, $y1, $x2, $y2)
+		If $neu <> $bild Then
+			$bild = $neu
+			$ruhe = TimerInit()
+		ElseIf TimerDiff($ruhe) >= $ruhig Then
+			Return True
+		EndIf
+	WEnd
+	Return False
+EndFunc
+
 ; sichtbare Zeile im Raster von $mitte mit dem Bild $bild: Bildschirm-Y ihrer Mitte, $k = Abstand zu
 ; $mitte in Zeilen; -1 wenn keine
 Func ZeileFinden($g, $mitte, $bild, ByRef $k)
@@ -5531,12 +5579,17 @@ Func ZeileFinden($g, $mitte, $bild, ByRef $k)
 	Return -1
 EndFunc
 
-; blaettert die Liste eine Seite hinunter; False, wenn sich dabei nichts mehr bewegt (Listenende)
-Func SeiteHinunter($hGrid, $g)
+; blaettert die Liste mit "Bild runter" eine Seite hinunter; False, wenn sich dabei nichts mehr bewegt
+; (Listenende). Ihre eigene Bildlaufleiste nimmt WM_VSCROLL nicht an, und die Tasten wirken erst mit dem
+; Tastaturfokus in der Liste: beim ersten Mal ($zuerst) daher die oberste sichtbare Zeile (Mitte $y0) anklicken
+Func SeiteHinunter($g, $nameX, $y0, $zuerst)
 	Local $x2 = $g[0] + $g[2] - 40, $y1 = $g[1] + $KopfHoehe, $y2 = $g[1] + $g[3] - 4
+	If $zuerst Then
+		MouseClick("left", $nameX, $y0, 1, 0)
+		Sleep(150)
+	EndIf
 	Local $vorher = PixelChecksum($g[0] + $RandSpalteX + 6, $y1, $x2, $y2)
-	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 3, "lparam", 0) ; SB_PAGEDOWN
-	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 8, "lparam", 0) ; SB_ENDSCROLL
+	Send("{PGDN}")
 	Local $t = TimerInit()
 	While TimerDiff($t) < 1000
 		Sleep(50)
@@ -5546,40 +5599,6 @@ Func SeiteHinunter($hGrid, $g)
 		EndIf
 	WEnd
 	Return False
-EndFunc
-
-; senkrechte Bildlaufposition der Liste (Fensterbildlaufleiste)
-Func ScrollPos($hGrid)
-	Local $r = DllCall("user32.dll", "int", "GetScrollPos", "hwnd", $hGrid, "int", 1)
-	If @error Then Return 0
-	Return $r[0]
-EndFunc
-
-; blaettert die Liste auf die Bildlaufposition $pos: Leiste setzen und "Schieber losgelassen" melden;
-; reicht das nicht, zeilenweise weiter. Rueckgabe fuers Protokoll: Position nach dem Schieber, dann je
-; Zeilenschritt die Position, gleiche nacheinander zusammengefasst ("12 13x3 14" = 3 Schritte auf 13)
-Func ScrollAuf($hGrid, $pos)
-	DllCall("user32.dll", "int", "SetScrollPos", "hwnd", $hGrid, "int", 1, "int", $pos, "bool", True)
-	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", BitOR(4, BitShift($pos, -16)), "lparam", 0)
-	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 8, "lparam", 0)
-	Local $vorher = ScrollPos($hGrid), $gleich = 0, $txt = "Schieber " & $vorher & ", Zeilen:", $n = 0
-	For $i = 1 To 2000
-		If $vorher >= $pos Or $gleich >= 30 Then ExitLoop
-		DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 1, "lparam", 0)
-		Local $p = ScrollPos($hGrid)
-		If $p = $vorher And $n > 0 Then
-			$n += 1
-		Else
-			If $n > 1 Then $txt &= "x" & $n
-			$txt &= " " & $p
-			$n = 1
-		EndIf
-		$gleich = ($p = $vorher) ? $gleich + 1 : 0
-		$vorher = $p
-	Next
-	If $n > 1 Then $txt &= "x" & $n
-	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 8, "lparam", 0)
-	Return $txt
 EndFunc
 
 ; wartet bis zu 2 s, bis ein Kontextmenue sichtbar ($offen = True) bzw. keins mehr sichtbar ist;
@@ -5633,15 +5652,18 @@ Func OffeneToDos($hWnd)
 	Return False
 EndFunc
 
-; Tagesuebersicht: ist die Symbolleiste eingeklappt (Knopf "Offene To-Dos" nicht zu sehen), den Pfeil rechts
-; ueber der Liste anklicken (mit der echten Maus) und warten, bis der Knopf erscheint. Der Pfeil liegt
-; [Tagesuebersicht] PfeilX (vom rechten Rand der Liste) und PfeilY (ueber ihrer Oberkante) entfernt und
-; muss dort als dunkles Zeichen auf hellem Grund zu sehen sein. Rueckgabe "" oder der Grund des Fehlschlags
-Func SymbolleisteAuf($hWnd, $hGrid)
+; Tagesuebersicht: Symbolleiste auf- ($auf = True) bzw. zuklappen, wenn noetig, mit einem Klick (echte Maus)
+; auf den Pfeil rechts ueber der Liste, und warten, bis der Knopf "Offene To-Dos" erscheint bzw. verschwindet
+; und die Liste an ihrem neuen Platz ruhig ist. Der Pfeil liegt [Tagesuebersicht] PfeilX (vom rechten Rand
+; der Liste) und PfeilY (ueber ihrer Oberkante) entfernt und muss dort als dunkles Zeichen auf hellem Grund
+; zu sehen sein. $geklickt = ob geklickt wurde; Rueckgabe "" oder der Grund des Fehlschlags
+Func Symbolleiste($hWnd, $hGrid, $auf, ByRef $geklickt)
+	$geklickt = False
+	Local $was = $auf ? "aufklappen" : "wieder einklappen"
 	Local $hKnopf = ControlGetHandle($hWnd, "", "[CLASS:TAdvGlowButton; TEXT:Offene To-Dos]")
 	If @error Then Return ""
 	Local $p = WinGetPos($hKnopf)
-	If @error Or KnopfZuSehen($hKnopf, $p) Then Return ""
+	If @error Or KnopfZuSehen($hKnopf, $p) = $auf Then Return ""
 	Local $g = WinGetPos($hGrid)
 	If @error Then Return "Liste der Tagesuebersicht nicht sichtbar"
 	Local $x = $g[0] + $g[2] - Int(Einst("Tagesuebersicht", "PfeilX", $defPfeilX))
@@ -5649,21 +5671,24 @@ Func SymbolleisteAuf($hWnd, $hGrid)
 	Opt("PixelCoordMode", 1)
 	Opt("MouseCoordMode", 1)
 	PixelSearch($x - 6, $y - 6, $x + 6, $y + 6, 0x000000, 0x60)
-	If @error Then Return "Symbolleiste eingeklappt, Pfeil zum Aufklappen bei " & $x & "," & $y & " nicht gefunden"
+	If @error Then Return "Symbolleiste " & $was & ": Pfeil bei " & $x & "," & $y & " nicht gefunden"
 	Local $alt = MouseGetPos()
 	MouseClick("left", $x, $y, 1, 0)
 	MouseMove($alt[0], $alt[1], 0)
+	$geklickt = True
 	Local $t = TimerInit()
 	While TimerDiff($t) < 2000
 		Sleep(50)
 		$p = WinGetPos($hKnopf)
-		If Not @error And KnopfZuSehen($hKnopf, $p) Then
+		If Not @error And KnopfZuSehen($hKnopf, $p) = $auf Then
 			; bis die Liste an ihrem neuen Platz gezeichnet ist
-			Sleep(200)
+			Sleep(100)
+			$g = WinGetPos($hGrid)
+			If Not @error Then ListeRuhig($g, 300)
 			Return ""
 		EndIf
 	WEnd
-	Return "Symbolleiste eingeklappt, Klick auf den Pfeil bei " & $x & "," & $y & " hat sie nicht aufgeklappt"
+	Return "Symbolleiste " & $was & ": Klick auf den Pfeil bei " & $x & "," & $y & " hat nicht gewirkt"
 EndFunc
 
 ; liegt an der Stelle $p (WinGetPos) des Knopfs wirklich der Knopf oben? Nicht bei eingeklappter Symbolleiste
