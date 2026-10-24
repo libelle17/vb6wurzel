@@ -128,7 +128,7 @@ Const $defFilterWarten = 400 ; ms nach dem Reiterwechsel, bis die Filterliste st
 ; Tagesuebersicht (gemessen 28.9.26, Pixel relativ zur Liste): Spalten "Bereich" und "Name",
 ; farbige Randspalte links, Kopfzeile, Zeilenhoehe, Farbe des eingedrueckten Knopfs "Offene To-Dos"
 Const $TagesKlasse = "TfrmTagesUebersicht"
-Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500
+Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500, $defPfeilX = 26, $defPfeilY = 18
 Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7ABEE7
 ; Bereichsauswahl links (gemessen 30.9.26): der gewaehlte Eintrag hat 2 Pixel eingerueckt einen gelben
 ; Rahmen (8F8F1E, innen E2E178); die blaue Hervorhebung unter der Maus kann auf jedem Eintrag liegen und
@@ -207,10 +207,16 @@ Global $gSmartPixWarnung = ""
 Global $gMeldung = ""
 ; Ablaufprotokoll der Smart Pix-Liste (Pfad, waehrend des Durchgangs; "" = keins)
 Global $gSpLog = "", $gSpNochmal = False, $gSpTabs = 0
+; Geburtsdatum in der Smart Pix-Liste: Tag, Monat, Jahr (2- oder 4-stellig), getrennt durch Punkte (auch doppelt),
+; Komma, Schraegstrich oder Bindestrich
+Global Const $gSpGebMuster = "^(\d{1,2})\s*[.,/-]+\s*(\d{1,2})\s*[.,/-]+\s*(\d\d|\d{4})$"
 ; Verschiebung (y) der Klickstelle [SmartPix] Dateiname=, mit der das Feld zuletzt lesbar war (s. SmartPixDialog)
 Global $gSmartPixDateiDy = 0
 ; warum OffeneToDos zuletzt False lieferte (fuer die Meldung)
 Global $gOffenGrund = ""
+; ob "Offene To-Dos" beim letzten Blick auf den Knopf gewaehlt war (-1 = noch nie gesehen); gilt, solange
+; die Symbolleiste eingeklappt ist
+Global $gOffenZuletzt = -1
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
@@ -2958,7 +2964,7 @@ EndFunc
 ; ein zweistelliges Jahr wird 19.. und/oder 20.. (nicht in der Zukunft, hoechstens [SmartPixListe] HoechstAlter=
 ; Jahre alt, Vorgabe 125); Unlesbares bleibt wie es ist
 Func SmartPixGebVarianten($g)
-	Local $m = StringRegExp($g, "^(\d{1,2})\.(\d{1,2})\.(\d\d|\d{4})$", 1), $erg[1] = [$g]
+	Local $m = StringRegExp($g, $gSpGebMuster, 1), $erg[1] = [$g]
 	If @error Then Return $erg
 	Local $tm = StringRight("0" & $m[0], 2) & "." & StringRight("0" & $m[1], 2) & "."
 	If StringLen($m[2]) = 4 Then
@@ -3066,8 +3072,9 @@ Func SmartPixReiheLesen(ByRef $r, ByRef $sp)
 		Next
 		If $c > 0 Then Send("{LEFT " & $c & "}")
 		$r[4] = SmartPixHeute($r[4])
-		; Geburtsdatum auch mit zweistelligem Jahr oder einstelligem Tag/Monat (so eingegeben)
-		If $r[2] <> "" And Not StringRegExp($r[2], "^\d{1,2}\.\d{1,2}\.(\d\d|\d{4})$") Then $falsch &= ", Geburtsdatum unerwartet: " & _
+		; Geburtsdatum auch mit zweistelligem Jahr oder einstelligem Tag/Monat, mit doppeltem oder anderem Trennzeichen
+		; (so eingegeben, z.B. "1..2.1960"; SmartPixGebVarianten liest es als Datum)
+		If $r[2] <> "" And Not StringRegExp($r[2], $gSpGebMuster) Then $falsch &= ", Geburtsdatum unerwartet: " & _
 				SmartPixMaske($r[2]) & " (Spalte " & $sp[2] & ")"
 		If $r[4] <> "" And Not StringRegExp($r[4], "\d\d\.\d\d\.\d{4}") Then $falsch &= ", Letztes Auslesen unerwartet: " & _
 				SmartPixMaske($r[4]) & " (Spalte " & $sp[4] & ")"
@@ -5393,9 +5400,11 @@ Func Abhaken()
 	If _WinAPI_GetClassName($hWnd) <> $TagesKlasse Then Return False
 	Local $hGrid = ControlGetHandle($hWnd, "", "[CLASS:TNewStringGrid; INSTANCE:1]")
 	If @error Then Return Meldung("Liste der Tagesuebersicht nicht gefunden")
-	If Not OffeneToDos($hWnd) Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich (" & $gOffenGrund & ")")
 	; erst loslassen lassen, sonst kaemen Klick und "e" mit gedrueckter Strg+Alt an
 	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Local $fehler = SymbolleisteAuf($hWnd, $hGrid)
+	If $fehler <> "" Then Return Meldung($fehler)
+	If Not OffeneToDos($hWnd) Then Return Meldung("Nur bei ""Offene To-Dos"" moeglich (" & $gOffenGrund & ")")
 	Local $g = WinGetPos($hGrid)
 	If @error Then Return False
 	Opt("PixelCoordMode", 1)
@@ -5415,6 +5424,12 @@ Func Abhaken()
 		EndIf
 	EndIf
 	If $fy >= 0 Then $folge = ZeilenBild($g, $fy)
+	; oberste sichtbare Zeile: hat sie sich nach dem Neuaufbau geaendert, steht die Liste wieder oben
+	Local $y0 = $mitte
+	While ZeileSichtbar($g, $y0 - $ZeilenHoehe)
+		$y0 -= $ZeilenHoehe
+	WEnd
+	Local $obenBild = ZeilenBild($g, $y0)
 	; Fehlersuche: [Tagesuebersicht] Bilder=1 speichert die Liste vor dem Abhaken, nach dem Neuaufbau,
 	; nach dem Zurueckblaettern und am Ende; protokolliert wird dann auch ohne [Aufrufe] Protokoll=1
 	Local $bilder = (Einst("Tagesuebersicht", "Bilder", "0") = "1"), $prot = $gAufrufProtokoll Or $bilder
@@ -5441,18 +5456,26 @@ Func Abhaken()
 		If $prot Then Protokoll("Abhaken: zurueckgeblaettert " & ScrollText($hGrid) & ", Positionen: " & $schritte)
 		If $bilder Then ListeBild($g, 3)
 	EndIf
-	; nachrueckende Zeile an ihrem Bild suchen
-	Local $ziel = -1
+	; nachrueckende Zeile an ihrem Bild suchen; nicht zu sehen, dann seitenweise hinunterblaettern, bis
+	; sie auftaucht oder sich die Liste nicht mehr bewegt (die Bildlaufleiste der Liste ist nicht immer lesbar)
+	Local $ziel = -1, $seiten = 0, $k
 	If $folge <> "" Then
-		For $k = -30 To 30
-			Local $y = $mitte + $k * $ZeilenHoehe
-			If Not ZeileSichtbar($g, $y) Then ContinueLoop
-			If ZeilenBild($g, $y) = $folge Then
-				If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & $k & " Zeilen neben der abgehakten wiedergefunden")
-				$ziel = $y
+		While True
+			$ziel = ZeileFinden($g, $mitte, $folge, $k)
+			If $ziel >= 0 Then
+				If $prot Then Protokoll("Abhaken: nachrueckende Zeile nach " & $seiten & " Seiten hinunter " & $k & _
+						" Zeilen neben der Stelle der abgehakten wiedergefunden")
 				ExitLoop
 			EndIf
-		Next
+			If $seiten >= 100 Or ZeilenBild($g, $y0) = $obenBild Or Not SeiteHinunter($hGrid, $g) Then ExitLoop
+			$seiten += 1
+		WEnd
+		If $ziel < 0 And $prot Then Protokoll("Abhaken: nach " & $seiten & " Seiten hinunter nicht gefunden, " & ScrollText($hGrid))
+		If $bilder And $seiten > 0 Then ListeBild($g, 3)
+	EndIf
+	If $ziel < 0 And $seiten > 0 Then
+		MouseMove($alt[0], $alt[1], 0)
+		Return Meldung("Abgehakt, die nachrueckende Zeile aber nicht wiedergefunden")
 	EndIf
 	If $ziel < 0 Then
 		If $prot Then Protokoll("Abhaken: nachrueckende Zeile " & ($folge = "" ? "nicht gemerkt" : "nicht wiedergefunden") & _
@@ -5493,9 +5516,36 @@ Func ZeileSichtbar($g, $y)
 	Return $y - Int($ZeilenHoehe / 2) >= $g[1] + $KopfHoehe And $y + Int($ZeilenHoehe / 2) <= $g[1] + $g[3] - 3
 EndFunc
 
-; Pruefsumme der Zeile mit Mitte $y ohne Randspalte, Rahmen und Bildlaufleiste
+; Pruefsumme der Zeile mit Mitte $y ohne Randspalte, Rahmen der Markierung und Bildlaufleiste
 Func ZeilenBild($g, $y)
-	Return PixelChecksum($g[0] + $RandSpalteX + 6, $y - 6, $g[0] + $g[2] - 22, $y + 6)
+	Return PixelChecksum($g[0] + $RandSpalteX + 6, $y - 6, $g[0] + $g[2] - 40, $y + 6)
+EndFunc
+
+; sichtbare Zeile im Raster von $mitte mit dem Bild $bild: Bildschirm-Y ihrer Mitte, $k = Abstand zu
+; $mitte in Zeilen; -1 wenn keine
+Func ZeileFinden($g, $mitte, $bild, ByRef $k)
+	For $k = -60 To 60
+		Local $y = $mitte + $k * $ZeilenHoehe
+		If ZeileSichtbar($g, $y) And ZeilenBild($g, $y) = $bild Then Return $y
+	Next
+	Return -1
+EndFunc
+
+; blaettert die Liste eine Seite hinunter; False, wenn sich dabei nichts mehr bewegt (Listenende)
+Func SeiteHinunter($hGrid, $g)
+	Local $x2 = $g[0] + $g[2] - 40, $y1 = $g[1] + $KopfHoehe, $y2 = $g[1] + $g[3] - 4
+	Local $vorher = PixelChecksum($g[0] + $RandSpalteX + 6, $y1, $x2, $y2)
+	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 3, "lparam", 0) ; SB_PAGEDOWN
+	DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hGrid, "uint", 0x115, "wparam", 8, "lparam", 0) ; SB_ENDSCROLL
+	Local $t = TimerInit()
+	While TimerDiff($t) < 1000
+		Sleep(50)
+		If PixelChecksum($g[0] + $RandSpalteX + 6, $y1, $x2, $y2) <> $vorher Then
+			Sleep(100)
+			Return True
+		EndIf
+	WEnd
+	Return False
 EndFunc
 
 ; senkrechte Bildlaufposition der Liste (Fensterbildlaufleiste)
@@ -5556,7 +5606,8 @@ Func MarkierteZeile($g)
 	Return $p[1] + Int($ZeilenHoehe / 2)
 EndFunc
 
-; der Knopf "Offene To-Dos" ist eingedrueckt hellblau hinterlegt; sonst steht in $gOffenGrund, warum nicht
+; der Knopf "Offene To-Dos" ist eingedrueckt hellblau hinterlegt; sonst steht in $gOffenGrund, warum nicht.
+; Bei eingeklappter Symbolleiste ist der Knopf nicht zu sehen, dann gilt, was zuletzt zu sehen war
 Func OffeneToDos($hWnd)
 	Local $hKnopf = ControlGetHandle($hWnd, "", "[CLASS:TAdvGlowButton; TEXT:Offene To-Dos]")
 	If @error Then
@@ -5568,12 +5619,63 @@ Func OffeneToDos($hWnd)
 		$gOffenGrund = "Knopf ""Offene To-Dos"" nicht sichtbar"
 		Return False
 	EndIf
+	If Not KnopfZuSehen($hKnopf, $p) Then
+		If $gOffenZuletzt <> 0 Then Return True
+		$gOffenGrund = "Symbolleiste eingeklappt, zuletzt war ""Offene To-Dos"" nicht gewaehlt"
+		Return False
+	EndIf
 	Opt("PixelCoordMode", 1)
 	PixelSearch($p[0] + 3, $p[1] + 3, $p[0] + 5, $p[1] + 5, $OffenFarbe, 30)
-	If Not @error Then Return True
+	$gOffenZuletzt = @error ? 0 : 1
+	If $gOffenZuletzt Then Return True
 	$gOffenGrund = "Knopf bei " & $p[0] & "," & $p[1] & " hat Farbe 0x" & Hex(PixelGetColor($p[0] + 4, $p[1] + 4), 6) & _
 			" statt 0x" & Hex($OffenFarbe, 6)
 	Return False
+EndFunc
+
+; Tagesuebersicht: ist die Symbolleiste eingeklappt (Knopf "Offene To-Dos" nicht zu sehen), den Pfeil rechts
+; ueber der Liste anklicken (mit der echten Maus) und warten, bis der Knopf erscheint. Der Pfeil liegt
+; [Tagesuebersicht] PfeilX (vom rechten Rand der Liste) und PfeilY (ueber ihrer Oberkante) entfernt und
+; muss dort als dunkles Zeichen auf hellem Grund zu sehen sein. Rueckgabe "" oder der Grund des Fehlschlags
+Func SymbolleisteAuf($hWnd, $hGrid)
+	Local $hKnopf = ControlGetHandle($hWnd, "", "[CLASS:TAdvGlowButton; TEXT:Offene To-Dos]")
+	If @error Then Return ""
+	Local $p = WinGetPos($hKnopf)
+	If @error Or KnopfZuSehen($hKnopf, $p) Then Return ""
+	Local $g = WinGetPos($hGrid)
+	If @error Then Return "Liste der Tagesuebersicht nicht sichtbar"
+	Local $x = $g[0] + $g[2] - Int(Einst("Tagesuebersicht", "PfeilX", $defPfeilX))
+	Local $y = $g[1] - Int(Einst("Tagesuebersicht", "PfeilY", $defPfeilY))
+	Opt("PixelCoordMode", 1)
+	Opt("MouseCoordMode", 1)
+	PixelSearch($x - 6, $y - 6, $x + 6, $y + 6, 0x000000, 0x60)
+	If @error Then Return "Symbolleiste eingeklappt, Pfeil zum Aufklappen bei " & $x & "," & $y & " nicht gefunden"
+	Local $alt = MouseGetPos()
+	MouseClick("left", $x, $y, 1, 0)
+	MouseMove($alt[0], $alt[1], 0)
+	Local $t = TimerInit()
+	While TimerDiff($t) < 2000
+		Sleep(50)
+		$p = WinGetPos($hKnopf)
+		If Not @error And KnopfZuSehen($hKnopf, $p) Then
+			; bis die Liste an ihrem neuen Platz gezeichnet ist
+			Sleep(200)
+			Return ""
+		EndIf
+	WEnd
+	Return "Symbolleiste eingeklappt, Klick auf den Pfeil bei " & $x & "," & $y & " hat sie nicht aufgeklappt"
+EndFunc
+
+; liegt an der Stelle $p (WinGetPos) des Knopfs wirklich der Knopf oben? Nicht bei eingeklappter Symbolleiste
+Func KnopfZuSehen($hKnopf, $p)
+	If Not _WinAPI_IsWindowVisible($hKnopf) Or $p[2] < 8 Or $p[3] < 8 Then Return False
+	Local $pt = DllStructCreate("int X;int Y")
+	$pt.X = $p[0] + 4
+	$pt.Y = $p[1] + 4
+	Local $h = _WinAPI_WindowFromPoint($pt)
+	If $h = $hKnopf Then Return True
+	Local $r = DllCall("user32.dll", "bool", "IsChild", "hwnd", $hKnopf, "hwnd", $h)
+	Return Not @error And $r[0]
 EndFunc
 
 ; wartet bis zu 3 s, bis Strg, Alt, AltGr und Umschalt losgelassen sind
