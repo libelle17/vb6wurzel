@@ -129,7 +129,8 @@ Const $defFilterWarten = 400 ; ms nach dem Reiterwechsel, bis die Filterliste st
 ; farbige Randspalte links, Kopfzeile, Zeilenhoehe, Farbe des eingedrueckten Knopfs "Offene To-Dos"
 Const $TagesKlasse = "TfrmTagesUebersicht"
 Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500, $defPfeilX = 26, $defPfeilY = 18, _
-		$defAbhakenRuhe = 700, $defAbhakenNachkontrolle = 500
+		$defAbhakenRuhe = 700, $defAbhakenNachkontrolle = 500, _
+		$defWartVon = 380, $defWartBis = 485
 Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7ABEE7
 ; Bereichsauswahl links (gemessen 30.9.26): der gewaehlte Eintrag hat 2 Pixel eingerueckt einen gelben
 ; Rahmen (8F8F1E, innen E2E178); die blaue Hervorhebung unter der Maus kann auf jedem Eintrag liegen und
@@ -5534,9 +5535,15 @@ Func ZeileSichtbar($g, $y)
 	Return $y - Int($ZeilenHoehe / 2) >= $g[1] + $KopfHoehe And $y + Int($ZeilenHoehe / 2) <= $g[1] + $g[3] - 3
 EndFunc
 
-; Pruefsumme der Zeile mit Mitte $y ohne Randspalte, Rahmen der Markierung und Bildlaufleiste
+; Pruefsummen der Zeile mit Mitte $y ohne Randspalte, Rahmen der Markierung und Bildlaufleiste, auch ohne
+; die Spalte "Wart" ([Tagesuebersicht] WartVon bis WartBis, vom linken Rand der Liste): die zaehlt minuetlich
+; weiter, sonst waere die Zeile nach einem Minutenwechsel nicht wiederzuerkennen
 Func ZeilenBild($g, $y)
-	Return PixelChecksum($g[0] + $RandSpalteX + 6, $y - 6, $g[0] + $g[2] - 40, $y + 6)
+	Local $x1 = $g[0] + $RandSpalteX + 6, $x2 = $g[0] + $g[2] - 40
+	Local $w1 = $g[0] + Int(Einst("Tagesuebersicht", "WartVon", $defWartVon))
+	Local $w2 = $g[0] + Int(Einst("Tagesuebersicht", "WartBis", $defWartBis))
+	If $w1 <= $x1 Or $w2 >= $x2 Or $w2 <= $w1 Then Return PixelChecksum($x1, $y - 6, $x2, $y + 6)
+	Return PixelChecksum($x1, $y - 6, $w1 - 1, $y + 6) & "|" & PixelChecksum($w2 + 1, $y - 6, $x2, $y + 6)
 EndFunc
 
 ; sucht die nachrueckende Zeile (Bild $folge) unter den sichtbaren; nicht zu sehen und steht die Liste wieder
