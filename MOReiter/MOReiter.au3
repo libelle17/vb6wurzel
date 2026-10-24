@@ -128,8 +128,8 @@ Const $defFilterWarten = 400 ; ms nach dem Reiterwechsel, bis die Filterliste st
 ; Tagesuebersicht (gemessen 28.9.26, Pixel relativ zur Liste): Spalten "Bereich" und "Name",
 ; farbige Randspalte links, Kopfzeile, Zeilenhoehe, Farbe des eingedrueckten Knopfs "Offene To-Dos"
 Const $TagesKlasse = "TfrmTagesUebersicht"
-Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 500, $defPfeilX = 26, $defPfeilY = 18, _
-		$defAbhakenRuhe = 700, $defAbhakenNachkontrolle = 500, _
+Const $defBereichX = 470, $defNameX = 150, $defAbhakenWarten = 300, $defPfeilX = 26, $defPfeilY = 18, _
+		$defAbhakenRuhe = 500, $defAbhakenNachkontrolle = 500, _
 		$defWartVon = 380, $defWartBis = 485
 Const $RandSpalteX = 10, $KopfHoehe = 22, $ZeilenHoehe = 20, $OffenFarbe = 0x7ABEE7
 ; Bereichsauswahl links (gemessen 30.9.26): der gewaehlte Eintrag hat 2 Pixel eingerueckt einen gelben
