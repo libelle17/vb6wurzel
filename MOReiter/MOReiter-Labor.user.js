@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MOReiter Labor
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.1
+// @version      1.2
 // @description  Onlinebefunde Labor Staber: Patient nach Name und Geburtsdatum suchen und den ersten Befund zeigen (Auftrag von MOReiter, Strg+Alt+B)
 // @match        https://onlinebefunde.labor-staber.de/*
 // @grant        none
@@ -88,7 +88,9 @@
     return '';
   }
 
-  function gehe(z) { location.href = '/onlinebefunde/' + z; }
+  // erst nach einer halben Sekunde weiter: MOReiter liest den Titel nur alle 50 ms, und die Zielseite ersetzt
+  // ihn; sah es "fertig" nie, wartete es sonst bis zur Zeitueberschreitung und nahm so lange keine Taste an
+  function gehe(z) { setTimeout(function () { location.href = '/onlinebefunde/' + z; }, 500); }
 
   // Suchliste normal anzeigen (POST wie das Suchformular)
   function liste() {

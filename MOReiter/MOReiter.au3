@@ -4278,6 +4278,13 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 		If $z = "enter" Then $warte = 6000
 		If $z = "passwort" Then $warte = 3000
 		Local $neu = FFZustand($hFF, $nr, $z, $warte)
+		; andere Taste gedrueckt: nicht weiter warten (das Benutzerskript arbeitet im Firefox von selbst weiter),
+		; ein noch kommendes PDF aber ablegen
+		If @error Then
+			If $code Or $selbst Then ToolTip("")
+			If $gemeldet Then AblageMerken($s, $nach, $vor, $geb, $zeitraum)
+			Return True
+		EndIf
 		; "fertig|TT.MM.JJJJ-TT.MM.JJJJ": Zeitraum des Berichts fuer den Dateinamen (Name= {von}, {bis})
 		Local $strich = StringInStr($neu, "|")
 		If $strich Then
@@ -5026,10 +5033,11 @@ Func FFTitel($h)
 EndFunc
 
 ; wartet bis zu $ms auf den Titel "MOR:Nr:Zustand" mit einem anderen Zustand als $ausser, liefert ihn
-; oder "" bei Zeitablauf
+; oder "" bei Zeitablauf; @error = 1: inzwischen kam eine andere Taste (die soll nicht warten muessen)
 Func FFZustand($h, $nr, $ausser, $ms)
 	Local $t = TimerInit(), $vor = "MOR:" & $nr & ":"
 	While TimerDiff($t) < $ms
+		If $gAufgabe <> "" Then Return SetError(1, 0, "")
 		Local $tt = FFTitel($h)
 		If StringLeft($tt, StringLen($vor)) = $vor Then
 			Local $z = StringTrimLeft($tt, StringLen($vor))
