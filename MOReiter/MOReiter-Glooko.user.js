@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         MOReiter Glooko
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.7
+// @version      1.8
 // @description  Glooko (Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht erstellen und herunterladen (Auftrag von MOReiter, Strg+G)
 // @match        https://*.glooko.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Glooko.user.js
-// @downloadURL  https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Glooko.user.js
+// @updateURL    https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-Glooko.user.js
+// @downloadURL  https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-Glooko.user.js
 // @run-at       document-start
 // ==/UserScript==
 

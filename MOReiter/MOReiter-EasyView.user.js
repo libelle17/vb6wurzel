@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         MOReiter EasyView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.1
+// @version      1.2
 // @description  Medtrum EasyView Pro (Praxis): Patient nach Name (und Alter) suchen, Dashboard ueber Tage drucken (Auftrag von MOReiter, Strg+E)
 // @match        https://easyview.medtrum.eu/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-EasyView.user.js
-// @downloadURL  https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-EasyView.user.js
+// @updateURL    https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-EasyView.user.js
+// @downloadURL  https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-EasyView.user.js
 // @run-at       document-start
 // ==/UserScript==
 

@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         MOReiter YourLoops
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.0
+// @version      1.1
 // @description  YourLoops (Diabeloop, Praxis): Patient nach Name und Geburtsdatum suchen, PDF-Bericht herunterladen (Auftrag von MOReiter, Strg+Y)
 // @match        https://www.your-loops.com/*
 // @match        https://auth.diabeloop.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-YourLoops.user.js
-// @downloadURL  https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-YourLoops.user.js
+// @updateURL    https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-YourLoops.user.js
+// @downloadURL  https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-YourLoops.user.js
 // @run-at       document-start
 // ==/UserScript==
 

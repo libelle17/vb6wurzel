@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         MOReiter Dexcom
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.5
+// @version      1.6
 // @description  Dexcom Clarity (Praxis): Patient nach Name und Geburtsdatum suchen, dann Bericht speichern oder interaktive Berichte (Auftrag von MOReiter, Strg+D)
 // @match        https://clarity.dexcom.eu/*
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Dexcom.user.js
-// @downloadURL  https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Dexcom.user.js
+// @updateURL    https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-Dexcom.user.js
+// @downloadURL  https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-Dexcom.user.js
 // @run-at       document-start
 // ==/UserScript==
 

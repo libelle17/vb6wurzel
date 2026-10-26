@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         MOReiter LibreView
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.15
+// @version      1.16
 // @description  LibreView: Patient nach Name und Geburtsdatum suchen und seine Glukose-Berichte zeigen (Auftrag von MOReiter, Strg+L)
 // @match        https://www.libreview.com/*
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-LibreView.user.js
-// @downloadURL  https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-LibreView.user.js
+// @updateURL    https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-LibreView.user.js
+// @downloadURL  https://raw.githubusercontent.com/libelle17/MOReiter/main/MOReiter-LibreView.user.js
 // @run-at       document-start
 // ==/UserScript==
 

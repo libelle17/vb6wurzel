@@ -1,2 +1,7 @@
 # kompilierte Programme nicht versionieren; NVerb verteilt sie aus dem Netzordner
 *.exe
+
+# MOReiter ist seit 26.10.2026 ein eigenes Repo (libelle17/MOReiter); hier bleiben nur die Benutzerskripte,
+# bis alle Tampermonkey-Installationen einmal von der alten Adresse auf die neue umgestiegen sind
+MOReiter/*
+!MOReiter/*.user.js
