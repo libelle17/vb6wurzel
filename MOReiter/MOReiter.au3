@@ -193,7 +193,7 @@ Global $gLaeuft = "", $gLaeuftZeit = 0, $gBesetzt = ""
 ; ausgewertete Taste mit ihrer Aufgabe, letztes Einhaengen, ob Strg+Alt+Esc ueber den Hook oder den Hotkey kam
 Global $gHookZeit = TimerInit(), $gHookLetzte = "", $gErneuertZeit = TimerInit(), $gErneuertOk = True, $gNeustartWeg = ""
 ; offenes Hilfefenster (0 = keins), sein Textfeld, das Suchfeld, die unsichtbaren Controls fuer Strg+A, Strg+F und
-; F3/Enter (weitersuchen) und die Stelle des letzten Treffers
+; F3/Enter (weitersuchen) und die Stelle des letzten Treffers (0 = von vorn)
 Global $gHilfe = 0, $gHilfeText = 0, $gHilfeAlles = 0, $gHilfeSuch = 0, $gHilfeSuchen = 0, $gHilfeWeiter = 0, $gHilfePos = 0
 ; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
 Global $gAufrufe[0][4]
@@ -5404,12 +5404,12 @@ Func Hilfe()
 	GUISetBkColor(0xFFFFFF, $gHilfe)
 	; Spalte in der Mitte, so breit wie der Text (ca. 110 Zeichen Consolas 11), hoechstens der Bildschirm
 	Local $sb = ($b > 1100) ? 1100 : $b - 20, $x = Int(($b - $sb) / 2)
-	; Suchzeile oben: Strg+F setzt den Cursor hinein, Enter, F3 oder nochmals Strg+F suchen weiter
+	; Suchzeile oben: Strg+F setzt den Cursor hinein und faengt wieder oben an, Enter bzw. F3 suchen weiter
 	GUICtrlCreateLabel("Suchen:", $x, 13, 60, 20)
 	GUICtrlSetFont(-1, 11, 400, 0, "Consolas")
 	$gHilfeSuch = GUICtrlCreateInput("", $x + 70, 10, 300, 24)
 	GUICtrlSetFont(-1, 11, 400, 0, "Consolas")
-	GUICtrlCreateLabel("Strg+F, dann Enter, F3 oder Strg+F: weitersuchen   Strg+A: alles markieren   Esc: schlie" & ChrW(223) & "en", _
+	GUICtrlCreateLabel("Strg+F: Suchwort (von vorn), Enter oder F3: weiter   Strg+A: alles markieren   Esc: schlie" & ChrW(223) & "en", _
 			$x + 385, 13, $sb - 385, 20)
 	GUICtrlSetFont(-1, 9, 400, 0, "Consolas")
 	; ES_NOHIDESEL: der Treffer bleibt markiert, auch wenn der Cursor im Suchfeld steht
@@ -5442,11 +5442,8 @@ Func HilfePruefen()
 		Case $gHilfeAlles
 			GUICtrlSendMsg($imSuchfeld ? $gHilfeSuch : $gHilfeText, $EM_SETSEL, 0, -1)
 		Case $gHilfeSuchen
-			; erstes Strg+F: in das Suchfeld, steht der Cursor schon dort: weitersuchen
-			If $imSuchfeld And GUICtrlRead($gHilfeSuch) <> "" Then
-				HilfeSuchen()
-				Return
-			EndIf
+			; Strg+F: ins Suchfeld, dessen Text markiert (ueberschreiben oder aendern), die naechste Suche beginnt oben
+			$gHilfePos = 0
 			GUICtrlSetState($gHilfeSuch, $GUI_FOCUS)
 			GUICtrlSendMsg($gHilfeSuch, $EM_SETSEL, 0, -1)
 		Case $gHilfeWeiter
