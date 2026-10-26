@@ -29,7 +29,8 @@
 ;                              Geburtsdatum suchen und seinen ersten Befund zeigen; die Arbeit auf der
 ;                              Seite macht das Benutzerskript MOReiter-Labor.user.js (einmal in das
 ;                              Firefox-Add-on Tampermonkey aufnehmen); Name und Geburtsdatum aus der
-;                              Seite "Personalien"
+;                              Seite "Personalien", bzw. im Patientenlaufzettel ueber dessen Pat_id aus der
+;                              Datenbank von Medical Office
 ;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
 ;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
 ;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
@@ -191,6 +192,11 @@ Global $gHook = 0, $gAufgabe = "", $gGehalten = 0, $gGehaltenZeit = 0
 Global $gBriefFenster = 0, $gBriefWeg = False, $gBriefZeit = 0
 ; Strg+Alt+Esc: MOReiter neu starten (NeustartPruefen), auch wenn es gerade in einer Aufgabe haengt
 Global $gNeustart = False, $gHookAdlib = TimerInit()
+; gerade laufende Aufgabe und seit wann; $gBesetzt: Taste, die waehrenddessen kam (NeustartPruefen meldet das)
+Global $gLaeuft = "", $gLaeuftZeit = 0, $gBesetzt = ""
+; Zustand des Hooks fuer die Momentaufnahme beim Neustart (NeustartPruefen): letzter Aufruf des Rueckrufs, letzte
+; ausgewertete Taste mit ihrer Aufgabe, letztes Einhaengen, ob Strg+Alt+Esc ueber den Hook oder den Hotkey kam
+Global $gHookZeit = TimerInit(), $gHookLetzte = "", $gErneuertZeit = TimerInit(), $gErneuertOk = True, $gNeustartWeg = ""
 ; offenes Hilfefenster (0 = keins)
 Global $gHilfe = 0
 ; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
@@ -224,6 +230,11 @@ Global $gOffenZuletzt = -1
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
 ; (Nachname, Vorname, Geburtsdatum durch @LF getrennt, fuer DokEinordnen)
 Global $gAblagen[0][9], $gAblagenGeprueft = 0
+; Aenderungsmeldung von Windows fuer den Download-Ordner (FindFirstChangeNotification) und dessen Pfad: der Ordner
+; wird nur gelesen, wenn sich darin etwas getan hat. Das Lesen haelt die Hauptschleife auf; dauert es (Ordner auf
+; dem Server, viele Dateien) zu lange, haengt Windows den Tastatur-Hook ab, und alle 2 s gelesen blieb MOReiter
+; nach Strg+Alt+B bis zu 30 min taub
+Global $gDlWache = 0, $gDlWacheOrdner = ""
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
 ; Aufruf ueber einen Link "moreiter:..." (Patientenlaufzettel, s. LinkAufruf): Patient und Markierungen aus dem
@@ -278,7 +289,14 @@ While 1
 	If $gAufgabe <> "" Then
 		Local $aufgabe = $gAufgabe
 		$gAufgabe = ""
-		Ausfuehren($aufgabe)
+		$gLaeuft = $aufgabe
+		$gLaeuftZeit = TimerInit()
+		$gMeldung = ""
+		Local $ok = Ausfuehren($aufgabe)
+		; lange Aufgaben ins Protokoll (Aufrufe.log), um ein Haengen nachvollziehen zu koennen
+		If TimerDiff($gLaeuftZeit) > 5000 Then Protokoll("Aufgabe " & $aufgabe & ": " & Round(TimerDiff($gLaeuftZeit) / 1000) & _
+				" s, " & ($ok ? "erledigt" : "Fehler (" & $gMeldung & ")"))
+		$gLaeuft = ""
 		$gHaltStart = 0
 		$gEinblendungVersucht = False
 	EndIf
@@ -298,6 +316,8 @@ WEnd
 ; haengt den neuen Hook ein, bevor der alte entfernt wird, damit keine Taste verloren geht
 Func HookErneuern()
 	Local $neu = _WinAPI_SetWindowsHookEx($WH_KEYBOARD_LL, DllCallbackGetPtr($gRueckruf), _WinAPI_GetModuleHandle(0))
+	$gErneuertZeit = TimerInit()
+	$gErneuertOk = ($neu <> 0)
 	If $neu = 0 Then Return False
 	Local $alt = $gHook
 	$gHook = $neu
@@ -311,6 +331,7 @@ EndFunc
 
 ; faengt linke Alt + Strg [+ Umsch] + eigene Taste ab; alles andere, auch AltGr, geht unveraendert weiter
 Func TastenHook($nCode, $wParam, $lParam)
+	$gHookZeit = TimerInit()
 	If $nCode >= 0 Then
 		Local $kb = DllStructCreate($tagKBDLLHOOKSTRUCT, $lParam)
 		; selbst eingespeiste Tasten (ModifierAus, TasteEinspeisen) unbesehen weiter, sonst loeste
@@ -357,6 +378,7 @@ Func TastenHook($nCode, $wParam, $lParam)
 			EndIf
 			; Strg+Alt+Esc in jedem Programm: neu starten; nicht ueber $gAufgabe, das wartet auf die laufende Aufgabe
 			If $vk = 0x1B And StrgAlt() Then
+				$gNeustartWeg = "Hook"
 				$gNeustart = True
 				Return 1
 			EndIf
@@ -371,7 +393,10 @@ Func TastenHook($nCode, $wParam, $lParam)
 				Return 1
 			EndIf
 			Local $aufgabe = HookAufgabe($vk)
+			; Strg, Alt, Umsch selbst nicht, sonst stuende beim Neustart nur das Druecken von Strg+Alt da
+			If Not (($vk >= 0x10 And $vk <= 0x12) Or ($vk >= 0xA0 And $vk <= 0xA5)) Then $gHookLetzte = "Taste " & Hex($vk, 2) & " -> """ & $aufgabe & """, " & BriefTastenStand() & ", LosGemeldet " & $gLosGemeldet
 			If $aufgabe <> "" Then
+				If $gLaeuft <> "" Then $gBesetzt = $aufgabe
 				$gGehalten = $vk
 				$gGehaltenZeit = TimerInit()
 				$gAufgabe = FolgeAufgabe($vk, $aufgabe)
@@ -3914,6 +3939,40 @@ EndFunc
 
 ; Patientennummer (patstamm.FSurogat) in Medical Office zu Name und Geburtsdatum; bei Fehler oder nicht genau
 ; einem Treffer @error und der Grund
+; Pat_id, wenn vorn ein Patientenlaufzettel steht (Titel "Nachname Vorname (Pat_id:123): Patientenlaufzettel vom ..."),
+; sonst ""; nicht beim Aufruf ueber einen Link, der bringt den Patienten selbst mit
+Func LaufzettelPid()
+	If $gLink Then Return ""
+	Local $m = StringRegExp(_WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()), "\(Pat_id:(\d+)\): Patientenlaufzettel", 1)
+	If @error Then Return ""
+	Return $m[0]
+EndFunc
+
+; Nachname, Vorname und Geburtsdatum (TT.MM.JJJJ) zur Patientennummer $nr aus Medical Office; bei Fehler @error
+; und der Fehlertext
+Func MOPatient($nr, ByRef $nach, ByRef $vor, ByRef $geb)
+	Local $cn = DBVerbinden("medoff")
+	If @error Then Return SetError(1, 0, $cn)
+	$gComFehler = ""
+	Local $rs = $cn.Execute("SELECT FNachname, FVorname, DATE_FORMAT(FGeburtsdatum,'%d.%m.%Y') FROM patstamm WHERE FSurogat=" & Int($nr))
+	If $gComFehler <> "" Or Not IsObj($rs) Then
+		Local $t = $gComFehler
+		$cn.Close
+		Return SetError(1, 0, "Abfrage fehlgeschlagen: " & $t)
+	EndIf
+	Local $da = Not $rs.EOF
+	If $da Then
+		$nach = StringStripWS(String($rs.Fields(0).Value), 3)
+		$vor = StringStripWS(String($rs.Fields(1).Value), 3)
+		$geb = String($rs.Fields(2).Value)
+	EndIf
+	$rs.Close
+	$cn.Close
+	If Not $da Then Return SetError(1, 0, "nicht in Medical Office")
+	If $nach = "" Or Not StringRegExp($geb, "^\d\d\.\d\d\.\d{4}$") Then Return SetError(1, 0, "Name oder Geburtsdatum fehlt")
+	Return ""
+EndFunc
+
 Func MOPatNr($nach, $vor, $geb)
 	Local $d = StringSplit($geb, ".", 2)
 	If UBound($d) <> 3 Then Return SetError(1, 0, "Geburtsdatum " & $geb & " unlesbar")
@@ -4021,11 +4080,18 @@ Func Portal($s)
 	; Zusatzfunktion fuer ein bestimmtes Portal, nur mit Eintrag in der INI
 	Local $portal = Einst($s, "Url", "")
 	If $portal = "" Then Return Meldung($s & " nicht eingerichtet ([" & $s & "] Url= in der INI, siehe Hilfe)")
-	Local $hMO = WinGetHandle($MOFenster)
-	If @error And Not $gLink Then Return MOStarten()
-	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
-	Local $nach, $vor, $geb
-	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	; im Patientenlaufzettel dessen Patient statt des in Medical Office geoeffneten
+	Local $nach, $vor, $geb, $lz = LaufzettelPid()
+	If $lz <> "" Then
+		If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+		Local $f = MOPatient($lz, $nach, $vor, $geb)
+		If @error Then Return Meldung("Patient " & $lz & " des Laufzettels: " & $f)
+	Else
+		Local $hMO = WinGetHandle($MOFenster)
+		If @error And Not $gLink Then Return MOStarten()
+		If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+		If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	EndIf
 	; beim ersten Mal auf dem PC: Tampermonkey und das Benutzerskript gleich einrichten, ohne erst
 	; vergeblich auf eine Antwort zu warten; danach geht es mit dem Auftrag weiter
 	If Not TampermonkeyDa() Then
@@ -4073,7 +4139,7 @@ EndFunc
 ; Datum); ohne Datei= wird nichts verschoben
 Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	Local $ziel = Einst($s, "Ablage", ""), $muster = Einst($s, "Datei", "")
-	If $ziel = "" Or $muster = "" Then Return
+	If $ziel = "" Or $muster = "" Then Return Protokoll($s & ": ohne Ablage= und Datei= wird kein PDF verschoben")
 	Local $erster = StringRegExpReplace(StringStripWS($vor, 3), "\s.*$", "")
 	$muster = StringReplace($muster, "{vor}", "(?:" & NameMuster($vor) & "|" & NameMuster($erster) & ")")
 	$muster = StringReplace($muster, "{nach}", "(?:" & NameMuster($nach) & ")")
@@ -4090,6 +4156,7 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	$gAblagen[$n][6] = AblageNeuerName($s, $nach, $vor, $geb)
 	$gAblagen[$n][7] = $zeitraum
 	$gAblagen[$n][8] = $nach & @LF & $vor & @LF & $geb
+	Protokoll($s & ": warte 30 min auf ein PDF nach " & $gAblagen[$n][1] & ", Muster " & $gAblagen[$n][5])
 EndFunc
 
 ; Name= : beim Verschieben so umbenennen, z.B. "{nach}, {vor}, {geb}, Glooko {TT}.{MM}.{JJJJ}.pdf";
@@ -4182,15 +4249,27 @@ EndFunc
 ; unveraendert) verschieben; je Auftrag eines, hoechstens 30 min lang
 Func AblagenPruefen()
 	$gAblagenGeprueft = TimerInit()
-	Local $dl = DownloadOrdner(), $jetzt = DownloadPdfs()
+	Local $dl = DownloadOrdner(), $kandidat = False
 	For $i = UBound($gAblagen) - 1 To 0 Step -1
 		If TimerDiff($gAblagen[$i][2]) > 30 * 60000 Then
 			AblageWeg($i)
-			ContinueLoop
+		ElseIf $gAblagen[$i][4] <> "" Then
+			$kandidat = True
 		EndIf
+	Next
+	; ohne Kandidaten, dessen Groesse noch beobachtet wird, nur lesen, wenn Windows eine Aenderung meldet
+	If Not DownloadGeaendert($dl) And Not $kandidat Then Return
+	Local $t = TimerInit(), $jetzt = DownloadPdfs()
+	If TimerDiff($t) > 300 Then Protokoll("Download-Ordner " & $dl & " lesen: " & Round(TimerDiff($t)) & " ms")
+	For $i = UBound($gAblagen) - 1 To 0 Step -1
 		For $f In StringSplit(StringTrimLeft(StringTrimRight($jetzt, 1), 1), "|", 2)
 			If $f = "" Or StringInStr($gAblagen[$i][3], "|" & $f & "|") Then ContinueLoop
-			If Not StringRegExp($f, $gAblagen[$i][5]) Then ContinueLoop
+			If Not StringRegExp($f, $gAblagen[$i][5]) Then
+				; einmal melden und dann wie vorher vorhanden behandeln
+				Protokoll($gAblagen[$i][0] & ": neues PDF " & $f & " passt nicht zum Muster")
+				$gAblagen[$i][3] &= $f & "|"
+				ContinueLoop
+			EndIf
 			If FileExists($dl & "\" & $f & ".part") Then ContinueLoop
 			Local $gr = FileGetSize($dl & "\" & $f), $alt = StringSplit($gAblagen[$i][4], ";", 2)
 			If UBound($alt) < 3 Or $alt[0] <> $f Or Number($alt[1]) <> $gr Then
@@ -4200,12 +4279,21 @@ Func AblagenPruefen()
 			If $gr = 0 Or TimerDiff(Number($alt[2])) < 3000 Then ContinueLoop
 			Local $neu = $gAblagen[$i][6], $zeit = $gAblagen[$i][7]
 			If $neu <> "" Then
+				; {1} ... {9}: Klammern aus Datei= (z.B. das Befunddatum aus dem Namen des Laborbefunds)
+				Local $gr9 = StringRegExp($f, $gAblagen[$i][5], 1)
+				If Not @error Then
+					For $k = 0 To UBound($gr9) - 1
+						If $k < 9 Then $neu = StringReplace($neu, "{" & ($k + 1) & "}", StringRegExpReplace($gr9[$k], "[\\/:*?""<>|]+", ""))
+					Next
+				EndIf
 				Local $zr = StringInStr($neu, "{von}") ? PdfZeitraum($dl & "\" & $f) : ""
 				If $zr <> "" Then $zeit = $zr
 				$neu = NameMitZeitraum($neu, $zeit)
 			EndIf
 			Local $ziel = AblageName($gAblagen[$i][1], ($neu = "") ? $f : $neu)
-			If FileMove($dl & "\" & $f, $ziel) Then
+			Local $verschoben = FileMove($dl & "\" & $f, $ziel)
+			Protokoll($gAblagen[$i][0] & ": " & $f & ($verschoben ? " verschoben nach " : " nicht verschiebbar nach ") & $ziel)
+			If $verschoben Then
 				Local $pat = StringSplit($gAblagen[$i][8], @LF, 2)
 				If UBound($pat) = 3 Then $ziel = DokEinordnen($gAblagen[$i][0], $ziel, $pat[0], $pat[1], $pat[2], $zeit)
 				Hinweis($gAblagen[$i][0] & ": " & $f & " als " & $ziel & " abgelegt")
@@ -4218,6 +4306,29 @@ Func AblagenPruefen()
 			ExitLoop
 		Next
 	Next
+EndFunc
+
+; hat sich im Download-Ordner seit dem letzten Aufruf etwas getan (neue, umbenannte, geloeschte Datei, andere
+; Groesse)? Beim ersten Mal und wenn Windows den Ordner nicht ueberwachen kann: immer True
+Func DownloadGeaendert($dl)
+	If $gDlWache And $gDlWacheOrdner <> $dl Then
+		DllCall("kernel32.dll", "bool", "FindCloseChangeNotification", "handle", $gDlWache)
+		$gDlWache = 0
+	EndIf
+	If Not $gDlWache Then
+		; 0x1 = FILE_NOTIFY_CHANGE_FILE_NAME, 0x8 = FILE_NOTIFY_CHANGE_SIZE, nur der Ordner selbst
+		Local $r = DllCall("kernel32.dll", "handle", "FindFirstChangeNotificationW", "wstr", $dl, "bool", False, "dword", 0x9)
+		If @error Or $r[0] = Ptr(-1) Or Not $r[0] Then Return True
+		$gDlWache = $r[0]
+		$gDlWacheOrdner = $dl
+		Return True
+	EndIf
+	; 0 = WAIT_OBJECT_0: Aenderung gemeldet; dann fuer die naechste wieder scharf machen
+	Local $w = DllCall("kernel32.dll", "dword", "WaitForSingleObject", "handle", $gDlWache, "dword", 0)
+	If @error Then Return True
+	If $w[0] <> 0 Then Return False
+	DllCall("kernel32.dll", "bool", "FindNextChangeNotification", "handle", $gDlWache)
+	Return True
 EndFunc
 
 ; Zielname, bei schon vorhandener Datei mit " (2)", " (3)" ...
@@ -4282,6 +4393,7 @@ Func PortalAuftrag($s, $portal, $nach, $vor, $geb)
 		; ein noch kommendes PDF aber ablegen
 		If @error Then
 			If $code Or $selbst Then ToolTip("")
+			Protokoll($s & ": Warten abgebrochen (andere Taste), zuletzt """ & $z & """")
 			If $gemeldet Then AblageMerken($s, $nach, $vor, $geb, $zeitraum)
 			Return True
 		EndIf
@@ -6066,6 +6178,7 @@ Func HinweisStehend($txt)
 EndFunc
 
 Func NeustartTaste()
+	If $gNeustartWeg = "" Then $gNeustartWeg = "Hotkey"
 	$gNeustart = True
 EndFunc
 
@@ -6076,8 +6189,26 @@ Func NeustartPruefen()
 		HookErneuern()
 		$gHookAdlib = TimerInit()
 	EndIf
+	; Taste waehrend einer laufenden Aufgabe: sagen, worauf sie wartet (ist die Aufgabe inzwischen fertig, etwa weil
+	; das Warten auf ein Portal von selbst abbricht, kommt die Taste ohnehin gleich dran)
+	If $gBesetzt <> "" And $gLaeuft = "" Then $gBesetzt = ""
+	If $gBesetzt <> "" Then
+		Local $txt = "noch beschaeftigt mit " & $gLaeuft & " (seit " & Round(TimerDiff($gLaeuftZeit) / 1000) & " s), " & _
+				$gBesetzt & " folgt danach; Strg+Alt+Esc bricht ab"
+		$gBesetzt = ""
+		Hinweis($txt)
+		Protokoll($txt)
+		ProtokollSchreiben()
+	EndIf
 	If Not $gNeustart Then Return
 	$gNeustart = False
+	; Momentaufnahme fuers Protokoll (Aufrufe.log): kam Strg+Alt+Esc nur ueber den Hotkey, war der Hook taub
+	Protokoll("Neustart ueber " & $gNeustartWeg & "; Hook zuletzt aufgerufen vor " & Round(TimerDiff($gHookZeit) / 1000, 1) & _
+			" s, zuletzt eingehaengt vor " & Round(TimerDiff($gErneuertZeit) / 1000, 1) & " s (" & ($gErneuertOk ? "ok" : "fehlgeschlagen") & _
+			"); laufende Aufgabe """ & $gLaeuft & """" & (($gLaeuft = "") ? "" : " seit " & Round(TimerDiff($gLaeuftZeit) / 1000) & " s") & _
+			", wartend """ & $gAufgabe & """; zuletzt " & $gHookLetzte & "; Vordergrund " & _
+			_WinAPI_GetClassName(_WinAPI_GetForegroundWindow()) & " """ & _WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()) & """")
+	ProtokollSchreiben()
 	ToolTip("MOReiter startet neu", Default, Default, "MOReiter")
 	Local $befehl = '"' & @AutoItExe & '"' & (@Compiled ? "" : ' "' & @ScriptFullPath & '"') & " Neustart"
 	If Not Run($befehl, @ScriptDir) Then Return Meldung("Neustart fehlgeschlagen")

@@ -47,7 +47,8 @@ Strg+Alt + mehrere Ziffern der oberen Reihe
 LABOR (Strg+Alt+B, Zusatzfunktion; Beispiel Onlinebefunde Labor Staber im Firefox)
 ----------------------------------------------------------------------------------------------------
 Nur eingeschaltet mit [Labor] Url=<Adresse der Patientensuche des Portals> in der INI.
-Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office, wählt im Firefox
+Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office (steht ein
+Patientenlaufzettel vorn, die des Laufzettel-Patienten aus der Datenbank), wählt im Firefox
 den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Passwort aus dem
 Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
 und zeigt dessen ersten Befund. Ohne passendes Geburtsdatum bleibt die Suchliste stehen.
@@ -58,6 +59,8 @@ die Abfrage im selben Durchgang weiter. Ohne Internet ginge auch: in Tampermonke
 "Neues Skript erstellen" und den ganzen Inhalt von MOReiter-Labor.user.js hineinkopieren.
 Das Skript wird nur auf Seiten von onlinebefunde.labor-staber.de aktiv und erledigt dort den Auftrag,
 den MOReiter hinter "#mor=" an die Adresse hängt.
+Einen danach heruntergeladenen Befund des Patienten verschiebt MOReiter nach [Labor] Ablage= (p:\) und
+benennt ihn wie die Zuckerberichte, z.B. "Muster, Anna, 01.02.1960, Labor 22.10.2026, erst. 26.10.2026.pdf".
 
 
 PROGRAMMAUFRUFE (Zusatzfunktion, [Aufrufe] in der INI)
