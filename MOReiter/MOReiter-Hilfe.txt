@@ -7,6 +7,8 @@ noch nicht, startet jedes Tastenkürzel die Zentrale (medoff.exe) zum Anmelden.
 
 Alle Kürzel verwenden die LINKE Alt-Taste zusammen mit Strg. AltGr bleibt unberührt, so dass
 AltGr+2 3 7 8 9 0 ß weiterhin ² ³ { [ ] } \ liefern.
+Diese Hilfe zeigt nur, was auf diesem PC eingerichtet ist (Labor, Zuckerportale, Smart Pix,
+Patientenlaufzettel; s. MOReiter-Vorgaben.ini). Strg+A markiert den ganzen Text, Strg+C kopiert ihn.
 
 
 REITER UND HAUPTFENSTER
@@ -20,7 +22,10 @@ Strg+Alt+T          aus jedem Programm: die Termine des Patienten zeigen, solang
                     wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurück ins
                     vorige Programm)
 Strg+Alt+D          Explorer mit dem Dokumentenordner des Patienten (p:\dok\<Pat_id>), in jedem Fenster
-                    von Medical Office (wie der Auftrag "Datei" im Krankenblatt) und im Laufzettel
+                    von Medical Office (wie der Auftrag "Datei" im Krankenblatt)
+{WENN Laufzettel}
+                    und im Patientenlaufzettel
+{ENDE Laufzettel}
 Strg+Alt+Z          Liste der zuletzt geöffneten Patienten (Pfeil rechts neben der Patientensuche)
 Strg+Alt+Leertaste  Hauptmenü (drei Striche links oben)
 Strg+Alt+H          in der markierten Zeile der Karteikarte den hellblauen Pfeil nach oben anklicken
@@ -45,11 +50,23 @@ Strg+Alt + mehrere Ziffern der oberen Reihe
                     mit der 7 dann Filter 17 (wie Ziffernblock 17)
 
 
+{WENN Laufzettel}
+TASTEN IN MEDICAL OFFICE UND IM PATIENTENLAUFZETTEL
+----------------------------------------------------------------------------------------------------
+Was in Medical Office Strg+Buchstabe startet, startet im Patientenlaufzettel (Firefox) Alt+Buchstabe,
+die einzelnen Zuckerportale Alt+Umsch+Buchstabe: dann mit dem Patienten des Laufzettels, Medical
+Office braucht dafür nicht offen zu sein. Unterstrichene Buchstaben im Laufzettel zeigen die Taste.
+
+{TASTENTABELLE}
+
+
+{ENDE Laufzettel}
+{WENN Labor}
 LABOR (Strg+O, im Laufzettel Alt+O; Zusatzfunktion, Beispiel Onlinebefunde Labor Staber im Firefox)
 ----------------------------------------------------------------------------------------------------
 Nur eingeschaltet mit [Labor] Url=<Adresse der Patientensuche des Portals> in der INI.
-Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office (steht ein
-Patientenlaufzettel vorn, die des Laufzettel-Patienten aus der Datenbank), wählt im Firefox
+Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office (im
+Patientenlaufzettel mit Alt+O die des Laufzettel-Patienten), wählt im Firefox
 den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Passwort aus dem
 Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
 und zeigt dessen ersten Befund. Ohne passendes Geburtsdatum bleibt die Suchliste stehen.
@@ -65,6 +82,7 @@ benennt ihn wie die Zuckerberichte, z.B. "Muster, Anna, 01.02.1960, Labor 22.10.
 Von dort ordnet es ihn wie die Zuckerberichte ein (s. unten), mit dem Befunddatum als Quelldatum.
 
 
+{ENDE Labor}
 PROGRAMMAUFRUFE (Zusatzfunktion, [Aufrufe] in der INI)
 ----------------------------------------------------------------------------------------------------
 Strg+Buchstabe bzw. Strg+Umsch+Buchstabe startet in jedem Fenster von Medical Office ein eigenes
@@ -73,16 +91,20 @@ Schalterleiste. Hat ein Eingabefeld den Fokus, behält die Taste ihre normale Be
 Hier eingerichtet:
 {AUFRUFE}
 Statt einer Befehlszeile kann dort auch Portal:<Abschnitt> stehen (z.B. Strg+L=Portal:LibreView):
-dann wie bei LABOR, mit eigenem Abschnitt [LibreView] (Url=, Titel=) und Benutzerskript
-MOReiter-LibreView.user.js, das MOReiter bei Bedarf zur Installation anbietet. LibreView: Anmeldung mit
+dann ein Portal im Firefox mit eigenem Abschnitt (Url=, Titel=) und Benutzerskript
+MOReiter-<Abschnitt>.user.js, das MOReiter bei Bedarf zur Installation anbietet.
+{WENN Portale}
+Mit Ablage=<Ordner> und Datei=<Muster> im Abschnitt des Portals verschiebt MOReiter ein danach im
+Download-Ordner erscheinendes PDF des Patienten dorthin (bis 30 Minuten lang); Datei= ist ein regulärer
+Ausdruck, {vor} und {nach} stehen für Vor- und Nachnamen (Umlaute auch als ae usw.), {TT} {MM}
+{JJJJ} für das heutige Datum; einen Zusatz "-2" bzw. " (1)" von Firefox lässt MOReiter von selbst zu.
+{ENDE Portale}
+{WENN Zucker}
+LibreView: Anmeldung mit
 den im Firefox gespeicherten Daten (höchstens ein Versuch); fehlt die 14-Tage-Freigabe, fordert das
 Skript den Code per E-Mail an, hakt "14 Tage merken" an und trägt den PC-Namen ein; den Code selbst
 eintippen und "Bestätigen und Anmelden" drücken, dann geht es zu den Glukose-Berichten des Patienten.
-Sobald "PDF drucken/speichern" aktiv ist, drückt das Skript ihn. Mit Ablage=<Ordner> und
-Datei=<Muster> im Abschnitt des Portals (auch [Labor]) verschiebt MOReiter ein danach im Download-
-Ordner erscheinendes PDF des Patienten dorthin (bis 30 Minuten lang); Datei= ist ein regulärer
-Ausdruck, {vor} und {nach} stehen für Vor- und Nachnamen (Umlaute auch als ae usw.), {TT} {MM}
-{JJJJ} für das heutige Datum.
+Sobald "PDF drucken/speichern" aktiv ist, drückt das Skript ihn.
 Läuft in einem LibreView-Tab noch ein Auftrag, öffnet ein neuer Aufruf einen eigenen Tab.
 Dexcom Clarity (z.B. Strg+D=Portal:Dexcom, Abschnitt [Dexcom]): Patient über die Suche nach Name und
 Geburtsdatum; auf den PCs in SpeichernAuf= "Bericht speichern oder drucken" mit Tage= und "Bericht
@@ -98,10 +120,14 @@ Anmeldung, Patient über die Suche nach dem Nachnamen (Name und, falls angegeben
 Dashboard mit Tage= (7, 14, 30, 90), "Print". In der Druckvorschau von Firefox klickt MOReiter
 "Speichern", wenn zuletzt "Als PDF speichern" gewählt war (sonst selbst Ziel wählen und "Speichern"),
 und trägt in "Speichern unter" Ordner und Namen (Ablage=, Name=) ein.
+{ENDE Zucker}
+{WENN Portale}
 Strg+Umsch+T (Benutzerskripte in Tampermonkey laden bzw. erneuern): bietet Tampermonkey (falls nötig)
 und die Benutzerskripte aller Portale mit Url= zum Installieren bzw. Aktualisieren an, je Skript ein Tab;
 dort "Installieren"/"Aktualisieren" klicken, bei einem schon aktuellen Skript den Tab einfach schließen.
 MOReiter wartet darauf nicht, es bleibt gleich wieder bedienbar.
+{ENDE Portale}
+{WENN SmartPix}
 Strg+S=SmartPix: startet die Accu-Chek Smart Pix Software (oder holt sie nach vorn; läuft sie nach dem
 Schließen nur noch versteckt im Infobereich, wird sie beendet und neu gestartet), öffnet die
 Patientenliste, sucht nach dem Geburtsdatum und wählt den Patienten, wenn genau einer übrig bleibt;
@@ -169,26 +195,29 @@ läuft; die anderer PCs bleiben) und startet bei einer hochgezählten eigenen Li
 ein auf anderen PCs offenes Smart Pix stört nicht. Findet MOReiter beim Weitermachen den letzten Patienten nicht
 wieder (meist, weil schon sein Öffnen am "Kein Schreibzugriff" scheitert), startet es Smart Pix ebenso neu und sucht
 noch einmal; erst nach Neustarts= vergeblichen Versuchen fragt es, ob es von vorn anfangen soll.
+{ENDE SmartPix}
+{WENN Zucker}
 Strg+Z=Zucker: liest die Markierungen des Patienten aus der Datenbank von Medical Office und ruft für
 jede Zucker-Markierung das passende Portal bzw. Programm auf, mehrere nacheinander (z.B. "Libre-Handy"
 und "Omnipod 5 Glooko": erst LibreView, dann Glooko). Welche Markierung wohin führt, steht in [Zucker].
 Die Zugangsdaten zur Datenbank kommen aus der Zugang.ini von Dateilese.
-Vom Patientenlaufzettel aus: ein Klick auf eine Zucker-Markierung in der ersten Kopfzeile ruft dieses
-Portal ab, Alt+Z alle (wie Strg+Z, aber mit Name und Geburtsdatum aus dem Laufzettel, Medical Office
-braucht dafür nicht offen zu sein). Ebenso entspricht im Laufzettel Alt+Buchstabe der Taste
-Strg+Buchstabe in Medical Office: Alt+O Onlinebefunde, Alt+A Arztbrief, Alt+P bzw. Alt+Umsch+P Laufzettel
-neu erstellen, Alt+I FreeCommander; die einzelnen Portale mit Alt+Umsch: L LibreView, D Dexcom, G Glooko,
-Y YourLoops, E EasyView, S Smart Pix; Strg+Alt+D Explorer, Alt+M den Patienten in Medical Office öffnen.
-Der Laufzettel öffnet dazu einen Link "moreiter:...", den MOReiter
-beim Start für den Benutzer anmeldet; Firefox fragt beim ersten Mal, ob er MOReiter öffnen darf
-("immer erlauben" anhaken). Die so gestartete zweite MOReiter-Instanz beendet sich, sobald die PDFs
-abgelegt sind.
+{ENDE Zucker}
+{WENN Laufzettel}
+Vom Patientenlaufzettel aus (s. TASTEN IN MEDICAL OFFICE UND IM PATIENTENLAUFZETTEL): ein Klick auf eine
+Zucker-Markierung in der ersten Kopfzeile ruft dieses Portal ab, Alt+Z alle, Alt+Buchstabe bzw.
+Alt+Umsch+Buchstabe wie Strg+Buchstabe in Medical Office. Der Laufzettel öffnet dazu einen Link
+"moreiter:...", den MOReiter beim Start für den Benutzer anmeldet; Firefox fragt beim ersten Mal, ob er
+MOReiter öffnen darf ("immer erlauben" anhaken). Die so gestartete zweite MOReiter-Instanz beendet sich,
+sobald die PDFs abgelegt sind.
+{ENDE Laufzettel}
+{WENN Portale}
 Die PDFs der Zuckerportale und die Laborbefunde (Strg+O) ordnet MOReiter danach gleich ein wie
 DokimpKurz ([Dokumente] Einordnen=1):
 Sicherheitskopie nach p:\eingelesen\<Jahr>, Einträge in quelle (tmbrie, dokprotlist, dokprotinh; Mitarbeiter
 und Autor = PC-Name) und Verschieben nach p:\dok\<Pat_id>. Die Patientennummer kommt vom Laufzettel oder aus
 Medical Office (Name und Geburtsdatum müssen eindeutig sein); klappt etwas nicht, bleibt die Datei mit einer
 Meldung in p:\ liegen.
+{ENDE Portale}
 
 
 DIAGNOSEERFASSUNG

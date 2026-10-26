@@ -191,8 +191,8 @@ Global $gLaeuft = "", $gLaeuftZeit = 0, $gBesetzt = ""
 ; Zustand des Hooks fuer die Momentaufnahme beim Neustart (NeustartPruefen): letzter Aufruf des Rueckrufs, letzte
 ; ausgewertete Taste mit ihrer Aufgabe, letztes Einhaengen, ob Strg+Alt+Esc ueber den Hook oder den Hotkey kam
 Global $gHookZeit = TimerInit(), $gHookLetzte = "", $gErneuertZeit = TimerInit(), $gErneuertOk = True, $gNeustartWeg = ""
-; offenes Hilfefenster (0 = keins)
-Global $gHilfe = 0
+; offenes Hilfefenster (0 = keins), sein Textfeld und das unsichtbare Control fuer Strg+A
+Global $gHilfe = 0, $gHilfeText = 0, $gHilfeAlles = 0
 ; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
 Global $gAufrufe[0][4]
 ; [Aufrufe] Protokoll=1: jede passende Taste mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
@@ -801,6 +801,8 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "Termine" Then Return Termine()
 	If $aufgabe = "Hilfe" Then Return Hilfe()
 	If $aufgabe = "Explorer" Then Return Explorer()
+	; Aufruf von aussen (MOReiter.exe Labor), die Taste ist Strg+O
+	If $aufgabe = "Labor" Then Return Portal("Labor")
 	If StringLeft($aufgabe, 7) = "Aufruf:" Then Return Aufruf(Int(StringTrimLeft($aufgabe, 7)))
 	If StringLeft($aufgabe, 7) = "Portal:" Then Return Portal(StringTrimLeft($aufgabe, 7))
 	If $aufgabe = "Abhaken" Then Return Abhaken()
@@ -4016,25 +4018,98 @@ EndFunc
 ; Liste der eingerichteten Aufrufe fuer die Hilfe
 Func AufrufeText()
 	If UBound($gAufrufe) = 0 Then Return "(hier keine eingerichtet)"
-	Local $t = "", $b
+	Local $t = ""
 	For $i = 0 To UBound($gAufrufe) - 1
-		; eingebaute Befehle mit Beschreibung statt des Kurznamens aus der INI
-		$b = $gAufrufe[$i][3]
-		Switch $b
-			Case "Skripte"
-				$b = "Benutzerskripte der Portale in Tampermonkey laden bzw. erneuern"
-			Case "SmartPix"
-				$b = "Accu-Chek Smart Pix: Patient in der Patientenliste waehlen"
-			Case "SmartPixListe"
-				$b = "Smart Pix-Patientenliste mit Medical Office abgleichen"
-			Case "Zucker"
-				$b = "alle Zuckerportale bzw. -programme nach den Markierungen des Patienten"
-			Case Else
-				If StringLeft($b, 7) = "Portal:" Then $b = "Portal " & StringTrimLeft($b, 7) & " im Firefox"
-		EndSwitch
-		$t &= StringFormat("%-20s", $gAufrufe[$i][0]) & $b & @CRLF
+		$t &= StringFormat("%-20s", $gAufrufe[$i][0]) & AufrufBeschreibung($gAufrufe[$i][3]) & @CRLF
 	Next
 	Return StringTrimRight($t, 2)
+EndFunc
+
+; Beschreibung eines Befehls aus [Aufrufe] fuer die Hilfe: eingebaute Befehle und bekannte Programme in Worten,
+; sonst die Befehlszeile
+Func AufrufBeschreibung($b)
+	Switch $b
+		Case "Skripte"
+			Return "Benutzerskripte in Tampermonkey laden bzw. erneuern"
+		Case "SmartPix"
+			Return "Accu-Chek Smart Pix: Patient in der Patientenliste w" & ChrW(228) & "hlen"
+		Case "SmartPixListe"
+			Return "Smart Pix-Patientenliste mit Medical Office abgleichen"
+		Case "Zucker"
+			Return "alle Zuckerportale nach den Markierungen"
+	EndSwitch
+	If $b = "Portal:Labor" Then Return "Onlinebefunde des Labors im Firefox"
+	If StringLeft($b, 7) = "Portal:" Then Return "Portal " & StringTrimLeft($b, 7) & " im Firefox"
+	If StringRegExp($b, "(?i)dateilese\.exe""?\s+plz\b") Then Return "Patientenlaufzettel " & ChrW(246) & "ffnen (ggf. erstellen)"
+	If StringRegExp($b, "(?i)dateilese\.exe""?\s+nplz\b") Then Return "Patientenlaufzettel neu erstellen"
+	If StringRegExp($b, "(?i)dateilese\.exe""?\s+ab\b") Then Return "Arztbrief erstellen"
+	If StringRegExp($b, "(?i)fcaufruf\.exe") Then Return "FreeCommander mit p: und dem Patientenordner"
+	Return $b
+EndFunc
+
+; Tastentabelle fuer die Hilfe: jede Taste aus [Aufrufe] mit ihrem Gegenstueck im Patientenlaufzettel (dort
+; Alt+Buchstabe bzw. bei den einzelnen Portalen Alt+Umsch+Buchstabe, s. Laufzettelneu.bas in Dateilesen), dazu
+; die Tasten, die es nur im Laufzettel gibt
+Func TastenTabelle()
+	Local $t = StringFormat("%-50s%-16s%s", "Aktion", "Medical Office", "Laufzettel") & @CRLF & _
+			StringFormat("%-50s%-16s%s", "------", "--------------", "----------") & @CRLF
+	For $i = 0 To UBound($gAufrufe) - 1
+		Local $k = $gAufrufe[$i][0], $lz = ChrW(8211), $b = StringRight($k, 1)
+		If $k = "Strg+Umsch+P" Then
+			$lz = "Alt+P, Alt+Umsch+P"
+		ElseIf $gAufrufe[$i][3] = "Zucker" Then
+			$lz = "Alt+Z"
+		ElseIf StringLeft($k, 11) <> "Strg+Umsch+" And StringInStr("OAI", $b) Then
+			$lz = "Alt+" & $b
+		ElseIf StringLeft($k, 11) <> "Strg+Umsch+" And StringInStr("LDGYES", $b) Then
+			$lz = "Alt+Umsch+" & $b
+		EndIf
+		$t &= StringFormat("%-50s%-16s%s", AufrufBeschreibung($gAufrufe[$i][3]), $k, $lz) & @CRLF
+	Next
+	Local $nur[8][3] = [["Explorer mit dem Patientenordner p:\dok\<Pat_id>", "Strg+Alt+D", "Strg+Alt+D"], _
+			["Patient in Medical Office " & ChrW(246) & "ffnen (Knopf MO)", ChrW(8211), "Alt+M"], _
+			["einzelnes Zuckerportal der Markierung", ChrW(8211), "Klick auf die Markierung"], _
+			["Medikationsverlauf", ChrW(8211), "Alt+Umsch+M"], _
+			["Bez" & ChrW(252) & "ge / E-Mail-Adresse", ChrW(8211), "Alt+B / Alt+E"], _
+			["nach oben / zur KG (Ausdruck ab dort)", ChrW(8211), "Alt+T / Alt+Umsch+K"], _
+			["anwesend, Vorbereiter, Behandler; Felder MA, Bh", ChrW(8211), "Alt+W/R, V, N/.; Alt+:, Alt+H"], _
+			["Laufzettel-Listen Vorb./Beh./Fertig/alle; voriger", ChrW(8211), "Alt+1/2/3, Alt+" & ChrW(220) & "; Alt+L"]]
+	For $i = 0 To UBound($nur) - 1
+		$t &= StringFormat("%-50s%-16s%s", $nur[$i][0], $nur[$i][1], $nur[$i][2]) & @CRLF
+	Next
+	Return StringTrimRight($t, 2)
+EndFunc
+
+; was in dieser Praxis eingerichtet ist (fuer die Hilfe, nur aus INI und Registry, also ohne Wartezeit):
+; Labor ([Labor] Url=), Zucker (ein Portal ausser Labor oder Strg+Z=Zucker in [Aufrufe]), SmartPix, Portale (Labor
+; oder Zucker) und Laufzettel (ein Aufruf von Dateilese oder dessen Linkschema oeffneplz:)
+Func HilfeMerkmale()
+	Local $m = ObjCreate("Scripting.Dictionary")
+	$m.Item("Labor") = (Einst("Labor", "Url", "") <> "")
+	$m.Item("Zucker") = False
+	$m.Item("SmartPix") = False
+	$m.Item("Laufzettel") = (RegRead("HKCU\Software\Classes\oeffneplz", "") <> "")
+	For $i = 0 To UBound($gAufrufe) - 1
+		Local $b = $gAufrufe[$i][3]
+		If $b = "Zucker" Or (StringLeft($b, 7) = "Portal:" And $b <> "Portal:Labor") Then $m.Item("Zucker") = True
+		If StringLeft($b, 8) = "SmartPix" Then $m.Item("SmartPix") = True
+		If StringInStr($b, "dateilese.exe") Then $m.Item("Laufzettel") = True
+	Next
+	$m.Item("Portale") = ($m.Item("Labor") Or $m.Item("Zucker"))
+	Return $m
+EndFunc
+
+; Abschnitte "{WENN Merkmal}" ... "{ENDE Merkmal}" (je auf eigener Zeile) behalten oder weglassen
+Func HilfeBedingt($txt)
+	Local $m = HilfeMerkmale()
+	For $k In $m.Keys
+		If $m.Item($k) Then
+			$txt = StringRegExpReplace($txt, "(?m)^\{(WENN|ENDE) " & $k & "\}\r?\n", "")
+		Else
+			$txt = StringRegExpReplace($txt, "(?s)\{WENN " & $k & "\}\r?\n.*?\{ENDE " & $k & "\}\r?\n", "")
+		EndIf
+	Next
+	Return $txt
 EndFunc
 
 Func Einst($sektion, $schluessel, $def)
@@ -5204,18 +5279,25 @@ Func Hilfe()
 	If $fh = -1 Then Return Meldung("Hilfetext nicht gefunden")
 	Local $txt = FileRead($fh)
 	FileClose($fh)
+	$txt = HilfeBedingt($txt)
 	$txt = StringRegExpReplace($txt, "\r?\n", @CRLF)
 	$txt = StringReplace($txt, "{AUFRUFE}", AufrufeText())
+	$txt = StringReplace($txt, "{TASTENTABELLE}", TastenTabelle())
 	$txt = "Stand " & Stand() & " (" & @AutoItExe & ")" & @CRLF & $txt
 	Local $b = @DesktopWidth, $h = @DesktopHeight
 	$gHilfe = GUICreate("MOReiter - Hilfe", $b, $h, 0, 0, $WS_POPUP, $WS_EX_TOPMOST)
 	GUISetBkColor(0xFFFFFF, $gHilfe)
-	; Spalte in der Mitte, so breit wie der Text (ca. 100 Zeichen Consolas 11), hoechstens der Bildschirm
-	Local $sb = ($b > 1000) ? 1000 : $b - 20
+	; Spalte in der Mitte, so breit wie der Text (ca. 110 Zeichen Consolas 11), hoechstens der Bildschirm
+	Local $sb = ($b > 1100) ? 1100 : $b - 20
 	Local $ed = GUICtrlCreateEdit($txt, Int(($b - $sb) / 2), 10, $sb, $h - 20, _
 			BitOR($ES_MULTILINE, $ES_READONLY, $ES_AUTOVSCROLL, $WS_VSCROLL), 0)
 	GUICtrlSetFont($ed, 11, 400, 0, "Consolas")
 	GUICtrlSetBkColor($ed, 0xFFFFFF)
+	; Strg+A markiert alles (kann ein mehrzeiliges Eingabefeld nicht von selbst), z.B. zum Kopieren in einen Editor
+	$gHilfeText = $ed
+	$gHilfeAlles = GUICtrlCreateDummy()
+	Local $tasten[1][2] = [["^a", $gHilfeAlles]]
+	GUISetAccelerators($tasten, $gHilfe)
 	GUISetState(@SW_SHOW, $gHilfe)
 	WinActivate($gHilfe)
 	; sonst ist der ganze Text markiert
@@ -5223,10 +5305,11 @@ Func Hilfe()
 	Return True
 EndFunc
 
-; Esc (schliesst GUI-Fenster von selbst) bzw. Schliessen-Ereignis abfragen
+; Esc (schliesst GUI-Fenster von selbst) bzw. Schliessen-Ereignis und Strg+A abfragen
 Func HilfePruefen()
 	Local $msg = GUIGetMsg(1)
 	If $msg[0] = $GUI_EVENT_CLOSE And $msg[1] = $gHilfe Then HilfeWeg()
+	If $msg[0] = $gHilfeAlles And $msg[1] = $gHilfe Then GUICtrlSendMsg($gHilfeText, $EM_SETSEL, 0, -1)
 EndFunc
 
 Func HilfeWeg()
