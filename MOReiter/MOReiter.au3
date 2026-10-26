@@ -23,14 +23,8 @@
 ;                              vorige Fenster)
 ;            Strg+Alt+F1       bildschirmfuellende Hilfe (Text aus MOReiter-Hilfe.txt, in die exe eingebettet),
 ;                              Esc oder nochmals Strg+Alt+F1 schliesst sie (MO-Hilfe weiter mit Strg+F1)
-;            Strg+Alt+B        (Zusatz, nur mit [Labor] Url= in der INI, Beispiel Labor Staber)
-;                              Laborbefunde des Patienten im Firefox: onlinebefunde.labor-staber.de anwaehlen
-;                              oder oeffnen, anmelden (Passwort aus dem Firefox), Patient nach Name und
-;                              Geburtsdatum suchen und seinen ersten Befund zeigen; die Arbeit auf der
-;                              Seite macht das Benutzerskript MOReiter-Labor.user.js (einmal in das
-;                              Firefox-Add-on Tampermonkey aufnehmen); Name und Geburtsdatum aus der
-;                              Seite "Personalien", bzw. im Patientenlaufzettel ueber dessen Pat_id aus der
-;                              Datenbank von Medical Office
+;            Strg+Alt+D        Explorer mit dem Dokumentenordner des Patienten (p:\dok\<Pat_id>), in jedem
+;                              Fenster von Medical Office (sonst nur der Auftrag im Krankenblatt)
 ;            Strg+Alt+Z        Liste der zuletzt geoeffneten Patienten (Pfeil rechts neben der Patientensuche)
 ;            Strg+Alt+Leertaste  Hauptmenue (drei Striche links oben)
 ;            Strg+Alt+H        in der markierten Zeile der Krankenblatt-Liste den hellblauen Pfeil nach
@@ -161,7 +155,7 @@ Global $FilterTasten[24] = [0xDC, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38
 ; Beschriftung dieser Tasten fuer die Einblendung
 Global $TastenNamen[24] = ["^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ChrW(223), ChrW(180), _
 		"F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
-; Labor (Strg+Alt+B, nur wenn [Labor] Url= gesetzt ist): Seitentitel des Portals, Gesamtzeit, Zahl der
+; Labor ([Aufrufe] Strg+O=Portal:Labor, nur wenn [Labor] Url= gesetzt ist): Seitentitel des Portals, Gesamtzeit, Zahl der
 ; durchsuchten Tabs
 Const $defLaborTitel = "Onlinebefunde", $defLaborZeit = 30000, $defLaborTabs = 5
 ; Installationsquelle des Benutzerskripts: Tampermonkey bietet beim Oeffnen einer *.user.js-Adresse die Installation an
@@ -228,12 +222,14 @@ Global $gOffenZuletzt = -1
 ; [Portal] Ablage= und Datei=: nach "fertig" kommende PDFs des Patienten aus dem Download-Ordner dorthin
 ; verschieben; je Auftrag eine Zeile: Portal, Ziel, Beginn (TimerInit), vorher vorhandene PDFs ("|a.pdf|"),
 ; Name;Groesse;Zeit des Kandidaten, regulaerer Ausdruck fuer den Dateinamen, neuer Name, Zeitraum, Patient
-; (Nachname, Vorname, Geburtsdatum durch @LF getrennt, fuer DokEinordnen)
-Global $gAblagen[0][9], $gAblagenGeprueft = 0
+; (Nachname, Vorname, Geburtsdatum durch @LF getrennt, fuer DokEinordnen), Patientennummer (falls bekannt)
+Global $gAblagen[0][10], $gAblagenGeprueft = 0
+; Patientennummer des laufenden Portal-Abrufs, falls schon bekannt (Laufzettel-Link)
+Global $gPortalPid = ""
 ; Aenderungsmeldung von Windows fuer den Download-Ordner (FindFirstChangeNotification) und dessen Pfad: der Ordner
 ; wird nur gelesen, wenn sich darin etwas getan hat. Das Lesen haelt die Hauptschleife auf; dauert es (Ordner auf
 ; dem Server, viele Dateien) zu lange, haengt Windows den Tastatur-Hook ab, und alle 2 s gelesen blieb MOReiter
-; nach Strg+Alt+B bis zu 30 min taub
+; nach einem Laborabruf bis zu 30 min taub
 Global $gDlWache = 0, $gDlWacheOrdner = ""
 ; eingelesener Bildschirmausschnitt fuer die Pfeilpruefung (BildLesen/BildFarbe)
 Global $gBild = 0, $gBildX = 0, $gBildY = 0, $gBildB = 0
@@ -264,7 +260,7 @@ EndIf
 
 ; Icon aus der Datei daneben laden, falls es beim Kompilieren nicht in die exe gekommen ist
 If FileExists(@ScriptDir & "\MOReiter.ico") Then TraySetIcon(@ScriptDir & "\MOReiter.ico")
-TraySetToolTip("MOReiter " & Stand() & ": Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, B Labor, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
+TraySetToolTip("MOReiter " & Stand() & ": Strg+Alt+F1 Hilfe, K Kartei/Wechsel, L Krankenblatt, P ePA/ePAAbr, U Karteikarte, T Termine, D Explorer, Z letzte Patienten, Leertaste Menue, ^..F12 oder Ziffernblock Filter bzw. Diagnose-Kurzwahl")
 ; sonst haelt ein Klick aufs Tray-Symbol das Skript an, und Windows haengt den unbeantworteten Hook ab
 Opt("TrayAutoPause", 0)
 AufrufeLaden()
@@ -452,8 +448,8 @@ Func HookAufgabe($vk)
 			Return $kalib ? "" : "Unten"
 		Case 0x54 ; T
 			Return $kalib ? "" : "Termine"
-		Case 0x42 ; B (im Briefversand schon oben als Betreff vergeben)
-			Return $kalib ? "" : "Labor"
+		Case 0x44 ; D, nur in Medical Office (Strg+Alt+Umsch+D ist oben die Fensterliste)
+			Return MOAktiv() ? "Explorer" : ""
 		Case 0x70 ; F1
 			Return $kalib ? "" : "Hilfe"
 		Case 0x5A ; Z
@@ -804,7 +800,7 @@ Func Ausfuehren($aufgabe)
 	If $aufgabe = "Unten" Then Return Unten()
 	If $aufgabe = "Termine" Then Return Termine()
 	If $aufgabe = "Hilfe" Then Return Hilfe()
-	If $aufgabe = "Labor" Then Return Labor()
+	If $aufgabe = "Explorer" Then Return Explorer()
 	If StringLeft($aufgabe, 7) = "Aufruf:" Then Return Aufruf(Int(StringTrimLeft($aufgabe, 7)))
 	If StringLeft($aufgabe, 7) = "Portal:" Then Return Portal(StringTrimLeft($aufgabe, 7))
 	If $aufgabe = "Abhaken" Then Return Abhaken()
@@ -3939,40 +3935,6 @@ EndFunc
 
 ; Patientennummer (patstamm.FSurogat) in Medical Office zu Name und Geburtsdatum; bei Fehler oder nicht genau
 ; einem Treffer @error und der Grund
-; Pat_id, wenn vorn ein Patientenlaufzettel steht (Titel "Nachname Vorname (Pat_id:123): Patientenlaufzettel vom ..."),
-; sonst ""; nicht beim Aufruf ueber einen Link, der bringt den Patienten selbst mit
-Func LaufzettelPid()
-	If $gLink Then Return ""
-	Local $m = StringRegExp(_WinAPI_GetWindowText(_WinAPI_GetForegroundWindow()), "\(Pat_id:(\d+)\): Patientenlaufzettel", 1)
-	If @error Then Return ""
-	Return $m[0]
-EndFunc
-
-; Nachname, Vorname und Geburtsdatum (TT.MM.JJJJ) zur Patientennummer $nr aus Medical Office; bei Fehler @error
-; und der Fehlertext
-Func MOPatient($nr, ByRef $nach, ByRef $vor, ByRef $geb)
-	Local $cn = DBVerbinden("medoff")
-	If @error Then Return SetError(1, 0, $cn)
-	$gComFehler = ""
-	Local $rs = $cn.Execute("SELECT FNachname, FVorname, DATE_FORMAT(FGeburtsdatum,'%d.%m.%Y') FROM patstamm WHERE FSurogat=" & Int($nr))
-	If $gComFehler <> "" Or Not IsObj($rs) Then
-		Local $t = $gComFehler
-		$cn.Close
-		Return SetError(1, 0, "Abfrage fehlgeschlagen: " & $t)
-	EndIf
-	Local $da = Not $rs.EOF
-	If $da Then
-		$nach = StringStripWS(String($rs.Fields(0).Value), 3)
-		$vor = StringStripWS(String($rs.Fields(1).Value), 3)
-		$geb = String($rs.Fields(2).Value)
-	EndIf
-	$rs.Close
-	$cn.Close
-	If Not $da Then Return SetError(1, 0, "nicht in Medical Office")
-	If $nach = "" Or Not StringRegExp($geb, "^\d\d\.\d\d\.\d{4}$") Then Return SetError(1, 0, "Name oder Geburtsdatum fehlt")
-	Return ""
-EndFunc
-
 Func MOPatNr($nach, $vor, $geb)
 	Local $d = StringSplit($geb, ".", 2)
 	If UBound($d) <> 3 Then Return SetError(1, 0, "Geburtsdatum " & $geb & " unlesbar")
@@ -4067,31 +4029,37 @@ Func Einst($sektion, $schluessel, $def)
 	Return IniRead($IniVorgaben, $sektion, $schluessel, $def)
 EndFunc
 
-; Strg+Alt+B: Laborbefunde des Patienten im Firefox, ebenso andere Portale (Abschnitt $s in der INI, z.B.
-; [LibreView], aufgerufen ueber [Aufrufe] Strg+L=Portal:LibreView). MOReiter waehlt den Tab mit dem Portal
+; Portal im Firefox (Abschnitt $s in der INI, z.B. [LibreView], aufgerufen ueber [Aufrufe] Strg+L=Portal:LibreView,
+; die Laborbefunde mit Strg+O=Portal:Labor). MOReiter waehlt den Tab mit dem Portal
 ; (oder einen neuen) und oeffnet dort die Portaladresse mit dem Auftrag "#mor=Nachname;Vorname;Geburtsdatum;
 ; Kennung;Nr;PC-Name;Art;Tage"; die Arbeit auf der Seite macht das Benutzerskript MOReiter-<Abschnitt>.user.js
 ; (Tampermonkey), das seinen Fortschritt im Seitentitel "MOR:Nr:Zustand" meldet.
-Func Labor()
-	Return Portal("Labor")
+; Strg+Alt+D: Explorer mit dem Dokumentenordner des Patienten (wie der Auftrag "Datei" im Krankenblatt, der
+; ExpAufruf.exe startet, aber ohne die turbcust.gdt; die Patientennummer kommt aus der Datenbank)
+Func Explorer()
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error Then Return MOStarten()
+	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Local $nach, $vor, $geb
+	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
+	Local $pid = MOPatNr($nach, $vor, $geb)
+	If @error Then Return Meldung("Patientennummer von " & $vor & " " & $nach & " nicht eindeutig (" & $pid & ")")
+	Local $vz = StringRegExpReplace(Einst("Dokumente", "Dok", "p:\dok"), "\\$", "") & "\" & $pid
+	If Not FileExists($vz) Then Return Meldung("Dokumentenordner " & $vz & " (noch) nicht vorhanden")
+	ShellExecute("explorer.exe", '"' & $vz & '"')
+	Return True
 EndFunc
 
 Func Portal($s)
 	; Zusatzfunktion fuer ein bestimmtes Portal, nur mit Eintrag in der INI
 	Local $portal = Einst($s, "Url", "")
 	If $portal = "" Then Return Meldung($s & " nicht eingerichtet ([" & $s & "] Url= in der INI, siehe Hilfe)")
-	; im Patientenlaufzettel dessen Patient statt des in Medical Office geoeffneten
-	Local $nach, $vor, $geb, $lz = LaufzettelPid()
-	If $lz <> "" Then
-		If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
-		Local $f = MOPatient($lz, $nach, $vor, $geb)
-		If @error Then Return Meldung("Patient " & $lz & " des Laufzettels: " & $f)
-	Else
-		Local $hMO = WinGetHandle($MOFenster)
-		If @error And Not $gLink Then Return MOStarten()
-		If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
-		If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
-	EndIf
+	$gPortalPid = $gLinkPid
+	Local $hMO = WinGetHandle($MOFenster)
+	If @error And Not $gLink Then Return MOStarten()
+	If Not ModifierLos() Then Return Meldung("Strg und Alt bitte loslassen")
+	Local $nach, $vor, $geb
+	If Not PatientDaten($hMO, $nach, $vor, $geb) Then Return Meldung("Name und Geburtsdatum des Patienten nicht gefunden (Seite Personalien)")
 	; beim ersten Mal auf dem PC: Tampermonkey und das Benutzerskript gleich einrichten, ohne erst
 	; vergeblich auf eine Antwort zu warten; danach geht es mit dem Auftrag weiter
 	If Not TampermonkeyDa() Then
@@ -4145,8 +4113,10 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	$muster = StringReplace($muster, "{nach}", "(?:" & NameMuster($nach) & ")")
 	; Herunterladedatum (heute)
 	$muster = StringReplace(StringReplace(StringReplace($muster, "{TT}", @MDAY), "{MM}", @MON), "{JJJJ}", @YEAR)
+	; liegt der Name schon im Download-Ordner (etwa von einem frueheren Abruf), haengt Firefox "-2" bzw. " (1)" an
+	$muster = StringRegExpReplace($muster, "(?i)\\\.pdf$", "(?:-\\d+| ?\\(\\d+\\))?\\.pdf")
 	Local $n = UBound($gAblagen)
-	ReDim $gAblagen[$n + 1][9]
+	ReDim $gAblagen[$n + 1][10]
 	$gAblagen[$n][0] = $s
 	$gAblagen[$n][1] = StringRegExpReplace($ziel, "\\$", "")
 	$gAblagen[$n][2] = TimerInit()
@@ -4156,6 +4126,7 @@ Func AblageMerken($s, $nach, $vor, $geb, $zeitraum = "")
 	$gAblagen[$n][6] = AblageNeuerName($s, $nach, $vor, $geb)
 	$gAblagen[$n][7] = $zeitraum
 	$gAblagen[$n][8] = $nach & @LF & $vor & @LF & $geb
+	$gAblagen[$n][9] = $gPortalPid
 	Protokoll($s & ": warte 30 min auf ein PDF nach " & $gAblagen[$n][1] & ", Muster " & $gAblagen[$n][5])
 EndFunc
 
@@ -4278,14 +4249,12 @@ Func AblagenPruefen()
 			EndIf
 			If $gr = 0 Or TimerDiff(Number($alt[2])) < 3000 Then ContinueLoop
 			Local $neu = $gAblagen[$i][6], $zeit = $gAblagen[$i][7]
+			; [Portal] Datum=: Datum des Dokuments aus den Klammern von Datei= (Laborbefund: Befunddatum), gilt beim
+			; Einordnen wie ein Berichtszeitraum von einem Tag (Quelldatum, Jahr der Sicherheitskopie)
+			Local $datum = DateiKlammern(Einst($gAblagen[$i][0], "Datum", ""), $f, $gAblagen[$i][5])
+			If $zeit = "" And StringRegExp($datum, "^\d\d\.\d\d\.\d{4}$") Then $zeit = $datum & "-" & $datum
 			If $neu <> "" Then
-				; {1} ... {9}: Klammern aus Datei= (z.B. das Befunddatum aus dem Namen des Laborbefunds)
-				Local $gr9 = StringRegExp($f, $gAblagen[$i][5], 1)
-				If Not @error Then
-					For $k = 0 To UBound($gr9) - 1
-						If $k < 9 Then $neu = StringReplace($neu, "{" & ($k + 1) & "}", StringRegExpReplace($gr9[$k], "[\\/:*?""<>|]+", ""))
-					Next
-				EndIf
+				$neu = DateiKlammern($neu, $f, $gAblagen[$i][5])
 				Local $zr = StringInStr($neu, "{von}") ? PdfZeitraum($dl & "\" & $f) : ""
 				If $zr <> "" Then $zeit = $zr
 				$neu = NameMitZeitraum($neu, $zeit)
@@ -4295,7 +4264,7 @@ Func AblagenPruefen()
 			Protokoll($gAblagen[$i][0] & ": " & $f & ($verschoben ? " verschoben nach " : " nicht verschiebbar nach ") & $ziel)
 			If $verschoben Then
 				Local $pat = StringSplit($gAblagen[$i][8], @LF, 2)
-				If UBound($pat) = 3 Then $ziel = DokEinordnen($gAblagen[$i][0], $ziel, $pat[0], $pat[1], $pat[2], $zeit)
+				If UBound($pat) = 3 Then $ziel = DokEinordnen($gAblagen[$i][0], $ziel, $pat[0], $pat[1], $pat[2], $zeit, $gAblagen[$i][9])
 				Hinweis($gAblagen[$i][0] & ": " & $f & " als " & $ziel & " abgelegt")
 				; fuer andere Auftraege nicht mehr neu
 				For $j = 0 To UBound($gAblagen) - 1
@@ -4331,6 +4300,18 @@ Func DownloadGeaendert($dl)
 	Return True
 EndFunc
 
+; {1} ... {9} in $text: Klammern des regulaeren Ausdrucks $muster (aus Datei=) im Dateinamen $f, ohne Zeichen, die
+; in Dateinamen nicht erlaubt sind
+Func DateiKlammern($text, $f, $muster)
+	If Not StringInStr($text, "{") Then Return $text
+	Local $gr = StringRegExp($f, $muster, 1)
+	If @error Then Return $text
+	For $k = 0 To UBound($gr) - 1
+		If $k < 9 Then $text = StringReplace($text, "{" & ($k + 1) & "}", StringRegExpReplace($gr[$k], "[\\/:*?""<>|]+", ""))
+	Next
+	Return $text
+EndFunc
+
 ; Zielname, bei schon vorhandener Datei mit " (2)", " (3)" ...
 Func AblageName($verz, $f)
 	Local $ziel = $verz & "\" & $f, $stamm = StringRegExpReplace($f, "(?i)\.pdf$", ""), $k = 2
@@ -4348,7 +4329,7 @@ Func AblageWeg($i)
 			$gAblagen[$j][$k] = $gAblagen[$j + 1][$k]
 		Next
 	Next
-	ReDim $gAblagen[$n - 1][9]
+	ReDim $gAblagen[$n - 1][10]
 EndFunc
 
 ; steht dieser PC in der Komma-Liste $liste (gross/klein egal)?
@@ -4563,7 +4544,7 @@ Func PortalDrucken($s, $hFF, $nach, $vor, $geb, $zeitraum)
 		If FileGetSize($ziel) = $gr And $gr > 0 Then ExitLoop
 		$gr = FileGetSize($ziel)
 	WEnd
-	$ziel = DokEinordnen($s, $ziel, $nach, $vor, $geb, $zeitraum)
+	$ziel = DokEinordnen($s, $ziel, $nach, $vor, $geb, $zeitraum, $gPortalPid)
 	Hinweis($s & ": als " & $ziel & " abgelegt")
 	Return True
 EndFunc
@@ -4574,9 +4555,9 @@ EndFunc
 ; Patientennummer kommt vom Laufzettel-Link oder aus Medical Office (Name und Geburtsdatum eindeutig). Klappt etwas
 ; nicht, bleibt die Datei in der Ablage (Hinweis, eine schon angelegte Sicherheitskopie wird wieder geloescht);
 ; liefert den Pfad, unter dem die Datei jetzt liegt
-Func DokEinordnen($s, $datei, $nach, $vor, $geb, $zeitraum)
+Func DokEinordnen($s, $datei, $nach, $vor, $geb, $zeitraum, $pid = "")
 	If Einst($s, "Einordnen", Einst("Dokumente", "Einordnen", "0")) <> "1" Then Return $datei
-	Local $pid = $gLinkPid
+	If $pid = "" Then $pid = $gLinkPid
 	If $pid = "" Then
 		$pid = MOPatNr($nach, $vor, $geb)
 		If @error Then Return DokNicht($s, $datei, "Patientennummer nicht eindeutig (" & $pid & ")")
@@ -4702,7 +4683,7 @@ EndFunc
 Func AddOnEinrichten()
 	Local $pol = TampermonkeyRichtlinie()
 	If $pol <> "" Then Return Meldung("Bitte erst als Administrator " & $pol & " loeschen (oder das neue NVerb laufen " & _
-			"lassen), Firefox neu starten und Strg+Alt+B wiederholen")
+			"lassen), Firefox neu starten und den Abruf wiederholen")
 	If Not FirefoxTab(AddOnQuelle()) Then Return False
 	HinweisStehend("Einmalig: im Firefox bei ""Tampermonkey hinzufuegen"" auf ""Hinzufuegen"" klicken")
 	Local $t = TimerInit()
@@ -4897,14 +4878,18 @@ EndFunc
 ; Link "moreiter:Zucker[:Pat_id];Nachname;Vorname;TT.MM.JJJJ;Markierung|Markierung..." vom Patientenlaufzettel (Klick
 ; auf eine Zucker-Markierung bzw. Alt+Z fuer alle): wie Strg+Z, aber mit dem Patienten und den Markierungen aus
 ; dem Link, also ohne Medical Office; die Teile sind percent-codiert (Windows-1252 wie die Seite). Danach wartet
-; diese Instanz, bis die abgerufenen PDFs abgelegt sind, und laesst die letzte Meldung noch lesen
+; diese Instanz, bis die abgerufenen PDFs abgelegt sind, und laesst die letzte Meldung noch lesen.
+; "moreiter:Taste:Strg+O[:Pat_id];Nachname;Vorname;TT.MM.JJJJ" (Alt+O, Alt+A, Alt+P, Alt+Umsch+L ... im Laufzettel):
+; wie diese Taste in Medical Office, also der Befehl aus [Aufrufe], mit dem Patienten aus dem Link
 Func LinkAufruf($url)
 	$gLink = True
 	AufrufeLaden()
 	Local $r = LinkAusfuehren($url)
+	ProtokollSchreiben()
 	While UBound($gAblagen) > 0
 		Sleep(2000)
 		AblagenPruefen()
+		If $gProtokoll <> "" Then ProtokollSchreiben()
 	WEnd
 	Sleep(4000)
 	Return $r
@@ -4913,16 +4898,25 @@ EndFunc
 Func LinkAusfuehren($url)
 	; Firefox haengt manchmal einen Schraegstrich an
 	Local $t = StringSplit(StringRegExpReplace(StringRegExpReplace($url, "(?i)^moreiter:/*", ""), "/+$", ""), ";", 2)
-	If UBound($t) < 5 Then Return Meldung("MOReiter-Link unvollstaendig: " & $url)
-	; nur dieser Befehl: eine fremde Seite soll ueber den Link keine Befehlszeilen starten koennen
+	If UBound($t) < 4 Then Return Meldung("MOReiter-Link unvollstaendig: " & $url)
+	; nur diese Befehle: eine fremde Seite soll ueber den Link keine beliebigen Befehlszeilen starten koennen, bei
+	; "Taste:" nur die in [Aufrufe] eingetragenen
 	; "Zucker:Pat_id" (neuere Laufzettel), sonst sucht DokEinordnen die Patientennummer in Medical Office
-	Local $bef = StringRegExp(UrlDekodiert($t[0]), "^Zucker(?::(\d+))?$", 1)
+	Local $bef = StringRegExp(UrlDekodiert($t[0]), "(?i)^(Zucker|Taste:(Strg\+(?:Umsch\+)?[A-Z]))(?::(\d+))?$", 1)
 	If @error Then Return Meldung("MOReiter-Link: unbekannter Befehl " & UrlDekodiert($t[0]))
-	If UBound($bef) > 0 Then $gLinkPid = String($bef[0])
+	If UBound($bef) > 2 Then $gLinkPid = String($bef[2])
 	$gLinkNach = StringStripWS(UrlDekodiert($t[1]), 3)
 	$gLinkVor = StringStripWS(UrlDekodiert($t[2]), 3)
 	$gLinkGeb = UrlDekodiert($t[3])
 	If $gLinkNach = "" Or Not StringRegExp($gLinkGeb, "^\d\d\.\d\d\.\d{4}$") Then Return Meldung("MOReiter-Link: Name oder Geburtsdatum fehlt: " & $url)
+	If $bef[0] <> "Zucker" Then
+		For $i = 0 To UBound($gAufrufe) - 1
+			; Strg+Z (Zucker) braucht die Markierungen, die bringt nur der Zucker-Link mit
+			If $gAufrufe[$i][0] = $bef[1] And $gAufrufe[$i][3] <> "Zucker" Then Return AufrufBefehl($gAufrufe[$i][0], $gAufrufe[$i][3])
+		Next
+		Return Meldung("MOReiter-Link: " & $bef[1] & " ist in [Aufrufe] nicht eingetragen")
+	EndIf
+	If UBound($t) < 5 Then Return Meldung("MOReiter-Link unvollstaendig: " & $url)
 	For $m In StringSplit($t[4], "|", 2)
 		Local $w = StringStripWS(UrlDekodiert($m), 3)
 		If $w = "" Then ContinueLoop

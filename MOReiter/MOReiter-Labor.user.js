@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MOReiter Labor
 // @namespace    https://github.com/libelle17/vb6wurzel
-// @version      1.2
-// @description  Onlinebefunde Labor Staber: Patient nach Name und Geburtsdatum suchen und den ersten Befund zeigen (Auftrag von MOReiter, Strg+Alt+B)
+// @version      1.3
+// @description  Onlinebefunde Labor Staber: Patient nach Name und Geburtsdatum suchen und den ersten Befund zeigen (Auftrag von MOReiter: Strg+O in Medical Office, Alt+O im Patientenlaufzettel)
 // @match        https://onlinebefunde.labor-staber.de/*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/libelle17/vb6wurzel/main/MOReiter/MOReiter-Labor.user.js

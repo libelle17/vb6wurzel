@@ -19,7 +19,8 @@ Strg+Alt+U          ("unten") die Liste im Container Karteikarte aktivieren, so 
 Strg+Alt+T          aus jedem Programm: die Termine des Patienten zeigen, solange Strg+Alt+T gehalten
                     wird (Medical Office nach vorn, F6, Alt+T; beim Loslassen F6 und zurück ins
                     vorige Programm)
-Strg+Alt+B          Laborbefunde des Patienten im Firefox (Zusatz, siehe LABOR unten)
+Strg+Alt+D          Explorer mit dem Dokumentenordner des Patienten (p:\dok\<Pat_id>), in jedem Fenster
+                    von Medical Office (wie der Auftrag "Datei" im Krankenblatt) und im Laufzettel
 Strg+Alt+Z          Liste der zuletzt geöffneten Patienten (Pfeil rechts neben der Patientensuche)
 Strg+Alt+Leertaste  Hauptmenü (drei Striche links oben)
 Strg+Alt+H          in der markierten Zeile der Karteikarte den hellblauen Pfeil nach oben anklicken
@@ -44,7 +45,7 @@ Strg+Alt + mehrere Ziffern der oberen Reihe
                     mit der 7 dann Filter 17 (wie Ziffernblock 17)
 
 
-LABOR (Strg+Alt+B, Zusatzfunktion; Beispiel Onlinebefunde Labor Staber im Firefox)
+LABOR (Strg+O, im Laufzettel Alt+O; Zusatzfunktion, Beispiel Onlinebefunde Labor Staber im Firefox)
 ----------------------------------------------------------------------------------------------------
 Nur eingeschaltet mit [Labor] Url=<Adresse der Patientensuche des Portals> in der INI.
 Liest Nachname, Vorname und Geburtsdatum des geöffneten Patienten aus Medical Office (steht ein
@@ -53,7 +54,7 @@ den Tab mit onlinebefunde.labor-staber.de (oder öffnet ihn), meldet sich an (Pa
 Firefox-Kennwortspeicher), sucht den Patienten, nimmt den ersten Treffer mit passendem Geburtsdatum
 und zeigt dessen ersten Befund. Ohne passendes Geburtsdatum bleibt die Suchliste stehen.
 Einmalig einrichten: Fehlt im Firefox das Add-on "Tampermonkey", bietet MOReiter es beim ersten
-Strg+Alt+B in einem neuen Tab an ([Labor] AddOn=, sonst addons.mozilla.org): "Hinzufügen" klicken.
+Abruf in einem neuen Tab an ([Labor] AddOn=, sonst addons.mozilla.org): "Hinzufügen" klicken.
 Gleich danach bietet es das Benutzerskript an ([Labor] Skript=): "Installieren" klicken. Dann läuft
 die Abfrage im selben Durchgang weiter. Ohne Internet ginge auch: in Tampermonkey
 "Neues Skript erstellen" und den ganzen Inhalt von MOReiter-Labor.user.js hineinkopieren.
@@ -61,6 +62,7 @@ Das Skript wird nur auf Seiten von onlinebefunde.labor-staber.de aktiv und erled
 den MOReiter hinter "#mor=" an die Adresse hängt.
 Einen danach heruntergeladenen Befund des Patienten verschiebt MOReiter nach [Labor] Ablage= (p:\) und
 benennt ihn wie die Zuckerberichte, z.B. "Muster, Anna, 01.02.1960, Labor 22.10.2026, erst. 26.10.2026.pdf".
+Von dort ordnet es ihn wie die Zuckerberichte ein (s. unten), mit dem Befunddatum als Quelldatum.
 
 
 PROGRAMMAUFRUFE (Zusatzfunktion, [Aufrufe] in der INI)
@@ -172,11 +174,16 @@ und "Omnipod 5 Glooko": erst LibreView, dann Glooko). Welche Markierung wohin f�
 Die Zugangsdaten zur Datenbank kommen aus der Zugang.ini von Dateilese.
 Vom Patientenlaufzettel aus: ein Klick auf eine Zucker-Markierung in der ersten Kopfzeile ruft dieses
 Portal ab, Alt+Z alle (wie Strg+Z, aber mit Name und Geburtsdatum aus dem Laufzettel, Medical Office
-braucht dafür nicht offen zu sein). Der Laufzettel öffnet dazu einen Link "moreiter:...", den MOReiter
+braucht dafür nicht offen zu sein). Ebenso entspricht im Laufzettel Alt+Buchstabe der Taste
+Strg+Buchstabe in Medical Office: Alt+O Onlinebefunde, Alt+A Arztbrief, Alt+P bzw. Alt+Umsch+P Laufzettel
+neu erstellen, Alt+I FreeCommander; die einzelnen Portale mit Alt+Umsch: L LibreView, D Dexcom, G Glooko,
+Y YourLoops, E EasyView, S Smart Pix; Strg+Alt+D Explorer, Alt+M den Patienten in Medical Office öffnen.
+Der Laufzettel öffnet dazu einen Link "moreiter:...", den MOReiter
 beim Start für den Benutzer anmeldet; Firefox fragt beim ersten Mal, ob er MOReiter öffnen darf
 ("immer erlauben" anhaken). Die so gestartete zweite MOReiter-Instanz beendet sich, sobald die PDFs
 abgelegt sind.
-Die PDFs der Zuckerportale ordnet MOReiter danach gleich ein wie DokimpKurz ([Dokumente] Einordnen=1):
+Die PDFs der Zuckerportale und die Laborbefunde (Strg+O) ordnet MOReiter danach gleich ein wie
+DokimpKurz ([Dokumente] Einordnen=1):
 Sicherheitskopie nach p:\eingelesen\<Jahr>, Einträge in quelle (tmbrie, dokprotlist, dokprotinh; Mitarbeiter
 und Autor = PC-Name) und Verschieben nach p:\dok\<Pat_id>. Die Patientennummer kommt vom Laufzettel oder aus
 Medical Office (Name und Geburtsdatum müssen eindeutig sein); klappt etwas nicht, bleibt die Datei mit einer
@@ -254,7 +261,7 @@ eingebaute Wert. Beide Dateien haben denselben Aufbau; Kalibrieren schreibt nur 
               X, Y, Abstand      Lage des ersten Filters und Zeilenabstand (schreibt das Kalibrieren)
 [Karteikarte] Art=Klick          Strg+Alt+U klickt in die markierte Zeile statt nur den Fokus zu setzen
 [Termine]     Warten=200         ms zwischen F6 und Alt+T
-[Labor]       Url=...            Adresse der Patientensuche; ohne sie ist Strg+Alt+B abgeschaltet
+[Labor]       Url=...            Adresse der Patientensuche; ohne sie ist der Laborabruf abgeschaltet
               Titel=Onlinebefunde   Seitentitel des Portals
               Kennung=...        Benutzerkennung, falls Firefox sie nicht selbst einträgt
               Skript=...         Adresse des Benutzerskripts (Voreinstellung: GitHub)
