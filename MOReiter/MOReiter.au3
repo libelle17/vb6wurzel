@@ -4751,14 +4751,34 @@ Func SkripteEinrichten()
 	Local $p = StringSplit($portale, "|", 2)
 	For $k = 0 To UBound($p) - 1
 		HinweisStehend("Benutzerskript " & ($k + 1) & "/" & UBound($p) & ": MOReiter " & $p[$k])
-		If Not FirefoxTab(PortalSkript($p[$k])) Then Return False
-		; Tampermonkey braucht einen Moment, bis es die Adresse durch seine Installationsseite ersetzt
-		Sleep(1500)
+		Local $h = FirefoxTab(PortalSkript($p[$k]))
+		If Not $h Then Return False
+		LeerenTabSchliessen($h)
 	Next
 	HinweisStehend("Benutzerskripte geoeffnet (" & StringReplace($portale, "|", ", ") & "): in jedem Tab ""Installieren"" " & _
 			"bzw. ""Aktualisieren"" klicken; ist ein Skript schon aktuell, den Tab einfach schliessen")
 	AdlibRegister("HinweisWeg", 20000)
 	Return True
+EndFunc
+
+; Tampermonkey zeigt seine Installationsseite in einem eigenen neuen Tab, der mit der Skriptadresse geoeffnete
+; bleibt leer zurueck: sobald die Installationsseite vorn ist (bis 6 s), den Tab links davon schliessen, wenn er
+; leer ist bzw. nur die Skriptadresse zeigt
+Func LeerenTabSchliessen($h)
+	Local $leer = "(?i)^(|Mozilla Firefox|Neuer Tab|New Tab|.*\.user\.js.*)$", $t = TimerInit()
+	While StringRegExp(FFTitel($h), $leer)
+		If TimerDiff($t) > 6000 Then Return
+		Sleep(200)
+	WEnd
+	If Not WinActive($h) Then Return
+	Send("^{PGUP}")
+	Sleep(300)
+	If StringRegExp(FFTitel($h), $leer) Then
+		Send("^w")
+	Else
+		Send("^{PGDN}")
+	EndIf
+	Sleep(300)
 EndFunc
 
 Func SkriptEinrichten($s)
