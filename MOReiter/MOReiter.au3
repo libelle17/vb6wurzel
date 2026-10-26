@@ -97,6 +97,7 @@
 #include <WindowsConstants.au3>
 #include <StaticConstants.au3>
 #include <EditConstants.au3>
+#include <ButtonConstants.au3>
 Opt("MustDeclareVars", 1)
 Opt("WinTitleMatchMode", 4)
 ; keine 250 ms Pause nach jedem Fensterbefehl; wo ein Fenster Zeit braucht, wird ausdruecklich gewartet
@@ -191,8 +192,9 @@ Global $gLaeuft = "", $gLaeuftZeit = 0, $gBesetzt = ""
 ; Zustand des Hooks fuer die Momentaufnahme beim Neustart (NeustartPruefen): letzter Aufruf des Rueckrufs, letzte
 ; ausgewertete Taste mit ihrer Aufgabe, letztes Einhaengen, ob Strg+Alt+Esc ueber den Hook oder den Hotkey kam
 Global $gHookZeit = TimerInit(), $gHookLetzte = "", $gErneuertZeit = TimerInit(), $gErneuertOk = True, $gNeustartWeg = ""
-; offenes Hilfefenster (0 = keins), sein Textfeld und das unsichtbare Control fuer Strg+A
-Global $gHilfe = 0, $gHilfeText = 0, $gHilfeAlles = 0
+; offenes Hilfefenster (0 = keins), sein Textfeld, das Suchfeld, die unsichtbaren Controls fuer Strg+A, Strg+F und
+; F3/Enter (weitersuchen) und die Stelle des letzten Treffers
+Global $gHilfe = 0, $gHilfeText = 0, $gHilfeAlles = 0, $gHilfeSuch = 0, $gHilfeSuchen = 0, $gHilfeWeiter = 0, $gHilfePos = 0
 ; [Aufrufe]: externe Programme auf Strg[+Umsch]+Buchstabe in Medical Office, je Zeile Name, Taste (vk), Umsch, Befehl
 Global $gAufrufe[0][4]
 ; [Aufrufe] Protokoll=1: jede passende Taste mit Fokus und Entscheidung nach %APPDATA%\MOReiter\Aufrufe.log
@@ -248,6 +250,8 @@ ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Filter" Then
 	Exit FilterWahl(Int($CmdLine[2]) - 1) ? 0 : 1
 ElseIf $CmdLine[0] > 1 And $CmdLine[1] = "Diagnose" Then
 	Exit DiagnoseWahl(Int($CmdLine[2]) - 1) ? 0 : 1
+ElseIf $CmdLine[0] > 0 And $CmdLine[1] = "Praxis" Then
+	Exit PraxisEinrichten() ? 0 : 1
 ElseIf $CmdLine[0] > 0 And StringLeft($CmdLine[1], 9) = "moreiter:" Then
 	Exit LinkAufruf($CmdLine[1]) ? 0 : 1
 ElseIf $CmdLine[0] > 0 Then
@@ -4051,8 +4055,8 @@ EndFunc
 ; Alt+Buchstabe bzw. bei den einzelnen Portalen Alt+Umsch+Buchstabe, s. Laufzettelneu.bas in Dateilesen), dazu
 ; die Tasten, die es nur im Laufzettel gibt
 Func TastenTabelle()
-	Local $t = StringFormat("%-50s%-16s%s", "Aktion", "Medical Office", "Laufzettel") & @CRLF & _
-			StringFormat("%-50s%-16s%s", "------", "--------------", "----------") & @CRLF
+	Local $t = StringFormat("%-50s%-16s%s", "Aktion", "Medical Office", "Patientenlaufzettel") & @CRLF & _
+			StringFormat("%-50s%-16s%s", "------", "--------------", "-------------------") & @CRLF
 	For $i = 0 To UBound($gAufrufe) - 1
 		Local $k = $gAufrufe[$i][0], $lz = ChrW(8211), $b = StringRight($k, 1)
 		If $k = "Strg+Umsch+P" Then
@@ -4097,6 +4101,115 @@ Func HilfeMerkmale()
 	Next
 	$m.Item("Portale") = ($m.Item("Labor") Or $m.Item("Zucker"))
 	Return $m
+EndFunc
+
+; MOReiter.exe Praxis (Kompilieren.bat beim ersten Kompilieren): fragt, was die Praxis nutzt, und schaltet in
+; MOReiter-Vorgaben.ini neben der exe die zugehoerigen Eintraege ein bzw. aus (Semikolon davor): Labor ([Labor] Url=,
+; Strg+O), Zuckerportale (Url= der Portale, Strg+L/D/G/Y/E/Z), Smart Pix (Strg+S, Strg+Umsch+S), Patientenlaufzettel
+; (Dateilese und FCAufruf: Strg+P, Strg+Umsch+P, Strg+A, Strg+I); Strg+Umsch+T bleibt, solange es ein Portal gibt
+Func PraxisEinrichten()
+	Local $an = PraxisStand()
+	Local $text[4] = ["Labor: das Labor stellt seine Befunde " & ChrW(252) & "ber onlinebefunde.labor-staber.de bereit (Strg+O)", _
+			"Zuckerwerte der Patienten aus LibreView, Dexcom Clarity, Glooko, YourLoops bzw. EasyView herunterladen " & _
+			"(Strg+L, D, G, Y, E; Strg+Z nach den Markierungen)", _
+			"Accu-Chek Smart Pix (Strg+S Patient w" & ChrW(228) & "hlen, Strg+Umsch+S Patientenliste abgleichen)", _
+			"Patientenlaufzettel, Arztbrief usw. aus Dateilese.exe, FreeCommander " & ChrW(252) & "ber FCAufruf.exe " & _
+			"(Strg+P, Strg+Umsch+P, Strg+A, Strg+I)"]
+	Local $namen[4] = ["Labor", "Zucker", "SmartPix", "Laufzettel"], $kaestchen[4]
+	Local $g = GUICreate("MOReiter einrichten", 760, 290)
+	GUICtrlCreateLabel("Was nutzt die Praxis? MOReiter schaltet danach die Eintr" & ChrW(228) & "ge in " & $IniVorgaben & _
+			" ein bzw. aus (wieder aufzurufen mit ""MOReiter.exe Praxis"").", 15, 12, 730, 36)
+	For $i = 0 To 3
+		$kaestchen[$i] = GUICtrlCreateCheckbox($text[$i], 15, 55 + $i * 45, 730, 40, $BS_MULTILINE)
+		If $an.Item($namen[$i]) Then GUICtrlSetState($kaestchen[$i], $GUI_CHECKED)
+	Next
+	Local $ok = GUICtrlCreateButton("OK", 540, 245, 95, 30), $ab = GUICtrlCreateButton("Abbrechen", 650, 245, 95, 30)
+	GUISetState(@SW_SHOW, $g)
+	Local $erg = False
+	While 1
+		Switch GUIGetMsg()
+			Case $GUI_EVENT_CLOSE, $ab
+				ExitLoop
+			Case $ok
+				For $i = 0 To 3
+					$an.Item($namen[$i]) = (BitAND(GUICtrlRead($kaestchen[$i]), $GUI_CHECKED) = $GUI_CHECKED)
+				Next
+				$erg = PraxisSchreiben($an)
+				ExitLoop
+		EndSwitch
+	WEnd
+	GUIDelete($g)
+	Return $erg
+EndFunc
+
+; welche der vier Gruppen in MOReiter-Vorgaben.ini eingeschaltet sind (Dictionary Name -> True/False)
+Func PraxisStand()
+	Local $an = ObjCreate("Scripting.Dictionary")
+	$an.Item("Labor") = (IniRead($IniVorgaben, "Labor", "Url", "") <> "")
+	$an.Item("Zucker") = False
+	$an.Item("SmartPix") = False
+	$an.Item("Laufzettel") = False
+	Local $a = IniReadSection($IniVorgaben, "Aufrufe")
+	If Not @error Then
+		For $i = 1 To $a[0][0]
+			Local $gr = PraxisGruppe("Aufrufe", $a[$i][0], $a[$i][1])
+			If $gr <> "" And $gr <> "Labor" And $gr <> "Portale" Then $an.Item($gr) = True
+		Next
+	EndIf
+	Return $an
+EndFunc
+
+; Gruppe einer INI-Zeile ($sektion, Schluessel, Wert), "" wenn sie keine hat
+Func PraxisGruppe($sektion, $k, $w)
+	If $sektion = "Labor" And $k = "Url" Then Return "Labor"
+	If StringRegExp($sektion, "(?i)^(LibreView|Dexcom|Glooko|YourLoops|EasyView)$") And $k = "Url" Then Return "Zucker"
+	If $sektion <> "Aufrufe" Or Not StringRegExp($k, "(?i)^Strg\+(Umsch\+)?[A-Z]$") Then Return ""
+	$w = StringStripWS($w, 3)
+	If $w = "Portal:Labor" Then Return "Labor"
+	If $w = "Zucker" Or StringLeft($w, 7) = "Portal:" Then Return "Zucker"
+	If StringLeft($w, 8) = "SmartPix" Then Return "SmartPix"
+	If $w = "Skripte" Then Return "Portale"
+	If StringRegExp($w, "(?i)dateilese\.exe|fcaufruf\.exe") Then Return "Laufzettel"
+	Return ""
+EndFunc
+
+; schreibt MOReiter-Vorgaben.ini neu: Zeilen eingeschalteter Gruppen ohne, die der anderen mit Semikolon davor
+Func PraxisSchreiben($an)
+	$an.Item("Portale") = ($an.Item("Labor") Or $an.Item("Zucker"))
+	Local $alt = FileRead($IniVorgaben)
+	If @error Then
+		MsgBox(16, "MOReiter", $IniVorgaben & " nicht lesbar")
+		Return False
+	EndIf
+	Local $z = StringSplit($alt, @CRLF, 1 + 2), $sektion = "", $n = 0
+	For $i = 0 To UBound($z) - 1
+		Local $m = StringRegExp($z[$i], "^\s*\[([^\]]+)\]", 1)
+		If Not @error Then
+			$sektion = $m[0]
+			ContinueLoop
+		EndIf
+		; nur "Schluessel=Wert" bzw. ";Schluessel=Wert" ohne Leerzeichen hinter dem Semikolon, Kommentare bleiben
+		$m = StringRegExp($z[$i], "^(;?)([^;=\s][^=]*)=(.*)$", 1)
+		If @error Then ContinueLoop
+		Local $gr = PraxisGruppe($sektion, $m[1], $m[2])
+		If $gr = "" Then ContinueLoop
+		Local $neu = ($an.Item($gr) ? "" : ";") & $m[1] & "=" & $m[2]
+		If $neu <> $z[$i] Then
+			$z[$i] = $neu
+			$n += 1
+		EndIf
+	Next
+	Local $fh = FileOpen($IniVorgaben, 2)
+	If $fh = -1 Then
+		MsgBox(16, "MOReiter", $IniVorgaben & " nicht beschreibbar")
+		Return False
+	EndIf
+	For $i = 0 To UBound($z) - 1
+		FileWrite($fh, $z[$i] & (($i < UBound($z) - 1) ? @CRLF : ""))
+	Next
+	FileClose($fh)
+	MsgBox(64, "MOReiter", $IniVorgaben & ": " & $n & " Eintr" & ChrW(228) & "ge ge" & ChrW(228) & "ndert.", 10)
+	Return True
 EndFunc
 
 ; Abschnitte "{WENN Merkmal}" ... "{ENDE Merkmal}" (je auf eigener Zeile) behalten oder weglassen
@@ -5283,20 +5396,34 @@ Func Hilfe()
 	$txt = StringRegExpReplace($txt, "\r?\n", @CRLF)
 	$txt = StringReplace($txt, "{AUFRUFE}", AufrufeText())
 	$txt = StringReplace($txt, "{TASTENTABELLE}", TastenTabelle())
-	$txt = "Stand " & Stand() & " (" & @AutoItExe & ")" & @CRLF & $txt
+	; Stand und Pfad der exe unter der Ueberschrift (Titel und Unterstreichung bleiben oben)
+	Local $z2 = StringInStr($txt, @CRLF, 0, 2)
+	$txt = StringLeft($txt, $z2 + 1) & "Stand " & Stand() & " (" & @AutoItExe & ")" & @CRLF & StringMid($txt, $z2 + 2)
 	Local $b = @DesktopWidth, $h = @DesktopHeight
 	$gHilfe = GUICreate("MOReiter - Hilfe", $b, $h, 0, 0, $WS_POPUP, $WS_EX_TOPMOST)
 	GUISetBkColor(0xFFFFFF, $gHilfe)
 	; Spalte in der Mitte, so breit wie der Text (ca. 110 Zeichen Consolas 11), hoechstens der Bildschirm
-	Local $sb = ($b > 1100) ? 1100 : $b - 20
-	Local $ed = GUICtrlCreateEdit($txt, Int(($b - $sb) / 2), 10, $sb, $h - 20, _
-			BitOR($ES_MULTILINE, $ES_READONLY, $ES_AUTOVSCROLL, $WS_VSCROLL), 0)
+	Local $sb = ($b > 1100) ? 1100 : $b - 20, $x = Int(($b - $sb) / 2)
+	; Suchzeile oben: Strg+F setzt den Cursor hinein, Enter, F3 oder nochmals Strg+F suchen weiter
+	GUICtrlCreateLabel("Suchen:", $x, 13, 60, 20)
+	GUICtrlSetFont(-1, 11, 400, 0, "Consolas")
+	$gHilfeSuch = GUICtrlCreateInput("", $x + 70, 10, 300, 24)
+	GUICtrlSetFont(-1, 11, 400, 0, "Consolas")
+	GUICtrlCreateLabel("Strg+F, dann Enter, F3 oder Strg+F: weitersuchen   Strg+A: alles markieren   Esc: schlie" & ChrW(223) & "en", _
+			$x + 385, 13, $sb - 385, 20)
+	GUICtrlSetFont(-1, 9, 400, 0, "Consolas")
+	; ES_NOHIDESEL: der Treffer bleibt markiert, auch wenn der Cursor im Suchfeld steht
+	Local $ed = GUICtrlCreateEdit($txt, $x, 42, $sb, $h - 52, _
+			BitOR($ES_MULTILINE, $ES_READONLY, $ES_AUTOVSCROLL, $ES_NOHIDESEL, $WS_VSCROLL), 0)
 	GUICtrlSetFont($ed, 11, 400, 0, "Consolas")
 	GUICtrlSetBkColor($ed, 0xFFFFFF)
 	; Strg+A markiert alles (kann ein mehrzeiliges Eingabefeld nicht von selbst), z.B. zum Kopieren in einen Editor
 	$gHilfeText = $ed
+	$gHilfePos = 0
 	$gHilfeAlles = GUICtrlCreateDummy()
-	Local $tasten[1][2] = [["^a", $gHilfeAlles]]
+	$gHilfeSuchen = GUICtrlCreateDummy()
+	$gHilfeWeiter = GUICtrlCreateDummy()
+	Local $tasten[4][2] = [["^a", $gHilfeAlles], ["^f", $gHilfeSuchen], ["{F3}", $gHilfeWeiter], ["{ENTER}", $gHilfeWeiter]]
 	GUISetAccelerators($tasten, $gHilfe)
 	GUISetState(@SW_SHOW, $gHilfe)
 	WinActivate($gHilfe)
@@ -5309,7 +5436,42 @@ EndFunc
 Func HilfePruefen()
 	Local $msg = GUIGetMsg(1)
 	If $msg[0] = $GUI_EVENT_CLOSE And $msg[1] = $gHilfe Then HilfeWeg()
-	If $msg[0] = $gHilfeAlles And $msg[1] = $gHilfe Then GUICtrlSendMsg($gHilfeText, $EM_SETSEL, 0, -1)
+	If $msg[1] <> $gHilfe Or $msg[0] <= 0 Then Return
+	Local $imSuchfeld = (_WinAPI_GetFocus() = GUICtrlGetHandle($gHilfeSuch))
+	Switch $msg[0]
+		Case $gHilfeAlles
+			GUICtrlSendMsg($imSuchfeld ? $gHilfeSuch : $gHilfeText, $EM_SETSEL, 0, -1)
+		Case $gHilfeSuchen
+			; erstes Strg+F: in das Suchfeld, steht der Cursor schon dort: weitersuchen
+			If $imSuchfeld And GUICtrlRead($gHilfeSuch) <> "" Then
+				HilfeSuchen()
+				Return
+			EndIf
+			GUICtrlSetState($gHilfeSuch, $GUI_FOCUS)
+			GUICtrlSendMsg($gHilfeSuch, $EM_SETSEL, 0, -1)
+		Case $gHilfeWeiter
+			HilfeSuchen()
+	EndSwitch
+EndFunc
+
+; naechste Stelle des Suchworts hinter dem letzten Treffer (gross/klein egal), am Ende wieder von vorn;
+; markiert und in den sichtbaren Bereich gerollt
+Func HilfeSuchen()
+	Local $wort = GUICtrlRead($gHilfeSuch)
+	If $wort = "" Then
+		GUICtrlSetState($gHilfeSuch, $GUI_FOCUS)
+		Return
+	EndIf
+	Local $txt = GUICtrlRead($gHilfeText)
+	Local $p = StringInStr($txt, $wort, 0, 1, $gHilfePos + 1)
+	If Not $p Then $p = StringInStr($txt, $wort)
+	If Not $p Then
+		Hinweis("""" & $wort & """ nicht gefunden")
+		Return
+	EndIf
+	$gHilfePos = $p
+	GUICtrlSendMsg($gHilfeText, $EM_SETSEL, $p - 1, $p - 1 + StringLen($wort))
+	GUICtrlSendMsg($gHilfeText, $EM_SCROLLCARET, 0, 0)
 EndFunc
 
 Func HilfeWeg()

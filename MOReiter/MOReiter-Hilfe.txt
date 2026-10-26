@@ -272,6 +272,9 @@ MOReiter.exe Kartei | Krankenblatt | ePA | ePAAbr | Wechsel | ePAWechsel
 MOReiter.exe LetztePatienten | Menue | Unten | Labor
 MOReiter.exe Filter n          n-ter Filter der Kartei
 MOReiter.exe Diagnose n        n-te Diagnose-Kurzwahl
+MOReiter.exe Praxis            fragt, was die Praxis nutzt (Labor, Zuckerportale, Smart Pix, Patienten-
+                               laufzettel), und schaltet die Einträge in MOReiter-Vorgaben.ini entsprechend
+                               ein oder aus; Kompilieren.bat ruft das beim ersten Kompilieren von selbst auf
 Ohne Parameter bleibt MOReiter mit den Tastenkürzeln im Hintergrund.
 
 
