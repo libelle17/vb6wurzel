@@ -98,9 +98,10 @@ Anmeldung, Patient über die Suche nach dem Nachnamen (Name und, falls angegeben
 Dashboard mit Tage= (7, 14, 30, 90), "Print". In der Druckvorschau von Firefox klickt MOReiter
 "Speichern", wenn zuletzt "Als PDF speichern" gewählt war (sonst selbst Ziel wählen und "Speichern"),
 und trägt in "Speichern unter" Ordner und Namen (Ablage=, Name=) ein.
-Strg+Umsch+T=Skripte: bietet Tampermonkey (falls nötig) und nacheinander die Benutzerskripte aller
-Portale mit Url= zum Installieren bzw. Aktualisieren an; je "Installieren"/"Aktualisieren" klicken
-(oder den Tab schließen), dann kommt das nächste.
+Strg+Umsch+T (Benutzerskripte in Tampermonkey laden bzw. erneuern): bietet Tampermonkey (falls nötig)
+und die Benutzerskripte aller Portale mit Url= zum Installieren bzw. Aktualisieren an, je Skript ein Tab;
+dort "Installieren"/"Aktualisieren" klicken, bei einem schon aktuellen Skript den Tab einfach schließen.
+MOReiter wartet darauf nicht, es bleibt gleich wieder bedienbar.
 Strg+S=SmartPix: startet die Accu-Chek Smart Pix Software (oder holt sie nach vorn; läuft sie nach dem
 Schließen nur noch versteckt im Infobereich, wird sie beendet und neu gestartet), öffnet die
 Patientenliste, sucht nach dem Geburtsdatum und wählt den Patienten, wenn genau einer übrig bleibt;

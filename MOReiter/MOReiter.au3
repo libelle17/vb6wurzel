@@ -4016,9 +4016,23 @@ EndFunc
 ; Liste der eingerichteten Aufrufe fuer die Hilfe
 Func AufrufeText()
 	If UBound($gAufrufe) = 0 Then Return "(hier keine eingerichtet)"
-	Local $t = ""
+	Local $t = "", $b
 	For $i = 0 To UBound($gAufrufe) - 1
-		$t &= StringFormat("%-20s", $gAufrufe[$i][0]) & $gAufrufe[$i][3] & @CRLF
+		; eingebaute Befehle mit Beschreibung statt des Kurznamens aus der INI
+		$b = $gAufrufe[$i][3]
+		Switch $b
+			Case "Skripte"
+				$b = "Benutzerskripte der Portale in Tampermonkey laden bzw. erneuern"
+			Case "SmartPix"
+				$b = "Accu-Chek Smart Pix: Patient in der Patientenliste waehlen"
+			Case "SmartPixListe"
+				$b = "Smart Pix-Patientenliste mit Medical Office abgleichen"
+			Case "Zucker"
+				$b = "alle Zuckerportale bzw. -programme nach den Markierungen des Patienten"
+			Case Else
+				If StringLeft($b, 7) = "Portal:" Then $b = "Portal " & StringTrimLeft($b, 7) & " im Firefox"
+		EndSwitch
+		$t &= StringFormat("%-20s", $gAufrufe[$i][0]) & $b & @CRLF
 	Next
 	Return StringTrimRight($t, 2)
 EndFunc
@@ -4717,9 +4731,10 @@ EndFunc
 
 ; oeffnet das Benutzerskript in einem neuen Tab (Tampermonkey zeigt dann seine Installationsseite) und
 ; wartet, bis diese verschwindet ("Installieren": Tampermonkey schliesst den Tab)
-; [Aufrufe] Strg+Umsch+T=Skripte: Tampermonkey (falls noch nicht da) und nacheinander die Benutzerskripte aller
-; Portale mit Url= in der INI zum Installieren bzw. Aktualisieren anbieten (je "Installieren"/"Aktualisieren"
-; klicken oder den Tab schliessen, dann kommt das naechste)
+; [Aufrufe] Strg+Umsch+T=Skripte: Tampermonkey (falls noch nicht da) und die Benutzerskripte aller Portale mit
+; Url= in der INI zum Installieren bzw. Aktualisieren anbieten, je Skript ein Tab; MOReiter wartet nicht auf den
+; Klick (frueher nacheinander mit Warten auf den Titelwechsel: bei einem schon aktuellen Skript oder offen
+; bleibendem Tab ging es oft erst nach dem Schliessen von Tabs weiter)
 Func SkripteEinrichten()
 	If Not ModifierLos() Then Return Meldung("Strg und Umschalt bitte loslassen")
 	Local $portale = "", $quelle[2] = [$Ini, $IniVorgaben], $l
@@ -4735,11 +4750,14 @@ Func SkripteEinrichten()
 	If Not TampermonkeyDa() And Not AddOnEinrichten() Then Return False
 	Local $p = StringSplit($portale, "|", 2)
 	For $k = 0 To UBound($p) - 1
-		Hinweis("Benutzerskript " & ($k + 1) & "/" & UBound($p) & ": MOReiter " & $p[$k])
-		Sleep(1000)
-		If Not SkriptEinrichten($p[$k]) Then Return False
+		HinweisStehend("Benutzerskript " & ($k + 1) & "/" & UBound($p) & ": MOReiter " & $p[$k])
+		If Not FirefoxTab(PortalSkript($p[$k])) Then Return False
+		; Tampermonkey braucht einen Moment, bis es die Adresse durch seine Installationsseite ersetzt
+		Sleep(1500)
 	Next
-	Hinweis("Benutzerskripte eingerichtet: " & StringReplace($portale, "|", ", "))
+	HinweisStehend("Benutzerskripte geoeffnet (" & StringReplace($portale, "|", ", ") & "): in jedem Tab ""Installieren"" " & _
+			"bzw. ""Aktualisieren"" klicken; ist ein Skript schon aktuell, den Tab einfach schliessen")
+	AdlibRegister("HinweisWeg", 20000)
 	Return True
 EndFunc
 
