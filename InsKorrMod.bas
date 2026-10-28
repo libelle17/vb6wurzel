@@ -1049,6 +1049,9 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
 '  If InStrB(sql, "SELECT * FROM `dienstplan` LEFT JOIN `arten` ON `dienstplan`.artnr = `arten`.artnr") <> 0 Then Stop
   ErrNr = Err.Number
   ErrDes = "Description: " & Err.Description & " " & ", LastDllError: " & Err.LastDllError & ", Source: " & Err.Source
+  ' 28.10.26: Fremdschluesselpruefung danach wieder einschalten, sonst bleibt sie auf der (meist gemeinsamen) Verbindung aus und
+  '   ON DELETE CASCADE greift bei spaeteren Anweisungen nicht mehr (so beim Bankdaten-Einlesen); Fehler oben schon gesichert
+  If sfkco Then Cn.Execute "SET foreign_key_checks=1": Err.Clear
   If lngTime > 1000 Then
    Open pVerz & "fehler\perf.txt" For Append As #321
    Print #321, Now(), lngTime, " ms", sql
