@@ -555,8 +555,8 @@ End Function ' DirExists
 ' zeigt die Datei in Notepad++ an (sonst mit dem zugeordneten Programm); gibt die Prozess-ID zurück
 ' 27.9.26: Aufruf in: AbrechFehler.tuStart_click, ComputerTools.meld, GetProcColl.SchauObDa, Haupt.anaUpd, Haupt.doLdFD, Haupt.doWirt, Haupt.TUpd,
 '   Haupt.ÜbertragFormulare, InsKorrMod.TabAusgeb, Lese.Apothekenrezepte_Click, Lese.DMP_in_MO_importieren_1_Click, Lese.doCallDigSring, Lese.doCallDMP,
-'   Lese.DokumenteAbgehaktPrüfen_Click, Lese.DoppelteDiagnosen_Click, Lese.doppelteFaxe_Click, Lese.MedOffTabZahl_Click, Lese.Omnipod5Trägerliste_Click,
-'   Lese.Pumpenträgerliste_Click, Lese.SuchInSpaltenInMO_Click, Lese.VerhunzteFotosEinfärben_Click, Lese.Überweiserstatistik_Click, TabÜbertr.GetAutoFeld,
+'   Lese.DoppelteDiagnosen_Click, Lese.doppelteFaxe_Click, Lese.MedOffTabZahl_Click, Lese.Omnipod5Trägerliste,
+'   Lese.Pumpenträgerliste, Lese.SuchInSpaltenInMO_Click, Lese.VerhunzteFotosEinfärben_Click, Lese.Überweiserstatistik_Click, TabÜbertr.GetAutoFeld,
 '   typen.rAuDump, typen.rBrDump, typen.rDeDump, typen.rDiDump, typen.rDmDump, typen.rDoDump, typen.rEiDump, typen.rFaDump, typen.rFmDump, typen.rFoDump,
 '   typen.rFrDump, typen.rFuDump, typen.rKhDump, typen.rKvDump, typen.rLaDump, typen.rLbDump, typen.rLeDump, typen.rLgDump, typen.rLiDump, typen.rLLDump,
 '   typen.rLoDump, typen.rLsDump, typen.rLuDump, typen.rLwDump, typen.rMeDump, typen.rNaDump, typen.rReDump, typen.rRrDump, typen.rSwDump, typen.rUlDump,

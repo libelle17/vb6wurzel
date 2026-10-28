@@ -664,7 +664,7 @@ End Function ' acon
 '   Importiere.Eintragszl, Importiere.EintragZusatz, Importiere.laborparameterSpeichern, Importiere.MedArtenPruef, Importiere.medklass2,
 '   Importiere.rrParseSpeichern, ImportiereLabor.LaborDirektImport, ImportiereLabor.LaborErgPatId, ImportiereLabor.löschBezügeausLaboryus,
 '   Kompilierbarkeit.doFAnfFuell, LabEintr.abhaken_Click, Laufzettel.tabelleInplz, Lese.DMPForts_Click, Lese.doGNR_Statistiken_einl_Click, Lese.dVerz,
-'   Lese.MedOffTabZahl_Click, Lese.MedOffZpSetzen_Click, Lese.Pumpenträgerliste_Click, PatListe.domachDMPBogen, PatListe.LabordateiAnzeig, PatListe.MFG_MouseUp,
+'   Lese.MedOffTabZahl_Click, Lese.MedOffZpSetzen_Click, Lese.Pumpenträgerliste, PatListe.domachDMPBogen, PatListe.LabordateiAnzeig, PatListe.MFG_MouseUp,
 '   TabÜbertr.TIns, typen.auSpeichern, typen.briefeSpeichern, typen.desktopSpeichern, typen.diagnosenSpeichern, typen.dmpreiheSpeichern,
 '   typen.dokumenteSpeichern, typen.eintraegeSpeichern, typen.faelleSpeichern, typen.forminhkopfSpeichern, typen.formulareSpeichern, typen.fussSpeichern,
 '   typen.kheinweisSpeichern, typen.kvnrueSpeichern, typen.laborneuSpeichern, typen.laborybaktSpeichern, typen.laboryeingelSpeichern,
@@ -725,7 +725,7 @@ End Select
 End Function ' DatForD
 
 ' SQL-Bedingung: Feld var liegt am Tag Datum
-' Aufruf in: Laufzettel.doPatientenlaufzettel, Lese.FalschAbgehakteUngueltig_Click, ZielDBFunktionen.dododoPorto
+' Aufruf in: Laufzettel.doPatientenlaufzettel, ZielDBFunktionen.dododoPorto
 Function SelDatum$(var$, Datum)
  Dim Beginn$
  Beginn = DatForD(Datum)
