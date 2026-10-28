@@ -85,7 +85,7 @@ Public Function holap$(user$)
 End Function ' Function holap()
 
 ' Name des zu verwendenden MySQL-ODBC-Treibers (einmal über maxODBC ermittelt)
-' Aufruf in: DBVerb.getAllDB, HAAkt.doHAAkt, Lese.machODBCMy, MachDatenbank.NurLauf_Click, MachDatenbank.setzCStrs, WerteVerarbeiten.KommRep
+' Aufruf in: DBVerb.getAllDB, Lese.machODBCMy, MachDatenbank.NurLauf_Click, MachDatenbank.setzCStrs, WerteVerarbeiten.KommRep
 Public Function ODBCStr$()
  Static ergstr$
 ' SELECT CASE CptName

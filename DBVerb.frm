@@ -1853,7 +1853,7 @@ End Function ' Ausgeb
 
 ' 15.10.10: scheint nicht vorzukommen
 ' 28.6.24: nur in testgetAllDB
-' 27.9.26: Aufruf in: HAAkt.testgetalldb
+' 28.10.26: (kein Aufruf gefunden; HAAkt.bas entfernt)
 Function getAllDB%(Tabl$, acn() As ADODB.Connection, Optional uid$ = "...", Optional pwd$ = "...", Optional obLeere%, Optional acSt)
  Dim Cpt, db$, eintragen%, Stri(1) As New CString, i%, runde%, ErrNr&
  Dim MyCn As ADODB.Connection, rdb As ADODB.Recordset, rHa As New ADODB.Recordset

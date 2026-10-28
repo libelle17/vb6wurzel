@@ -63,7 +63,7 @@ Public Function GetSpecialFolder$(ByVal Folder As ShellSpecialFolderConstants)
 End Function ' GetSpecialFolder(ByVal Folder As ShellSpecialFolderConstants) As String
 
 ' Name der aktuellen Datenbank einer Verbindung (Objekt oder Verbindungszeichenfolge)
-' Aufruf in: HAAkt.doHAAkt, HAEinlesen.HALöschen, Haupt.TabFuellSnSh, InsKorrMod.InsKorr, Medarten.vCheckb_MouseMove, Medarten.vTextB_MouseMove, TabÜbertr.TZahl
+' Aufruf in: HAEinlesen.HALöschen, Haupt.TabFuellSnSh, InsKorrMod.InsKorr, Medarten.vCheckb_MouseMove, Medarten.vTextB_MouseMove, TabÜbertr.TZahl
 Function CurDB$(DBCn)
  Dim Cn As New ADODB.Connection
  On Error GoTo fehler
@@ -123,7 +123,7 @@ End Function ' CurDB$(DBCn)
 
 ' Standarddatenbank einer Verbindung: aus der Zeichenfolge (data source=/database=) bzw. der offenen Verbindung,
 ' notfalls je nach Programm fest (Dateilese: quelle)
-' Aufruf in: AbrechFehler.Form_Load, Dialog.doEinles, Formular.DtbCreateQueryDef, HAAkt.doHAAkt, Haupt.Vergleiche, Importiere.GesLies, InsKorrMod.CurDB,
+' Aufruf in: AbrechFehler.Form_Load, Dialog.doEinles, Formular.DtbCreateQueryDef, Haupt.Vergleiche, Importiere.GesLies, InsKorrMod.CurDB,
 '   Laufzettel.dodoplz, Lese.HolEinstvonDB, Lese.KassenEditieren_Click, Lese.MDIForm_Activate, MachDatenbank.aktualisiercon, MachDatenbank.dbKopier,
 '   MachDatenbank.doCopyDaten, MachDatenbank.doCopyTable, MachDatenbank.SchreibF1, TabÜbertr.Start_Click
 Function DefDB$(DBCn)
@@ -193,7 +193,7 @@ End Function ' GetServer
 
 ' Ersatz für Split() ohne dessen Speicherverbrauch: zerlegt q an Sep in Erg() und gibt die Zahl der Teile zurück;
 ' ein Teil, das nichtWenn enthält, reicht bis nach Bis (z.B. Trenner innerhalb von Anführungszeichen)
-' Aufruf in: AnBog.Suchen_Click, Formular.doForm_Load, HAAkt.doHAAkt, HAEinlesen.proTeilnehmer, ImportiereLabor.LaborDirektImport, InsKorrMod.InsKorr,
+' Aufruf in: AnBog.Suchen_Click, Formular.doForm_Load, HAEinlesen.proTeilnehmer, ImportiereLabor.LaborDirektImport, InsKorrMod.InsKorr,
 '   Lese.doGNR_Statistiken_einl_Click, Lese.FalscheDokumente_Click, Lese.SonderpatientenAnzeigen_Click, Lese.VerhunzteFotosEinfärben_Click,
 '   MachDatenbank.doCopyAllMyMy, MachDatenbank.doCopyTable, MachDatenbank.doGenMachDB_Direkt, PatAuswahl.PatName_Change, ZielDBFunktionen.diI,
 '   ZielDBFunktionen.diT
@@ -867,7 +867,7 @@ End Function      ' TabAusgeb
 '   DBVerb.zeigdatenbanken, DBVerb.zeigtabellen, Dialog.doEinles, Dialog.FrmLEinlesung, Formular.diagexpHerricht, Formular.do_Form_Current_AnBog,
 '   Formular.doDiagnosenexport, Formular.dodo_u_Click, Formular.doForm_Load, Formular.doVa_Click, Formular.doViewsErstellen, Formular.doXtra_Click,
 '   Formular.doZn_Click, Formular.DtbCreateQueryDef, Formular.dynDiag, Formular.Epikrise, Formular.RRParseF, Formular.sensib, Formular.testthap,
-'   Formular.therinit, Formular.tuBriefStandalone, HAAkt.doHAAkt, HAAkt.hausaerztekomprimier, HAEinlesen.HAVerbinde, HAEinlesen.proTeilnehmer,
+'   Formular.therinit, Formular.tuBriefStandalone, HAEinlesen.HAVerbinde, HAEinlesen.proTeilnehmer,
 '   HAEinlesen.TLösch, Haupt.anaIns, Haupt.anaUpd, Haupt.BooleanFld, Haupt.doKassKat, Haupt.dokpfadänder, Haupt.ForeignNo0, Haupt.ForeignNo1, Haupt.ForeignYes0,
 '   Haupt.ForeignYes1, Haupt.fzsfuell, Haupt.holFrist, Haupt.liesExcel, Haupt.LiesKassen, Haupt.liste_43, Haupt.MacheTypen, Haupt.TabFuellSnSh, Haupt.TIns,
 '   Haupt.TUpd, Haupt.ZahlEintrag, Importiere.alleKassenSpeichern, Importiere.alleSpeichern, Importiere.AnPack, Importiere.AZEinfüg, Importiere.doConAnal,
@@ -915,7 +915,7 @@ End Function ' myEFrag
 '   Formular.Epikrise, Formular.fobHAimDMP, Formular.getHausarzt, Formular.getHausarzt1, Formular.GetVorDat, Formular.hkGrund, Formular.kkeintraege,
 '   Formular.knöpfeanpassen, Formular.LegNPFest, Formular.letzteMed, Formular.lFDat, Formular.obLH, Formular.PfadFestLeg, Formular.PStatNeu, Formular.PStatus,
 '   Formular.RRParseF, Formular.SchulzBest, Formular.sensib, Formular.test_fdübertrag, Formular.TheraErmitt, Formular.tuBriefStandalone, Formular.Urineintraege,
-'   Formular.zplschul, Formular.Üw12, Formular.Üwrd, frmalthae.adoPrimaryRS_MoveComplete, frmalthae.Vorbereit, HAAkt.doHAAkt, HAEinlesen.proTeilnehmer,
+'   Formular.zplschul, Formular.Üw12, Formular.Üwrd, HAEinlesen.proTeilnehmer,
 '   Haupt.anaUpd, Haupt.doAnrufliste, Haupt.dofallzahlstand, Haupt.doFÜwS, Haupt.doHABKK, Haupt.doHilfsmittelklassifikationen, Haupt.dokpfadänder, Haupt.doLdFD,
 '   Haupt.doLdFH, Haupt.doLdFHalt, Haupt.doMacheTypen, Haupt.doSuchTel, Haupt.doWirt, Haupt.doWSt0Erg, Haupt.ergEBM, Haupt.fallzeig, Haupt.fzsfuell,
 '   Haupt.holFrist, Haupt.HolKRein, Haupt.liste_43, Haupt.obAutoIncr, Haupt.TabFuellSnSh, Haupt.TIns, Haupt.TUpd, Haupt.Vergleiche, Haupt.VergleichTab,

@@ -112,7 +112,7 @@ End Function ' syscmd(art%, Optional Inhalt$)
 #End If
 
 ' setzt die datenbankabhängigen SQL-Bausteine (sqlIGNORE, sqlDeletefrom, sqlText usw.) für MySQL bzw. Access
-' Aufruf in: Dialog.doobMyQuelle_Click, Formular.DtbCreateQueryDef, HAAkt.doHAAkt, ImportiereLabor.LaborErgPatId, ImportiereLabor.SpMod, QuelleDB.acon
+' Aufruf in: Dialog.doobMyQuelle_Click, Formular.DtbCreateQueryDef, ImportiereLabor.LaborErgPatId, ImportiereLabor.SpMod, QuelleDB.acon
 Function Zinit(obMySQL As Boolean)
  If obMySQL Then
 '  kla = "`"
@@ -1146,14 +1146,14 @@ End Function ' AlterBei!
 '   GetProcColl.FensterHandle, GetProcColl.GetProcessCollection, GetProcColl.GetWindowInfo, GetProcColl.GetWinHandle, GetProcColl.GFGW, GetProcColl.Ini,
 '   GetProcColl.IsWindowsNT, GetProcColl.KillProcessByPID, GetProcColl.ProcessHandle, GetProcColl.ProcessName, GetProcColl.ProcIDFromWnd, GetProcColl.SchauObDa,
 '   GetProcColl.schließ_direkt, GetProcColl.SwitchTo, GetProcColl.TrimNullChar, GetProcColl.WartAufProzeß, GetProcColl.WarteAuf, GetProcColl.WarteAufAlt,
-'   GetProcColl.WarteAufNicht, HAAkt.datformZ, HAEinlesen.getHAPDF, HAEinlesen.HAVerbinde, HAEinlesen.proTeilnehmer, HAEinlesen.ZiehDat, Haupt.adoxtest,
+'   GetProcColl.WarteAufNicht, HAEinlesen.getHAPDF, HAEinlesen.HAVerbinde, HAEinlesen.proTeilnehmer, HAEinlesen.ZiehDat, Haupt.adoxtest,
 '   Haupt.anaIns, Haupt.anaUpd, Haupt.BezHerstA, Haupt.BooleanFld, Haupt.dofallzahlstand, Haupt.doHilfsmittelklassifikationen, Haupt.dokpfadänder,
 '   Haupt.doMacheTypen, Haupt.doMachSQL0, Haupt.doMachSQL2, Haupt.doMachSQL3, Haupt.ergEBM, Haupt.fallzeig, Haupt.ForeignNo0, Haupt.fzsfuell, Haupt.getDokPfad,
 '   Haupt.getLDatei, Haupt.holFrist, Haupt.HolReg, Haupt.Key, Haupt.liesExcel, Haupt.machAbKü, Haupt.MacheTypen, Haupt.obAutoIncr, Haupt.SizeColumns,
 '   Haupt.TabFuellSnSh, Haupt.TIns, Haupt.TUpd, Haupt.Vergleiche, Haupt.VergleichTab, Haupt.Zeichensatz, Haupt.ZSU1, Haupt.ÜbertragFormulare,
 '   Importiere.alleSpeichern, Importiere.AnPack, Importiere.aufSplit, Importiere.AZEinfüg, Importiere.DiagString, Importiere.doDiag, Importiere.dolies,
 '   Importiere.doTabVorb, Importiere.EintragStart, Importiere.Eintragszl, Importiere.EintragZusatz, Importiere.EmailsImport, Importiere.fctEintrHist,
-'   Importiere.fctfDTyp, Importiere.fFanfFuell, Importiere.GesLies, Importiere.GesNameFn, Importiere.getAktByte, Importiere.GetDatumAusString,
+'   Importiere.fctfDTyp, Importiere.fFanfFuell, Importiere.GesLies, Importiere.GesNameFn, Importiere.getAktByte,
 '   Importiere.getfeldinhvw, Importiere.kassenSpeichern, Importiere.KomEinfüg, Importiere.kompakt, Importiere.LaborEintr0, Importiere.laborparameterSpeichern,
 '   Importiere.laborparvorladen, Importiere.LeistEintr0, Importiere.LTEinfüg, Importiere.MachDiagnosen, Importiere.MacheDiagnosen, Importiere.medartenhier,
 '   Importiere.MedArtenPruef, Importiere.medklass2, Importiere.nbEinfüg, Importiere.neuQuartal, Importiere.obKeineNephropathie, Importiere.PatInit,

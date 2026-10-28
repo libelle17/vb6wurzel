@@ -869,7 +869,7 @@ End Function ' VerzPrüfAlt
 
 ' in meld, Konstanten, doHAAAkt
 ' setzt einmalig Programm-, Anwendungsdaten- und Benutzerverzeichnis (ProgVerz, ProgVerzO, AppVerz, uVerz)
-' 27.9.26: Aufruf in: ComputerTools.meld, HAAkt.doHAAkt, Lese.Konstanten
+' 27.9.26: Aufruf in: ComputerTools.meld, Lese.Konstanten
 Public Sub SetProgV()
  If LenB(ProgVerz) = 0 Then
   If WV = 0 Then WV = GetOSVersion
