@@ -121,7 +121,7 @@ End Select
 End Function ' ergSec
 
 ' liest die Eigenschaft Nam im Abschnitt Sec (erst aus Local.ini, sonst aus Global.ini)
-' Aufruf in: Haupt.getDokPfad, Lese.DokumenteInDatenbank_Click
+' Aufruf in: Haupt.getDokPfad, Lese.DokumenteInDatenbank
 Public Function GetProp$(Sec$, Nam$)
  On Error GoTo fehler
  Call ergSec(Sec)

@@ -2604,7 +2604,7 @@ Function SchreibF2(DBn$)
   Print #299, "#Else"
   Print #299, " AnwPfad = App.Path"
   Print #299, "#END IF"
-  Print #299, "SELECT CASE MsgBox(""FNr: "" & FNr & "", ErrNr: "" & CStr(Err.Number) + vbCrLf + ""LastDLLError: "" + CStr(Err.LastDllError) + vbCrLf + ""Source: "" + cstr(nz(err.source,"")) + vbCrLf + ""Description: "" + Err.Description, vbAbortRetryIgnore, ""Aufgefangener Fehler in SplitN/"" + AnwPfad)"
+  Print #299, "SELECT CASE MsgBox(""FNr: "" & FNr & "", ErrNr: "" & CStr(Err.Number) + vbCrLf + ""LastDLLError: "" + CStr(Err.LastDllError) + vbCrLf + ""Source: "" + cstr(nz(err.source,"""")) + vbCrLf + ""Description: "" + Err.Description, vbAbortRetryIgnore, ""Aufgefangener Fehler in SplitN/"" + AnwPfad)"
   Print #299, " Case vbAbort: Call MsgBox(""Höre auf""): Progende"
   Print #299, " Case vbRetry: Call MsgBox(""Versuche nochmal""): Resume"
   Print #299, " Case vbIgnore: Call MsgBox(""Setze fort""): Resume Next"

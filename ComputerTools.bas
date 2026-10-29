@@ -925,7 +925,7 @@ End Function ' meld
 ' maskiert Backslash, Hochkomma (MySQL \', sonst '') und Anführungszeichen in q für SQL und entfernt Nullzeichen
 ' Aufruf in: HAEinlesen.proTeilnehmer, Haupt.anaIns, Haupt.anaUpd, Haupt.TIns, Haupt.TUpd, Importiere.doConAnal, Importiere.dolies, Importiere.EintragStart,
 '   Importiere.GesLies, ImportiereLabor.indIns, ImportiereLabor.LaborDirektImport, LabEintr.abhaken_Click, Lese.dVerz,
-'   Lese.Omnipod5Trägerliste, Lese.PiDzuord_Click, QuelleDB.UmwfSQL, TabÜbertr.TIns, typen.auLaden, typen.briefeLaden, typen.desktopLaden,
+'   Lese.Omnipod5Trägerliste, Lese.PiDzuord, QuelleDB.UmwfSQL, TabÜbertr.TIns, typen.auLaden, typen.briefeLaden, typen.desktopLaden,
 '   typen.diagnosenLaden, typen.dmpreiheLaden, typen.dokumenteLaden, typen.eintraegeLaden, typen.faelleLaden, typen.forminhkopfLaden, typen.fussLaden,
 '   typen.kheinweisLaden, typen.laborneuLaden, typen.lbanforderungenLaden, typen.leistungenLaden, typen.medplanLaden, typen.namenLaden,
 '   typen.rezepteintraegeLaden, typen.rrLaden, typen.swsLaden, typen.ulcusLaden, typen.usdmLaden, typen.vkgdLaden, typen.voplLaden, vonMo.callMODmp,
