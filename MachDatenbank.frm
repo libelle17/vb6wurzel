@@ -1876,6 +1876,9 @@ Function doCopyDaten(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, qCat 
  Dim xfld As ADOX.Column, f2 As ADOX.Column
  Const mitFeldern% = True
   On Error GoTo fehler
+  ' 29.10.26: bei "nur schreiben" gesperrt: sAusf(sql, True, rAf) führte die INSERTs dabei trotzdem auf der Zielverbindung
+  ' aus (ohne vorheriges DELETE und ohne Primärschlüssel -> doppelte Sätze), Memofelder kamen leer an
+  If Me.nurSchreiben <> 0 Then Exit Function
   Set rs = sAusf("SET foreign_key_checks=0", False, rAf) ' vor 27.8.09: obRückg=True
 '  Set rs = sAusf("BEGIN", False, rAf) ' vor 27.8.09: obRückg=True
   BegTrans
@@ -2835,7 +2838,9 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
   End If ' obQMySQL AND obZMySQL THEN
    
 '  END IF ' zTabName = medplan
-  If Me.alleDaten <> 0 Or Me.nurCustomizing <> 0 Then
+  If (Me.alleDaten <> 0 Or Me.nurCustomizing <> 0) And Me.nurSchreiben <> 0 Then
+   MsgBox "Daten werden bei ""nur schreiben"" nicht kopiert; dafür quelle_customizing.sql verwenden.", vbInformation
+  ElseIf Me.alleDaten <> 0 Or Me.nurCustomizing <> 0 Then
    For Each td In qCat.Tables
     Dim doCop%
 '    IF runde = 4 THEN
