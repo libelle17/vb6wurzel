@@ -441,6 +441,13 @@ Private Sub Form_Load()
  obStart = False
  Me.keineDaten = True
  Me.nurSchreiben.Caption = "An&weisungen nur schreiben in:"
+#If Not MachDBGen Then
+ ' 29.10.26: Erzeugen von MachDB<db>.bas nur noch mit Projektkonstante MachDBGen = 1; stattdessen quelle_dumps.sh
+ ' (Dateilese: EDV -> Seltener gebrauchtes -> quelle-Dumps erstellen)
+ Me.nurSchreiben = 0
+ Me.nurSchreiben.Enabled = False
+ Me.nurSchreiben.Caption = "Anweisungen nur schreiben (nur mit MachDBGen = 1) in:"
+#End If
  Me.SchreibenAuf = App.path & "\MachDB.bas"
  Me.ServerZ = LiName
  testSchreibenAuf
@@ -811,7 +818,9 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
   RouZ = RouZ + 1
   qrs.MoveNext
  Loop
+#If MachDBGen Then
  If Me.nurSchreiben <> 0 Then SchreibF1 True ' obQMySQL
+#End If ' MachDBGen
  Ausf "Dim Str(1, " & TbZ & ", " & zmax & ") As New CString, ArtZ&(3, " & TbZ & ")"
  Ausf "Dim hDBn$ ' hiesiger Datenbankname"
  If RouZ > 0 Then Ausf "Dim Rou$(2, " & RouZ - 1 & ") ' Funktionen, Prozeduren, Trigger: Art, Name, CREATE-Befehl"
@@ -836,6 +845,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
   Next runde
   Ausf "End Sub ' FüllStr" & i
  Next i
+#If MachDBGen Then
  If RouZ > 0 Then
   ReDim RouT(RouZ - 1)
   For k = 0 To RouZ - 1
@@ -862,8 +872,11 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
   Ausf " Next k"
   Ausf "End Sub ' RouAnlegen"
  End If ' RouZ > 0 Then
+#End If ' MachDBGen
  
+#If MachDBGen Then
  If Me.nurSchreiben <> 0 Then SchreibF2 qCat.ActiveConnection.DefaultDatabase
+#End If ' MachDBGen
  
  If Me.MitTabellen <> 0 Then
   Call doMachZielDatenbank(cnz, DBCn, DBn, zCat, True) ' obZMySQL
@@ -872,11 +885,13 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
  For i = 0 To TbZ
   Ausf " FüllStr" & i
  Next i
+#If MachDBGen Then
  For k = 0 To RouZ - 1
   For t = 0 To RouT(k) - 1
    Ausf " FüllRou" & k & "_" & t
   Next t
  Next k
+#End If ' MachDBGen
  
  On Error Resume Next
 '  Call sAusf("BEGIN WORK")
@@ -888,6 +903,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
   Call doGenMachDB_Direkt(TbZ, Str, ArtZ, cnz)
   Call RouDirekt(cnz, Rou, RouZ, "PROCEDURE")
   Call RouDirekt(cnz, Rou, RouZ, "TRIGGER")
+#If MachDBGen Then
  Else
  Ausf ""
  Ausf " Dim j&, ZZ&, Tbl$, sql As New CString"
@@ -1049,6 +1065,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
   Ausf " Call RouAnlegen(""PROCEDURE"")"
   Ausf " Call RouAnlegen(""TRIGGER"")"
  End If
+#End If ' MachDBGen
  End If ' me.nurschreiben
  DoEvents
  Exit Function
@@ -1069,6 +1086,7 @@ End Function ' doCopyAllMyMy
 ' füllen; je Sub höchstens maxZeilen Zeilen (64-KB-Grenze je Prozedur), je Zeile ein Stück des CREATE-Befehls
 ' (keine Fortsetzungszeilen, da VB6 nur 24 je Anweisung erlaubt); gibt die Zahl der Subs zurück
 ' Aufruf in: MachDatenbank.doCopyAllMyMy
+#If MachDBGen Then
 Function SchreibRou&(k&, Art$, RName$, Befehl$)
  Const maxZeilen& = 300, maxLen& = 800, maxLit& = 850
  Dim zl$(), z&, teil&, zz&, stk$, n&
@@ -1100,14 +1118,17 @@ Function SchreibRou&(k&, Art$, RName$, Befehl$)
  Ausf "End Sub ' FüllRou" & k & "_" & teil
  SchreibRou = teil + 1
 End Function ' SchreibRou
+#End If ' MachDBGen
 
 ' macht aus einem Textstück den Inhalt eines VB-Stringliterals: Anführungszeichen verdoppelt, CR und Tab als Konstanten
 ' Aufruf in: MachDatenbank.SchreibRou
+#If MachDBGen Then
 Function RouLit$(ByVal t$)
  t = REPLACE$(t, """", """""")
  t = REPLACE$(t, vbCr, """ & vbCr & """)
  RouLit = REPLACE$(t, vbTab, """ & vbTab & """)
 End Function ' RouLit
+#End If ' MachDBGen
 
 ' legt im Ziel (cnz) die Funktionen, Prozeduren oder Trigger (Art) aus Rou an, wenn sie fehlen oder abweichen
 ' Aufruf in: MachDatenbank.doCopyAllMyMy
@@ -2600,6 +2621,7 @@ End Function ' Ausf(befehl)
 ' in dbKopier, dbCopyAllMyMy
 ' beginnt die Ausgabedatei für "nur schreiben" mit Kopfzeile und Deklarationen
 ' 27.9.26: Aufruf in: MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy
+#If MachDBGen Then
 Function SchreibF1(obQMySQL%)
   Dim Server$, spos&, sp2&
   Open Me.SchreibenAuf For Output As #299
@@ -2612,10 +2634,12 @@ Function SchreibF1(obQMySQL%)
   Print #299, "Dim obProt% ' ob Protokollierung stattfindet, da Protokolldatei zu öffnen"
   Close #299
 End Function ' SchreibF1
+#End If ' MachDBGen
 
 ' in dbKopier, dbCopyAllMyMy
 ' schreibt in die Ausgabedatei die Hilfsfunktionen (doEx usw.), die der erzeugte Code braucht
 ' 27.9.26: Aufruf in: MachDatenbank.dbKopier, MachDatenbank.doCopyAllMyMy
+#If MachDBGen Then
 Function SchreibF2(DBn$)
   Open Me.SchreibenAuf For Append As #299
   Print #299, ""
@@ -2721,6 +2745,7 @@ Function SchreibF2(DBn$)
   Print #299, " If mpwd = """" Then exit function"
   Close #299
 End Function ' SchreibF2
+#End If ' MachDBGen
 
 ' in Start_Click(MachDatenbank), Machalle_click(MachDatenbank), doMachDB(MachDatenbank)
 ' kopiert die Ausgangsdatenbank (DBCn) in die Zieldatenbank DBn über cnz: Struktur je nach Optionen, bei obmitDaten
@@ -2763,10 +2788,12 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
   If obQMySQL And obZMySQL Then
    Call doCopyAllMyMy(cnz, qCat, zCat)
   Else
+#If MachDBGen Then
    If Me.nurSchreiben <> 0 Then
     Call SchreibF1(obQMySQL)
     Call SchreibF2(DefDB(DBCn))
    End If ' Me.nurSchreiben <> 0 Then
+#End If ' MachDBGen
    
    If Me.MitTabellen <> 0 Then Call doMachZielDatenbank(cnz, DBCn, DBn, zCat, obZMySQL)
    If Not zCat.ActiveConnection Is Nothing Then
@@ -2902,6 +2929,7 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
   If cnz.DefaultDatabase <> DBCn.DefaultDatabase Or ((cnz.DefaultDatabase = DBCn.DefaultDatabase) And obTrans <> 0) Then ComTrans cnz ' cnz.CommitTrans: If cnz.DefaultDatabase = DBCn.DefaultDatabase Then obTrans = 0
   On Error GoTo fehler
  End If
+#If MachDBGen Then
  If Me.nurSchreiben <> 0 Then
   Open Me.SchreibenAuf For Append As #299
   If Not obZMySQL Then
@@ -2952,6 +2980,7 @@ Function dbKopier(cnz As ADODB.Connection, cnzCStr$, DBn$, Optional obmitDaten%,
   
   
  End If 'Me.nurSchreiben <> 0 THEN
+#End If ' MachDBGen
  If Me.nurSchreiben <> 0 Then
   Close #299
  End If
