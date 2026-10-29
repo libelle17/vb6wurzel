@@ -729,17 +729,17 @@ fehler:
 End Function ' doCreateView(qds$, qName$, cnz AS ADODB.Connection, zTabName$, obQMySQL%)
 
 ' MySQL -> MySQL: liest SHOW CREATE TABLE aller Tabellen und Views, zerlegt sie in Felder, Indices und Relationen und
-' legt sie über doGenMachDB_Direkt im Ziel an bzw. schreibt den Code dafür
+' legt sie über doGenMachDB_Direkt im Ziel an bzw. schreibt den Code dafür; ebenso die Funktionen, Prozeduren und
+' Trigger (SHOW CREATE FUNCTION/PROCEDURE/TRIGGER): Funktionen vor den Views, Prozeduren und Trigger danach
 ' Aufruf in: MachDatenbank.dbKopier
 Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As ADOX.Catalog)
  Dim qrs As New ADODB.Recordset
  Dim TbZ&, i&, j&, zl$(), zmax&, fmax&, Str() As New CString, cts$(), ctsz&(), TName$
- Dim PrZ&
+ Dim Rou$(), RouZ&, RouT&(), k&, t& ' Funktionen, Prozeduren, Trigger: Art, Name, CREATE-Befehl; Zahl; Teilzahl je Objekt
  Dim ArtZ&() ' Artzahlen (Felder,Indices,Relationen)
  Dim p1&, p2&, runde&
  On Error GoTo fehler
  
- ' Fehlen noch  Funktionen und Prozeduren
  TbZ = qCat.Tables.COUNT - 1
  If TbZ < 0 Then Exit Function
  ReDim Str(1, TbZ, 0)
@@ -797,9 +797,24 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
    Case Else
   End Select
  Next i
+ ' Funktionen, Prozeduren und Trigger, in dieser Reihenfolge
+ Set qrs = Nothing
+ Set qrs = myEFrag("SELECT routine_type Art, routine_name RName FROM information_schema.routines WHERE routine_schema = '" & DefDB(DBCn) & "' " & _
+   "UNION ALL SELECT 'TRIGGER', trigger_name FROM information_schema.triggers WHERE trigger_schema = '" & DefDB(DBCn) & "' ORDER BY 1, 2")
+ Do While Not qrs.EOF
+  ReDim Preserve Rou(2, RouZ)
+  Rou(0, RouZ) = qrs!Art
+  Rou(1, RouZ) = qrs!RName
+  Dim qrsR As ADODB.Recordset
+  Set qrsR = myEFrag("SHOW CREATE " & Rou(0, RouZ) & " `" & Rou(1, RouZ) & "`")
+  Rou(2, RouZ) = qrsR.Fields(2) & vNS ' Create Function/Procedure bzw. SQL Original Statement
+  RouZ = RouZ + 1
+  qrs.MoveNext
+ Loop
  If Me.nurSchreiben <> 0 Then SchreibF1 True ' obQMySQL
  Ausf "Dim Str(1, " & TbZ & ", " & zmax & ") As New CString, ArtZ&(3, " & TbZ & ")"
  Ausf "Dim hDBn$ ' hiesiger Datenbankname"
+ If RouZ > 0 Then Ausf "Dim Rou$(2, " & RouZ - 1 & ") ' Funktionen, Prozeduren, Trigger: Art, Name, CREATE-Befehl"
  Ausf ""
  
  For i = 0 To TbZ
@@ -821,6 +836,32 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
   Next runde
   Ausf "End Sub ' FüllStr" & i
  Next i
+ If RouZ > 0 Then
+  ReDim RouT(RouZ - 1)
+  For k = 0 To RouZ - 1
+   RouT(k) = SchreibRou(k, Rou(0, k), Rou(1, k), Rou(2, k))
+  Next k
+  Ausf ""
+  Ausf "' legt die Funktionen, Prozeduren oder Trigger (Art) aus Rou an, wenn sie fehlen oder abweichen"
+  Ausf "' Aufruf in: doMach_" & REPLACE$(qCat.ActiveConnection.DefaultDatabase, " ", "_")
+  Ausf "Sub RouAnlegen(Art$)"
+  Ausf " Dim k&, rsr As New ADODB.Recordset, ist$"
+  Ausf " For k = 0 To UBound(Rou, 2)"
+  Ausf "  If Rou(0, k) = Art Then"
+  Ausf "   ist = vbNullString"
+  Ausf "   Set rsr = Nothing"
+  Ausf "   On Error Resume Next"
+  Ausf "   rsr.Open ""SHOW CREATE "" & Art & "" `"" & Rou(1, k) & ""`"", cnz, adOpenStatic, adLockReadOnly"
+  Ausf "   If Err.Number = 0 Then ist = rsr.Fields(2) & vbNullString"
+  Ausf "   On Error GoTo 0"
+  Ausf "   If Replace(ist, vbCr, vbNullString) <> Replace(Rou(2, k), vbCr, vbNullString) Then"
+  Ausf "    Call doEx(""DROP "" & Art & "" IF EXISTS `"" & Rou(1, k) & ""`"", True)"
+  Ausf "    Call doEx(Rou(2, k), 0)"
+  Ausf "   End If"
+  Ausf "  End If"
+  Ausf " Next k"
+  Ausf "End Sub ' RouAnlegen"
+ End If ' RouZ > 0 Then
  
  If Me.nurSchreiben <> 0 Then SchreibF2 qCat.ActiveConnection.DefaultDatabase
  
@@ -831,6 +872,11 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
  For i = 0 To TbZ
   Ausf " FüllStr" & i
  Next i
+ For k = 0 To RouZ - 1
+  For t = 0 To RouT(k) - 1
+   Ausf " FüllRou" & k & "_" & t
+  Next t
+ Next k
  
  On Error Resume Next
 '  Call sAusf("BEGIN WORK")
@@ -838,7 +884,10 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
  On Error GoTo fehler
  
  If Me.nurSchreiben = 0 Then
+  Call RouDirekt(cnz, Rou, RouZ, "FUNCTION") ' vor den Views, die sie aufrufen
   Call doGenMachDB_Direkt(TbZ, Str, ArtZ, cnz)
+  Call RouDirekt(cnz, Rou, RouZ, "PROCEDURE")
+  Call RouDirekt(cnz, Rou, RouZ, "TRIGGER")
  Else
  Ausf ""
  Ausf " Dim j&, ZZ&, Tbl$, sql As New CString"
@@ -970,6 +1019,7 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
  Ausf "   Next j"
  Ausf "  END IF ' InStrB(Str(1, i, 0), ""CREATE TABLE"") <> 0 THEN"
  Ausf " Next i"
+ If RouZ > 0 Then Ausf " Call RouAnlegen(""FUNCTION"") ' vor den Views, die sie aufrufen"
  Ausf " Dim runde%"
  Ausf " For runde = 0 to 5"
  Ausf "  For i = 0 To " & TbZ
@@ -994,32 +1044,11 @@ Function doCopyAllMyMy(cnz As ADODB.Connection, qCat As ADOX.Catalog, zCat As AD
  Ausf "    END IF"
  Ausf "   END IF"
  Ausf "  Next i"
- PrZ = qCat.Procedures.COUNT
- Dim fspli$()
- For i = 0 To PrZ - 1
-  Set qrs = Nothing
-  TName = qCat.Procedures(i).name
-  Dim k%
-  On Error Resume Next
-  For k = 0 To 20
-   If k Mod 2 = 0 Then Set qrs = myEFrag("SHOW CREATE FUNCTION `" & TName & "`") Else Set qrs = myEFrag("SHOW CREATE PROCEDURE `" & TName & "`")
-   If Err.Number = 0 Then Exit For
-  Next k
-  Const maxzz% = 20
-  fspli = Split(qrs.Fields(2), Chr$(10))
-  If Err.Number = 0 Then
-   Ausf "  fsql = _"
-   For k = 0 To UBound(fspli)
-    Ausf "  """ & REPLACE$(REPLACE$(fspli(k), Chr$(13), " "), """", """""") & " """ & IIf(k = UBound(fspli) Or k Mod maxzz = 0, "", " & _")
-    If k Mod maxzz = 0 And k < UBound(fspli) Then
-     Ausf "  fsql = fsql & _"
-    End If ' k Mod 12 = 0 And k < UBound(fspli) - 1 Then
-   Next k
-   Ausf "  Call doEx(fsql, True)"
-  End If ' Err.Number = 0 Then
-  On Error GoTo fehler
- Next i
  Ausf " Next runde"
+ If RouZ > 0 Then
+  Ausf " Call RouAnlegen(""PROCEDURE"")"
+  Ausf " Call RouAnlegen(""TRIGGER"")"
+ End If
  End If ' me.nurschreiben
  DoEvents
  Exit Function
@@ -1035,6 +1064,69 @@ fehler:
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
  End Select
 End Function ' doCopyAllMyMy
+
+' schreibt für Funktion, Prozedur oder Trigger Nr. k die Subs FüllRou<k>_0, FüllRou<k>_1 usw., die Rou(0..2, k)
+' füllen; je Sub höchstens maxZeilen Zeilen (64-KB-Grenze je Prozedur), je Zeile ein Stück des CREATE-Befehls
+' (keine Fortsetzungszeilen, da VB6 nur 24 je Anweisung erlaubt); gibt die Zahl der Subs zurück
+' Aufruf in: MachDatenbank.doCopyAllMyMy
+Function SchreibRou&(k&, Art$, RName$, Befehl$)
+ Const maxZeilen& = 300, maxLen& = 800, maxLit& = 850
+ Dim zl$(), z&, teil&, zz&, stk$, n&
+ zl = Split(Befehl, vbLf)
+ Ausf ""
+ Ausf "Sub FüllRou" & k & "_0()"
+ Ausf " Rou(0, " & k & ") = """ & Art & """"
+ Ausf " Rou(1, " & k & ") = """ & RName & """"
+ For z = 0 To UBound(zl)
+  stk = zl(z)
+  Do
+   If zz >= maxZeilen Then
+    Ausf "End Sub ' FüllRou" & k & "_" & teil
+    teil = teil + 1
+    zz = 0
+    Ausf ""
+    Ausf "Sub FüllRou" & k & "_" & teil & "()"
+   End If
+   n = maxLen
+   Do While Len(RouLit(left$(stk, n))) > maxLit ' Ausf teilt Zeilen über 900 Zeichen
+    n = n \ 2
+   Loop
+   Ausf " Rou(2, " & k & ") = Rou(2, " & k & ") & """ & RouLit(left$(stk, n)) & """" & IIf(Len(stk) <= n And z < UBound(zl), " & vbLf", vNS)
+   zz = zz + 1
+   If Len(stk) <= n Then Exit Do
+   stk = Mid$(stk, n + 1)
+  Loop
+ Next z
+ Ausf "End Sub ' FüllRou" & k & "_" & teil
+ SchreibRou = teil + 1
+End Function ' SchreibRou
+
+' macht aus einem Textstück den Inhalt eines VB-Stringliterals: Anführungszeichen verdoppelt, CR und Tab als Konstanten
+' Aufruf in: MachDatenbank.SchreibRou
+Function RouLit$(ByVal t$)
+ t = REPLACE$(t, """", """""")
+ t = REPLACE$(t, vbCr, """ & vbCr & """)
+ RouLit = REPLACE$(t, vbTab, """ & vbTab & """)
+End Function ' RouLit
+
+' legt im Ziel (cnz) die Funktionen, Prozeduren oder Trigger (Art) aus Rou an, wenn sie fehlen oder abweichen
+' Aufruf in: MachDatenbank.doCopyAllMyMy
+Function RouDirekt(cnz As ADODB.Connection, Rou$(), RouZ&, Art$)
+ Dim k&, rsr As ADODB.Recordset, ist$
+ For k = 0 To RouZ - 1
+  If Rou(0, k) = Art Then
+   ist = vNS
+   Set rsr = myEFrag("SHOW CREATE " & Art & " `" & Rou(1, k) & "`", , cnz, True)
+   If Not rsr Is Nothing Then
+    If rsr.State <> 0 Then If Not rsr.EOF Then ist = rsr.Fields(2) & vNS
+   End If
+   If REPLACE$(ist, vbCr, vNS) <> REPLACE$(Rou(2, k), vbCr, vNS) Then
+    myEFrag "DROP " & Art & " IF EXISTS `" & Rou(1, k) & "`", , cnz, True
+    myEFrag Rou(2, k), , cnz
+   End If
+  End If
+ Next k
+End Function ' RouDirekt
 
 ' führt sql auf der Zielverbindung aus und meldet Fehler (obtolerant: Fehler übergehen)
 ' Aufruf in: MachDatenbank.doGenMachDB_Direkt
@@ -1813,12 +1905,10 @@ Function doCopyDaten(td As ADOX.Table, cnz As ADODB.Connection, zTabName$, qCat 
      myFrag rsq, "SELECT * FROM `" & td.name & "`"
      If obQMySQL Then
       myFrag rsprim, "SHOW index FROM `" & td.name & "` WHERE key_name = 'PRIMARY'"
-      If Not rsprim.BOF Then
+      If Not rsprim.BOF Then ' nur einspaltiger Primärschlüssel; rsprim ist nur vorwärts lesbar, daher ohne Move -1
+       PrimFeld = rsprim!COLUMN_NAME
        rsprim.Move 1
-       If rsprim.EOF Then
-        rsprim.Move -1
-        PrimFeld = rsprim!COLUMN_NAME
-       End If
+       If Not rsprim.EOF Then PrimFeld = vNS
       End If
      Else ' obQMySQL
       qCat.ActiveConnection = cnz
