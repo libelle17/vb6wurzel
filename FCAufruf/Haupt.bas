@@ -20,6 +20,14 @@ Sub Main() ' ruft den FreeCommander mit P:\ links und Archiv-Unterverzeichnis ei
  Call Prot("Aufruf mit: " & Command$)
  If Left$(par, 1) = Chr$(34) Then par = Mid$(par, 2)
  If Right$(par, 1) = Chr$(34) Then par = Left$(par, Len(par) - 1)
+ If LCase$(Left$(par, 10)) = "/waechter " Then ' 6.11.26: nur Waechter fuer einen anderswo gestarteten FreeCommander (NVerb), oeffnet nichts
+  Call StarteWaechter(Val(Mid$(par, 11)))
+  Exit Sub
+ End If
+ If LCase$(Left$(par, 4)) = "/zu " Then ' 6.11.26: zweiter Lauf, s. FensterZu.bas
+  Call WaechterLauf(Mid$(par, 5))
+  Exit Sub
+ End If
  If InStr(par, ";") <> 0 Then
   pid = MOPidZuName(par)
   Call Prot("Patientennummer: '" & pid & "'")
@@ -55,7 +63,7 @@ Sub Main() ' ruft den FreeCommander mit P:\ links und Archiv-Unterverzeichnis ei
  Call FcSetPatFilterIncludeMask(nachname)
  ' rechter Pfad ohne abschliessenden Backslash, damit er nicht die schliessenden Anfuehrungszeichen maskiert
  fcCmd = Chr$(34) & FcExePfad & Chr$(34) & " /N /L=" & Chr$(34) & "P:\" & Chr$(34) & " /R=" & Chr$(34) & left$(uvz, Len(uvz) - 1) & Chr$(34)
- Call Shell(fcCmd, vbNormalFocus)
+ Call StarteWaechter(Shell(fcCmd, vbNormalFocus))
  Exit Sub
 fehler:
  fehlertext = Err.Description
