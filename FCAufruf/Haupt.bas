@@ -173,8 +173,10 @@ Function EinePid$(cn As ADODB.Connection, sql$)
  rs.Close
 End Function ' EinePid
 
+' 9.11.26: Auslassungszeichen verdoppelt statt mit Backslash (Namen damit gaben einen Syntaxfehler auf wser,
+' dort zaehlt der Backslash offenbar nicht als Escape); '' gilt in MySQL/MariaDB in jedem sql_mode
 Function SqlText$(s$)
- SqlText = Replace$(Replace$(Trim$(s), "\", "\\"), "'", "\'")
+ SqlText = Replace$(Replace$(Trim$(s), "\", "\\"), "'", "''")
 End Function ' SqlText
 
 Function ZugangWert$(Abschnitt$, Schluessel$)
