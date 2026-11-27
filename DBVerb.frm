@@ -1244,6 +1244,8 @@ Function doVerbind%(Optional Tabelle$, Optional ErrDes$)
     End If
     If InStrB(Me.ODBC, "MySQL") <> 0 Or InStr(Me.ODBC, "MSDASQL") > 0 Then
      CnStr = "DRIVER={" & Me.ODBC & "};server=" & Trim$(left$(Me.Cpt, CptLänge)) & ";"
+     ' 27.11.26: zum Testen des Ausfalls ersetzt die Umgebungsvariable DATEILESE_TEST_QUELLESERVER (z.B. "nichtda") den Server
+     If LenB(Environ$("DATEILESE_TEST_QUELLESERVER")) <> 0 Then CnStr = "DRIVER={" & Me.ODBC & "};server=" & Environ$("DATEILESE_TEST_QUELLESERVER") & ";"
      Call rechneOpt
      CnStr = CnStr & "option=" & opt & ";"
      CoStr = CnStr
@@ -1716,6 +1718,9 @@ Function cnVorb$(DBName$, TBName$, Optional Ü$, Optional obregneu%, Optional Reg
    Do
     ErrNumber = doVerbind(TBName)
     If (TBName = "--multi" And ErrNumber = 1) Or ErrNumber = 0 Then Exit Do
+    ' 27.11.26: bei Kommandozeilenaufrufen (z.B. Dateilese aplz/oeffneplz:) Server nicht erreichbar => ohne Verbindung weiter
+    '   statt den Verbindungsdialog modal stehen zu lassen (Dateilese erstellt dann z.B. den Notfall-Laufzettel aus MO)
+    If ErrNumber = 2 And LenB(Command) <> 0 Then Exit Do
     On Error GoTo fehler
     innen = True
     On Error Resume Next ' Modulares Formular kann in diesem Zusammenhang nicht gezeigt werden

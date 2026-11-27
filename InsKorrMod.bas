@@ -4,6 +4,8 @@ Option Explicit
 Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds&)
 Private Declare Function GetTickCount Lib "kernel32" () As Long
 Public maxlz& ' maximale Laufzahl für DBCnOpen
+Public QuelleTot% ' 27.11.26: keine Verbindung zu quelle (DBCn) möglich, s. DBCnOpen; z.B. für den Notfall-Laufzettel aus MO
+Public QuelleFehlZp As Date ' 27.11.26: Zeitpunkt des letzten gescheiterten Verbindungsversuchs zu quelle
 Public DBCn As New ADODB.Connection
 Public DBCnS$ ' Connection-String von DBCn, da auf Vista dieser unvollständig => immer mitführen
 Public ErrNumber&, ErrDescr$, ErrSource$, ErrLastDllError&
@@ -999,6 +1001,17 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
   Set Cn = DBCn
   bUsingGlobalCn = True
  End If
+ ' 27.11.26: bei QuelleTot (s. DBCnOpen) und geschlossener quelle-Verbindung gleich aufhören statt je Abfrage mehrmals
+ '   neu zu verbinden; DBCnOpen versucht es frühestens 2 Minuten nach dem letzten Fehlschlag erneut
+ If QuelleTot Then
+  If Cn Is DBCn Then
+   If Cn.State = 0 Then
+    Call DBCnOpen
+    If DBCn.State = 0 Then ErrNr = -1: ErrDes = "keine Verbindung zu quelle": Exit Function
+    Set Cn = DBCn
+   End If ' Cn.State = 0 Then
+  End If ' Cn Is DBCn Then
+ End If ' QuelleTot Then
  CS = Cn.Properties("Extended Properties")
  ddb = Cn.DefaultDatabase
 ' If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("show databases") ' USE `" & DefaultDatabase & "`
@@ -1102,6 +1115,8 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
      Cn.CommandTimeout = 10
      If bUsingGlobalCn Then Set DBCn = Cn
     End If ' myru = 1 else
+    ' 27.11.26: Server auch beim zweiten neuen Öffnen nicht erreichbar => QuelleTot, nicht weiter wiederholen
+    If bUsingGlobalCn And myru > 1 And Cn.State = 0 Then QuelleTot = True: QuelleFehlZp = Now: Exit Function
  '   If DefaultDatabase <> "" And Cn.DefaultDatabase <> DefaultDatabase Then Cn.Execute ("USE `" & DefaultDatabase & "`")
   End If ' ErrNr = 0 Then Set myFrag = rs: Exit Function Else
  Loop While myru < maxru
@@ -1215,10 +1230,19 @@ End Function ' myFrag(rs As ADODB.recorset, sql$)
 '   typen.leistungenSpeichern, typen.liuezSpeichern, typen.medplanSpeichern, typen.namenSpeichern, typen.rezepteintraegeSpeichern, typen.rrSpeichern,
 '   typen.swsSpeichern, typen.ulcusSpeichern, typen.unbek_kennSpeichern, typen.usdmSpeichern, typen.vkgdSpeichern, typen.voplSpeichern,
 '   ZielDBFunktionen.DMPString
+' 27.11.26: statt bis zu 300 Versuchen im Sekundenabstand (je Versuch zusätzlich bis zum Verbindungs-Timeout) höchstens etwa 10 s;
+'   danach QuelleTot, und 2 Minuten lang wird nicht erneut versucht; Meldung nur im Bedienbetrieb (ohne Kommandozeile)
 Public Function DBCnOpen(Optional CS$, Optional uid$, Optional pwd$, Optional opt&)
- Dim altCS$, lauf&
+ Dim altCS$, lauf&, tAnf&
  On Error GoTo fehler
- If CS = DBCnS Then If Not DBCn Is Nothing Then If DBCn.State = 1 Then Exit Function ' 23.10.22
+ If CS = DBCnS Then If Not DBCn Is Nothing Then If DBCn.State = 1 Then QuelleTot = 0: Exit Function ' 23.10.22
+ If QuelleTot Then
+  If QuelleFehlZp <> 0 And Now - QuelleFehlZp < 2 / 1440 Then
+   syscmd 4, "keine Verbindung zu quelle (letzter Versuch " & Format(QuelleFehlZp, "hh:mm:ss") & ")"
+   Exit Function
+  End If
+ End If ' QuelleTot Then
+ tAnf = GetTickCount
  If LenB(CS) <> 0 Or LenB(DBCn.ConnectionString) = 0 Then
 neuverbind:
 '  If Not DBCn Is Nothing Then ' ist immer erfüllt
@@ -1246,6 +1270,7 @@ neuverbind:
   DBCn.Open DBCnS
   DBCn.CommandTimeout = 10
 End If ' DBCn.ConnectionString = "" Then
+ QuelleTot = 0: QuelleFehlZp = 0
  Exit Function
 fehler:
  Dim AnwPfad$
@@ -1255,16 +1280,23 @@ fehler:
  AnwPfad = App.path
 #End If
 Const laufgr% = 300
-If lauf < laufgr Then
+If lauf < laufgr And GetTickCount - tAnf < 10000 Then ' 27.11.26: zusätzlich höchstens etwa 10 s
  lauf = lauf + 1
  DoEvents
  Sleep 1000
  If lauf > maxlz Then maxlz = lauf
  Resume
-ElseIf lauf = laufgr Then
+ElseIf lauf < laufgr Then
+ lauf = laufgr ' nur noch einmal über neuverbind
  If Not (LenB(CS) <> 0 Or LenB(DBCn.ConnectionString) = 0) Then
   Resume neuverbind
  End If
+End If
+QuelleTot = True
+QuelleFehlZp = Now
+If LenB(Command) <> 0 Then ' 27.11.26: Kommandozeilenaufruf (z.B. aplz, oeffneplz:, movon) nicht mit dem Meldungsfenster aufhalten
+ syscmd 4, "keine Verbindung zu quelle: " & Err.Description
+ Exit Function
 End If
 Select Case MsgBox("FNr: " & FNr & "ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.Source), vNS, CStr(Err.Source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in DBCnOpen/" + AnwPfad)
  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
