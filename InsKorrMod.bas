@@ -1070,6 +1070,15 @@ Public Function myFrag(ByRef rs As ADODB.Recordset, ByRef sql$, _
    Print #321, Now(), lngTime, " ms", sql
    Close #321
   End If
+  ' 28.11.26: Testschalter DATEILESE_SQLPROTOKOLL=<Datei>: jede Abfrage mit Datenbank und Dauer protokollieren (z.B. um zu
+  '   ermitteln, welche Tabellen, Views und Routinen ein Laufzettel braucht)
+  If LenB(Environ$("DATEILESE_SQLPROTOKOLL")) <> 0 Then
+   Dim spNr%
+   spNr = FreeFile
+   Open Environ$("DATEILESE_SQLPROTOKOLL") For Append As #spNr
+   Print #spNr, Format$(Now, "hh:nn:ss") & vbTab & ddb & vbTab & lngTime & vbTab & ErrNr & vbTab & Replace(Replace(sql, vbCr, " "), vbLf, " ")
+   Close #spNr
+  End If
   If ErrNr <> 0 Then
    bConnLost = (Cn.State = 0) _
     Or (InStr(1, ErrDes, "gone away", vbTextCompare) <> 0) _
